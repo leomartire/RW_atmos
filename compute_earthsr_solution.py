@@ -223,7 +223,7 @@ class RW_forcing():
                 df = abs(RW_neg['f'].iloc[1] - RW_neg['f'].iloc[0])
                 
                 dt = 1./(2.*RW['f'].max())
-                t  = np.arange(0, dt*(nb_fft-1), dt)    
+                t  = np.arange(0, dt*nb_fft, dt)    
                 
                 #plt.figure()
                 #nb_fft = len(ifft_RW)
@@ -318,6 +318,7 @@ class field_RW():
                 self.x    = x
                 self.t    = t
                 
+                
         def compute_field_for_xz(self, t, z):
                 
                 Mz = np.zeros((len(z), len(self.x)), dtype=complex)
@@ -378,9 +379,9 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         mode_max = -1
         if(not domain):
                 xbounds    = [-110000., 110000.]
-                dx, dy, dz = 600., 600., 600.
+                dx, dy, dz = 600., 600., 200.
                 z         = np.arange(0, 35000., dz)
-                t_station = 120.
+                t_station = 40.
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
                 dx, dy  = domain['dx'], domain['dy']
@@ -408,6 +409,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         
         axs[0].plot(field.t, Mz_t)
         axs[0].grid(True)
+        axs[0].set_xlim([field.t[0], field.t[-1]])
         axs[0].set_xlabel('Time (s)')
         axs[0].set_ylabel('Velocity (m/s)')
         
@@ -415,11 +417,14 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         axs[1].scatter(ix/1000., iz/1000., color='red', zorder=2)
         axs[1].set_xlabel('Distance from source (km)')
         axs[1].set_ylabel('Altitude (km)')
+        axs[1].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[1].transAxes)
         
         axins = inset_axes(axs[1], width="2.5%", height="80%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[1].transAxes, borderpad=0)
         axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
         
         plt.colorbar(plotMz, cax=axins)
+        
+        fig.subplots_adjust(hspace=0.28, right=0.8, left=0.2, top=0.98, bottom=0.15)
         
         if(not options['GOOGLE_COLAB']):
                 plt.show()
