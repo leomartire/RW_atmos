@@ -216,10 +216,10 @@ class RW_forcing():
                 RW_tot      = pd.concat([RW,RW_neg], ignore_index=True)
 
                 ## Invert back to time domain                
-                ifft_RW = fftpack.ifft(RW_tot['uz'])
+                ifft_RW = fftpack.ifft(RW_tot['uz'].values)
                 nb_fft  = len(ifft_RW)//2
                 ifft_RW = ifft_RW[:nb_fft]
-                df = abs(RW_neg['f'].iloc[1] - RW_neg['f'][0])
+                df = abs(RW_neg['f'].iloc[1] - RW_neg['f'].iloc[0])
                 t       = (1./(df))*np.arange(0, nb_fft)     
                 
                 #plt.figure()
@@ -340,7 +340,7 @@ class field_RW():
                 
                 return Mz
 
-def compute_analytical_acoustic(Green_RW, mechanism, options):
+def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
 
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -368,23 +368,36 @@ def compute_analytical_acoustic(Green_RW, mechanism, options):
         
 
         ## Class to generate field for given x/z t/z combinaison
-        H     = 7000.
-        Nsq   = 1e-4
-        winds = [40., 0.]
-        mode_max = -1
-        nb_freq  = options['nb_freq']
-        xbounds  = [-110000., 110000.]
-        dx, dy   = 600., 600.
+        if(not domain):
+                H     = 7000.
+                Nsq   = 1e-4
+                winds = [40., 0.]
+                mode_max = -1
+                nb_freq  = options['nb_freq']
+                xbounds  = [-110000., 110000.]
+                dx, dy   = 600., 600.
+                z         = np.linspace(0, 35000., 600)
+                t_station = 120.
+        else:
+                xbounds = [domain['xmin'], domain['xmax']]
+                dx, dy  = domain['dx'], domain['dy']
+                z         = np.arange(domain['zmin'], domain['zmax'], domain['dz'])
+                t_station = domain['t_chosen']
+        
         field = field_RW(Green_RW, nb_freq, dx, dy, xbounds, H, Nsq, winds, mode_max)
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-        z         = np.linspace(0, 35000., 600)
-        t_station = 120.
         Mz    = field.compute_field_for_xz(t_station, z)
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-        iz = 25000.
-        ix = 100000.
+        if(not station):
+                iz = 25000.
+                ix = 100000.
+        else:
+                iz = station['zs']
+                ix = station['xs']
+                
+        ## COmpute time series at a given location
         Mz_t = field.compute_field_timeseries(ix, iz)
         
         ## Display
@@ -476,8 +489,6 @@ def get_eigenfunctions(current_struct, mechanism, options):
                 mechanism['phi']   = 0.
                 mechanism['cpa']   = 0.340
         
-        #r    = 25.000 # m
-        
         ## Construct RW spectrum object 
         Green_RW = RW_forcing(mechanism, options)
 
@@ -521,12 +532,6 @@ def get_eigenfunctions(current_struct, mechanism, options):
                 
                 print('Finish reading period ' + str(period))
                 
-        #r = 25.
-        #t, RW_t = Green_RW.compute_ifft(r, type = 'RW', unknown = 'v')
-        #plt.figure()
-        #plt.plot(t, RW_t)
-        #plt.show()
-        
         return Green_RW
                 
 def compute_dispersion_with_earthsr(no, side, options):
@@ -897,5 +902,5 @@ if __name__ == '__main__':
 
         Green_RW, options_out = compute_trans_coefficients()
         
-        mechanism = {}
-        compute_analytical_acoustic(Green_RW, mechanism, options_out)
+        mechanism, station, domain = {}, {}, {}
+        compute_analytical_acoustic(Green_RW, mechanism, station, domain, options_out)
