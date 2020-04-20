@@ -384,25 +384,25 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 xbounds    = [-110000., 110000.]
                 dx, dy, dz = 600., 600., 200.
                 z         = np.arange(0, 35000., dz)
-                t_station = 80.
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
                 dx, dy  = domain['dx'], domain['dy']
                 z         = np.arange(domain['zmin'], domain['zmax'], domain['dz'])
-                t_station = domain['t_chosen']
         
         field = field_RW(Green_RW, nb_freq, dx, dy, xbounds, H, Nsq, winds, mode_max)
-        
-        ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-        Mz    = field.compute_field_for_xz(t_station, z)
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(not station):
                 iz = 25000.
                 ix = 100000.
+                t_station = 80.
         else:
                 iz = station['zs']
                 ix = station['xs']
+                t_station = station['t_chosen']
+                
+        ## Compute solutions for a given range of altitudes (m) at a given instant (s)
+        Mz    = field.compute_field_for_xz(t_station, z)
                 
         ## COmpute time series at a given location
         Mz_t = field.compute_field_timeseries(ix, iz)
@@ -858,7 +858,7 @@ def compute_trans_coefficients(options_in = {}):
         
         f_tab = np.linspace(options['coef_low_freq'], options['coef_high_freq'], options['nb_freq'])
         options['f_tab']   = f_tab
-        options['nb_freq'] = len(f_tab)
+        #options['nb_freq'] = len(f_tab)
         options['df']      = abs( f_tab[1] - f_tab[0] )
         options['freq_range'] = [f_tab[0], f_tab[-1]]
         
@@ -914,4 +914,5 @@ if __name__ == '__main__':
         Green_RW, options_out = compute_trans_coefficients()
         
         mechanism, station, domain = {}, {}, {}
+        
         compute_analytical_acoustic(Green_RW, mechanism, station, domain, options_out)
