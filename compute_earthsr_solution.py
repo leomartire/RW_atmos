@@ -888,7 +888,8 @@ def compute_trans_coefficients(options_in = {}):
                 create_velocity_figures(current_struct, options)
                 
                 ## Class containing routine to construct RW/acoustic spectrum at a given location
-                Green_RW = get_eigenfunctions(current_struct, options)
+                mechanism = {}
+                Green_RW = get_eigenfunctions(current_struct, mechanism, options)
                 
         return Green_RW, options
 
