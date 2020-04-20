@@ -371,8 +371,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 mechanism['M'][5]  = 0. # Myz
                 mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
                 mechanism['phi']   = 0.
-                Green_RW.update_mechanism(mechanism)
         
+        Green_RW.update_mechanism(mechanism)
 
         ## Class to generate field for given x/z t/z combinaison
         nb_freq  = options['nb_freq']
