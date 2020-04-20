@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pdb import set_trace as bp
 import matplotlib
-matplotlib.use('tkAgg')
+#matplotlib.use('tkAgg')
 import matplotlib.patches as patches
 import pickle
 import json
