@@ -209,15 +209,20 @@ class RW_forcing():
         
                 from scipy import fftpack
         
+                rin = r
+        
                 RW  = self.response_RW_all_modes(r, type, unknown, mode_max)
                 RW_neg = RW.copy()
-                RW_neg['f'] = -RW_neg['f']
+                RW_neg['f']  = -RW_neg['f']
+                RW_neg['uz'] = -np.real(RW_neg['uz']) + np.imag(RW_neg['uz'])
                 RW_neg      = RW_neg.sort_values(by=['f'])
                 RW_tot      = pd.concat([RW,RW_neg], ignore_index=True)
 
                 ## Invert back to time domain                
                 ifft_RW = fftpack.ifft(RW_tot['uz'].values)
                 nb_fft  = len(ifft_RW)//2
+                
+                ifftsave = ifft_RW.copy()
                 ifft_RW = ifft_RW[:nb_fft]
                 
                 df = abs(RW_neg['f'].iloc[1] - RW_neg['f'].iloc[0])
@@ -225,10 +230,8 @@ class RW_forcing():
                 dt = 1./(2.*RW['f'].max())
                 t  = np.arange(0, dt*nb_fft, dt)    
                 
-                #plt.figure()
-                #nb_fft = len(ifft_RW)
-                #plt.plot(np.real(ifft_RW)[:nb_fft//2])
-                #plt.show()
+                #plt.figure(); plt.plot(t, ifft_RW); plt.show()
+                #plt.figure(); plt.plot(t, ifftsave[:nb_fft]); plt.show()
                 #bp()
                 
                 return t, ifft_RW
@@ -352,7 +355,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         if(not mechanism):
                 mechanism = {}
                 mechanism['zsource'] = 6800 # m
-                mechanism['f0'] = 0.4
+                mechanism['f0'] = 0.2
                 mechanism['M0'] = 1e0
                 mechanism['M']  = np.zeros((6,))
                 #mechanism['M'][0]  = -1826313793918.2844 # Mxx 2.5
@@ -375,13 +378,13 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         nb_freq  = options['nb_freq']
         H     = 7000.
         Nsq   = 1e-4
-        winds = [40., 0.]
+        winds = [0., 0.]
         mode_max = -1
         if(not domain):
                 xbounds    = [-110000., 110000.]
                 dx, dy, dz = 600., 600., 200.
                 z         = np.arange(0, 35000., dz)
-                t_station = 40.
+                t_station = 80.
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
                 dx, dy  = domain['dx'], domain['dy']
@@ -847,7 +850,7 @@ def compute_trans_coefficients(options_in = {}):
         options['source_depth']   = 6.8 # (km)
         options['receiver_depth'] = 0 # (km)
         options['coef_low_freq']  = 0.001
-        options['coef_high_freq'] = 0.9 # 1.85
+        options['coef_high_freq'] = 0.6 # 1.85
         options['Loop']           = 0 # This this point the program loops over another set of input lines starting with the surface wave type (1st line after model).  If this is set to zero, the program will terminate.
         
         ## Update each option based on user input
