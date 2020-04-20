@@ -12,8 +12,8 @@ import sys
 from scipy import fftpack
 
 from matplotlib import rc
-rc('font', family='DejaVu Sans', serif='cm10')
-rc('text', usetex=True)
+#rc('font', family='DejaVu Sans', serif='cm10')
+#rc('text', usetex=True)
 font = {'size': 17}
 matplotlib.rc('font', **font)
 from scipy import interpolate
