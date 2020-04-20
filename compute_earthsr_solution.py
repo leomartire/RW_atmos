@@ -405,14 +405,13 @@ def compute_analytical_acoustic(Green_RW, mechanism, options):
         
         plt.colorbar(plotMz, cax=axins)
         
-        plt.show()
+        if(not options['GOOGLE_COLAB']):
+                plt.show()
         
         #KZ(indimag) = conj(KZ(indimag));
         #KZnew = 0.0 - real(KZ).*sign(Omega_intrinsic) + 1i*imag(KZ);
         #KZ=KZnew;
         
-        bp()
-
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
 
@@ -679,10 +678,7 @@ def discretize_model_heterogeneous(data, options):
                         
                         data_interp[imodel][iunknown] = []
 
-                        try:
-                                temp   = data[imodel][iunknown][:]
-                        except:
-                                bp()
+                        temp   = data[imodel][iunknown][:]
                         locnan = np.isnan(temp).nonzero()[0]
                         
                         ## Remove nan values
@@ -787,7 +783,9 @@ def create_velocity_figures(current_struct, options):
                 axs[imode].set_xscale('log')
         
         axs[0].legend()
-        plt.savefig(options['global_folder'] + 'cphi.png')
+        
+        if(not options['GOOGLE_COLAB']):
+                plt.savefig(options['global_folder'] + 'cphi.png')
 
 ########################################
 ########################################
@@ -800,8 +798,7 @@ def create_velocity_figures(current_struct, options):
 def compute_trans_coefficients(options_in = {}):        
         
         options = {} 
-        options['basin'] = {}
-        options['rock']  = {}       
+        options['GOOGLE_COLAB'] = False      
         
         ##########
         ## Options
@@ -849,6 +846,7 @@ def compute_trans_coefficients(options_in = {}):
         options['df']      = abs( f_tab[1] - f_tab[0] )
         options['freq_range'] = [f_tab[0], f_tab[-1]]
         
+        Green_RW = []
         if(options['PLOT'] < 2):
         
                 ###########################################
@@ -892,13 +890,11 @@ def compute_trans_coefficients(options_in = {}):
                 ## Class containing routine to construct RW/acoustic spectrum at a given location
                 Green_RW = get_eigenfunctions(current_struct, options)
                 
-                mechanism = {}
-                compute_analytical_acoustic(Green_RW, mechanism, options)
-                
-                bp()
-                
-        return options['PLOT_folder']
+        return Green_RW, options
 
 if __name__ == '__main__':        
 
-        folder = compute_trans_coefficients()
+        Green_RW, options_out = compute_trans_coefficients()
+        
+        mechanism = {}
+        compute_analytical_acoustic(Green_RW, mechanism, options_out)
