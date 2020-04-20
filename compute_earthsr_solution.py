@@ -368,12 +368,12 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         
 
         ## Class to generate field for given x/z t/z combinaison
+        nb_freq  = options['nb_freq']
+        H     = 7000.
+        Nsq   = 1e-4
+        winds = [40., 0.]
+        mode_max = -1
         if(not domain):
-                H     = 7000.
-                Nsq   = 1e-4
-                winds = [40., 0.]
-                mode_max = -1
-                nb_freq  = options['nb_freq']
                 xbounds  = [-110000., 110000.]
                 dx, dy   = 600., 600.
                 z         = np.linspace(0, 35000., 600)
