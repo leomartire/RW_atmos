@@ -219,8 +219,11 @@ class RW_forcing():
                 ifft_RW = fftpack.ifft(RW_tot['uz'].values)
                 nb_fft  = len(ifft_RW)//2
                 ifft_RW = ifft_RW[:nb_fft]
+                
                 df = abs(RW_neg['f'].iloc[1] - RW_neg['f'].iloc[0])
-                t       = (1./(df))*np.arange(0, nb_fft)     
+                
+                dt = 1./(2.*RW['f'].max())
+                t  = np.arange(0, dt*(nb_fft-1), dt)    
                 
                 #plt.figure()
                 #nb_fft = len(ifft_RW)
@@ -248,7 +251,7 @@ class field_RW():
                 xmin, xmax = xbounds[0], xbounds[1]
                 #ymin, ymax = 100., 50000.
                 
-                NFFT2 = nb_freq
+                NFFT2 = len(t)
                 #NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
                 
@@ -374,9 +377,9 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         winds = [40., 0.]
         mode_max = -1
         if(not domain):
-                xbounds  = [-110000., 110000.]
-                dx, dy   = 600., 600.
-                z         = np.linspace(0, 35000., 600)
+                xbounds    = [-110000., 110000.]
+                dx, dy, dz = 600., 600., 600.
+                z         = np.arange(0, 35000., dz)
                 t_station = 120.
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
