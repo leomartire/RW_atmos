@@ -109,6 +109,8 @@ class RW_forcing():
 
         def update_mechanism(self, mechanism):
         
+                print('done updated with: ', mechanism)
+        
                 self.zsource = mechanism['zsource'] # m
                 self.f0    = mechanism['f0']
                 self.alpha = (np.pi*self.f0)**2
@@ -372,6 +374,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
                 mechanism['phi']   = 0.
         
+        print('Update mechanism with: ', mechanism)
         Green_RW.update_mechanism(mechanism)
 
         ## Class to generate field for given x/z t/z combinaison
@@ -824,7 +827,7 @@ def compute_trans_coefficients(options_in = {}):
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
         options['nb_layers']     = 500#2800
-        options['nb_freq']       = 128 # Number of frequencies
+        options['nb_freq']       = 256 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
@@ -914,5 +917,20 @@ if __name__ == '__main__':
         Green_RW, options_out = compute_trans_coefficients()
         
         mechanism, station, domain = {}, {}, {}
+        
+        mechanism = {}
+        mechanism['zsource'] = 6800 # m
+        mechanism['f0'] = 0.1
+        mechanism['M0'] = 1e0
+        mechanism['M']  = np.zeros((6,))
+        mechanism['M'][0]  = -1826313793918.2844 # Mxx
+        mechanism['M'][1]  = 0. # Myy
+        mechanism['M'][2]  = 453334337148. # Mzz
+        mechanism['M'][3]  = 0. # Mxy
+        mechanism['M'][4]  = -11211777000. # Mxz
+        mechanism['M'][5]  = 0. # Myz
+        mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
+        mechanism['phi']   = 0.
+        mechanism['cpa']   = 0.340
         
         compute_analytical_acoustic(Green_RW, mechanism, station, domain, options_out)
