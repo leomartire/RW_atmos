@@ -58,32 +58,39 @@ class vertical_velocity():
                 self.kn   = kn
                 self.angle_RW = angle_RW
 
-        def compute_veloc(self, r, phi, M, unknown = 'd'):
+        def compute_veloc(self, r, phi, M, depth, unknown = 'd'):
         
                 comp_deriv = np.pi*2.*1j/self.period if unknown == 'v' else 1.
-                return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M)
+                return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
 
-        def compute_acoustic_spectrum(self, r, phi, M, cpa, unknown = 'd'):
+        def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd'):
         
-                perioda = (1./self.compute_veloc(r, phi, M, unknown))*np.sin(self.angle_RW)*self.cphi/cpa
+                perioda = (1./self.compute_veloc(r, phi, M, depth, unknown))*np.sin(self.angle_RW)*self.cphi/cpa
                 return 1./perioda
 
 class directivity():
 
-        def __init__(self, dr1dz_source, dr2dz_source, kn, r1_source, r2_source):
+        def __init__(self, dep, dr1dz_source, dr2dz_source, kn, r1_source, r2_source):
         
+                self.dep = dep
                 self.dr1dz_source = dr1dz_source
                 self.dr2dz_source = dr2dz_source
                 self.kn = kn
                 self.r1_source = r1_source
                 self.r2_source = r2_source
         
-        def compute_directivity(self, phi, M):
+        def compute_directivity(self, phi, M, depth):
+        
+                idz = np.argmin( abs(self.dep - depth/1000.) )
+                dr1dz_source = self.dr1dz_source[idz]
+                dr2dz_source = self.dr2dz_source[idz]
+                r1_source = self.r1_source[idz]
+                r2_source = self.r2_source[idz]
                 
-                return self.kn*self.r1_source*( M[0]*np.cos(phi)**2 + (2.*M[3])*np.sin(phi)*np.cos(phi) + M[1]*np.sin(phi)**2 ) \
-                                + 1j*self.dr1dz_source*(M[4]*np.cos(phi) + M[5]*np.sin(phi)) \
-                                - 1j*self.kn*self.r2_source*(M[4]*np.cos(phi) + M[5]*np.sin(phi)) \
-                                + self.dr2dz_source*M[2]
+                return self.kn*r1_source*( M[0]*np.cos(phi)**2 + (2.*M[3])*np.sin(phi)*np.cos(phi) + M[1]*np.sin(phi)**2 ) \
+                                + 1j*dr1dz_source*(M[4]*np.cos(phi) + M[5]*np.sin(phi)) \
+                                - 1j*self.kn*r2_source*(M[4]*np.cos(phi) + M[5]*np.sin(phi)) \
+                                + dr2dz_source*M[2]
 
 class RW_forcing():
 
@@ -108,8 +115,6 @@ class RW_forcing():
                 self.update_cpa(0.34)
 
         def update_mechanism(self, mechanism):
-        
-                print('done updated with: ', mechanism)
         
                 self.zsource = mechanism['zsource'] # m
                 self.f0    = mechanism['f0']
@@ -155,22 +160,26 @@ class RW_forcing():
                         
                         I1   = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
                         
-                        r2_source = r2[idz_source]
-                        r1_source = r1[idz_source]
+                        #r2_source = r2[idz_source]
+                        #r1_source = r1[idz_source]
+                        kn = kn[0]
+                        self.directivity[imode][iperiod] = directivity(dep, d_r1_dz, d_r2_dz, kn, r1, r2)
+                        
                         r2 = r2[0]
                         r1 = r1[0]
-                        kn = kn[0]
-                        dr2dz_source = d_r2_dz[idz_source]
-                        dr1dz_source = d_r1_dz[idz_source]
                         
-                        self.directivity[imode][iperiod] = directivity(dr1dz_source, dr2dz_source, kn, r1_source, r2_source)
-                       
+                        #dr2dz_source = d_r2_dz[idz_source]
+                        #dr1dz_source = d_r1_dz[idz_source]
+                        
                         self.angle_RW[iperiod, imode]  = np.arctan(self.cpa/cphi)
                         self.uz[imode][iperiod]        = vertical_velocity(period, r2, cphi, cg, I1, kn, self.directivity[imode][iperiod], self.angle_RW[iperiod, imode])
                         
                 #self.uz_tab[iperiod] = np.sum(uz[iperiod])
 
         def compute_RW_one_mode(self, imode, r, type = 'RW', unknown = 'd'):
+        
+                ## Source depth
+                depth = self.zsource
         
                 uz_tab = []
                 f_tab  = []
@@ -182,9 +191,9 @@ class RW_forcing():
                              f  = 1./iuz.period  
                              f_tab.append( f )
                              if(type == 'acoustic'):
-                                uz = iuz.compute_acoustic_spectrum(r, self.phi, M, self.cpa, unknown)
+                                uz = iuz.compute_acoustic_spectrum(r, self.phi, M, depth, self.cpa, unknown)
                              else:
-                                uz = iuz.compute_veloc(r, self.phi, M, unknown)
+                                uz = iuz.compute_veloc(r, self.phi, M, depth, unknown)
                              uz_tab.append( uz )
                      
                 response = pd.DataFrame()
@@ -211,7 +220,7 @@ class RW_forcing():
         
                 from scipy import fftpack
         
-                rin = r
+                rin   = r
         
                 RW  = self.response_RW_all_modes(r, type, unknown, mode_max)
                 RW_neg = RW.copy()
@@ -282,10 +291,25 @@ class field_RW():
                 #####################
                 ## Compute RW forcing
                 Mo  = np.zeros(X.shape, dtype=complex)
+                
+                # setup toolbar
+                cptbar        = 0
+                toolbar_width = 40
+                total_length  = len(x)
+                sys.stdout.write("Building wavenumbers: [%s]" % (" " * toolbar_width))
+                sys.stdout.flush()
+                sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 for idx, ix in enumerate(x):
-                        #Mo[0,0,:] = Green_RW.response_RW_all_modes(ix, type='RW')['uz'].values
                         t, RW_t   = Green_RW.compute_ifft(abs(ix)/1000., type='RW', unknown='v', mode_max = mode_max)
-                        Mo[:,idx] = RW_t.copy() 
+                        Mo[:,idx] = RW_t.copy()
+                        
+                        # update the bar
+                        if(int(toolbar_width*idx/total_length) > cptbar):
+                                cptbar = int(toolbar_width*idx/total_length)
+                                sys.stdout.write("-")
+                                sys.stdout.flush()
+                
+                sys.stdout.write("] Done\n")
                 
                 TFMo = fftpack.fftn(Mo)
                 
@@ -328,6 +352,14 @@ class field_RW():
                 
                 Mz = np.zeros((len(z), len(self.x)), dtype=complex)
                 it = np.argmin( abs(self.t - t) )
+                
+                # setup toolbar
+                cptbar        = 0
+                toolbar_width = 40
+                total_length  = len(z)
+                sys.stdout.write("Building wavefield: [%s]" % (" " * toolbar_width))
+                sys.stdout.flush()
+                sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 for idz, iz in enumerate(z):
                         filt      = np.exp(1j*(self.KZ*iz))
                         
@@ -337,6 +369,13 @@ class field_RW():
                         #else:
                         Mz[idz, :] = np.exp(iz/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[it,:]
 
+                        # update the bar
+                        if(int(toolbar_width*idz/total_length) > cptbar):
+                                cptbar = int(toolbar_width*idz/total_length)
+                                sys.stdout.write("-")
+                                sys.stdout.flush()
+                
+                sys.stdout.write("] Done\n")
                 
                 return Mz
                 #ix = round((x_station-xmin)/dx_anal) + 1 
@@ -374,7 +413,6 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
                 mechanism['phi']   = 0.
         
-        print('Update mechanism with: ', mechanism)
         Green_RW.update_mechanism(mechanism)
 
         ## Class to generate field for given x/z t/z combinaison
@@ -405,7 +443,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 t_station = station['t_chosen']
                 
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-        Mz    = field.compute_field_for_xz(t_station, z)
+        Mz   = field.compute_field_for_xz(t_station, z)
                 
         ## COmpute time series at a given location
         Mz_t = field.compute_field_timeseries(ix, iz)
@@ -413,7 +451,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         ## Display
         fig, axs = plt.subplots(nrows=2, ncols=1)
         
-        axs[0].plot(field.t, Mz_t)
+        axs[0].plot(field.t, np.real(Mz_t))
         axs[0].grid(True)
         axs[0].set_xlim([field.t[0], field.t[-1]])
         axs[0].set_xlabel('Time (s)')
@@ -434,10 +472,13 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         
         if(not options['GOOGLE_COLAB']):
                 plt.show()
-        
-        #KZ(indimag) = conj(KZ(indimag));
-        #KZnew = 0.0 - real(KZ).*sign(Omega_intrinsic) + 1i*imag(KZ);
-        #KZ=KZnew;
+
+        ## Save waveform        
+        df = pd.DataFrame()
+        df['t']  = field.t
+        df['vz'] = np.real(Mz_t)
+        df.to_csv(options['global_folder'] + 'waveform.csv', index=False)
+        print('save waveform to: '+options['global_folder'] + 'waveform.csv')
         
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
@@ -509,6 +550,14 @@ def get_eigenfunctions(current_struct, mechanism, options):
         #options['f_tab'] = options['f_tab']
         periods = 1./np.linspace(options['f_tab'][-1], options['f_tab'][0], len(options['f_tab']))
         
+        # setup toolbar
+        cptbar        = 0
+        toolbar_width = 40
+        total_length  = len(periods)
+        sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+        sys.stdout.flush()
+        sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+        
         uz_tab = []
         freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
         freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
@@ -544,7 +593,15 @@ def get_eigenfunctions(current_struct, mechanism, options):
                 ## Construct Green's function for a given period 
                 Green_RW.add_one_period(period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
                 
-                print('Finish reading period ' + str(period))
+                #print('Finish reading period ' + str(period))
+                # update the bar
+                if(int(toolbar_width*iperiod/total_length) > cptbar):
+                        cptbar = int(toolbar_width*iperiod/total_length)
+                        sys.stdout.write("-")
+                        #print(cptbar, iperiod)
+                        sys.stdout.flush()
+                
+        sys.stdout.write("] Done\n")
                 
         return Green_RW
                 
@@ -827,7 +884,7 @@ def compute_trans_coefficients(options_in = {}):
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
         options['nb_layers']     = 500#2800
-        options['nb_freq']       = 256 # Number of frequencies
+        options['nb_freq']       = 128 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
@@ -919,7 +976,7 @@ if __name__ == '__main__':
         mechanism, station, domain = {}, {}, {}
         
         mechanism = {}
-        mechanism['zsource'] = 6800 # m
+        mechanism['zsource'] = 35800 # m
         mechanism['f0'] = 0.1
         mechanism['M0'] = 1e0
         mechanism['M']  = np.zeros((6,))
