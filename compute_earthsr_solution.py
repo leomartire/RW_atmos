@@ -11,7 +11,6 @@ import json
 import sys 
 from scipy import fftpack
 import scipy.integrate as spi
-import sparse
 
 from matplotlib import rc
 #rc('font', family='DejaVu Sans', serif='cm10')
@@ -537,20 +536,6 @@ class field_RW():
                 sys.stdout.flush()
                 sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 
-                #zvect = sparse.COO(np.array([zvect]))
-                #KZ = np.zeros( (self.KZ.shape[0], self.KZ.shape[1], self.KZ.shape[2], 1), dtype=complex )
-                #KZ[:,:,:,0] = self.KZ
-                #KZ = sparse.COO(KZ)
-                
-                #TFMo = np.zeros( (self.KZ.shape[0], self.KZ.shape[1], self.KZ.shape[2], 1), dtype=complex )
-                #TFMo[:,:,:,0] = self.TFMo
-                #TFMo = sparse.COO(TFMo)
-                
-                #block = 5
-                #i0    = 0
-                #np.exp(iz/(2*self.H)) * fftpack.ifftn( TFMo.multiply(np.exp(1j*KZ.dot(zvect[:,i0:i0+5]))), axes = (0,1,2))   
-                #bp()
-                
                 for idz, iz in enumerate(zvect):
                 
                         field_at_it = np.exp(iz/(2*self.H)) * fftpack.ifftn( np.exp(1j*(self.KZ*iz)) * self.TFMo)        
@@ -706,10 +691,10 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
                 #axs[iax, iax_col].set_xlabel('Distance from source - South (km)')
                 axs[iax, iax_col].set_ylabel('Altitude (km)')
-                axs[iax, iax_col].text(0.5, 0., 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+                axs[iax, iax_col].text(0.5, 0.1, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
                 axs[iax, iax_col].yaxis.set_label_position("right")
                 
-                axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
+                axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.2, 0., 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
                 axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
                 
                 plt.colorbar(plotMyz, cax=axins)
