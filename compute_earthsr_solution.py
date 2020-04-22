@@ -246,7 +246,7 @@ class RW_forcing():
                 mode_max = len(self.uz) if mode_max == -1 else mode_max
                 for imode in range(0, mode_max):
                 
-                        print('Computing mode', imode)
+                        #print('Computing mode', imode)
                 
                         response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown)
                         if(imode == 0):
@@ -266,11 +266,11 @@ class RW_forcing():
 
         def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1):
         
-                print('Computing positive frequencies')
+                #print('Computing positive frequencies')
                 RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max)
                 RW     = RW.sort_values(by=['f'], ascending=True)
                 
-                print('Add zero frequency')
+               #print('Add zero frequency')
                 
                 RW_first = RW.iloc[0:1].copy()
                 temp     = pd.DataFrame(RW_first.values*0.)
@@ -293,7 +293,7 @@ class RW_forcing():
                 #        bp()  
                 #        return sign0*np.sign(ff)*1j*imag + sign1*np.real(x)
                 
-                print('Computing negative frequencies')
+                #print('Computing negative frequencies')
                 
                 ## Dataframe indexes
                 #phi_idx = np.arange(0, phi.size)
@@ -310,7 +310,7 @@ class RW_forcing():
                 #RW_neg.loc[0, RW_neg.columns != 'f'] = 
                 RW_neg = temp.append(RW_neg.drop([0]))
                 
-                print('Make sure that pos and neg are conjugate of each other')
+                #print('Make sure that pos and neg are conjugate of each other')
                 
                 temp      = pd.DataFrame(np.real(RW_neg.loc[:, RW_neg.columns != 'f']) + 1j*np.imag(RW_neg.loc[:, RW_neg.columns != 'f']))
                 temp['f'] = RW_neg['f']
@@ -321,7 +321,7 @@ class RW_forcing():
                 temp['f'] = RW['f'].values
                 RW        = temp.copy()
                 
-                print('Concatenate all')
+                #print('Concatenate all')
                 RW_tot = pd.concat([RW_neg,RW], ignore_index=True)
                 
                 #RW_tot.loc[:, RW_tot.columns != 'f'] = RW_tot.loc[:, RW_tot.columns != 'f'].apply( change_imag_real, args=(RW_tot['f'].values,1, -1) )
@@ -429,7 +429,7 @@ class field_RW():
                 #if(dimension < 3):
                 #        y   = np.array([Green_RW.phi, Green_RW.phi+np.pi]) 
                 
-                print('meshing and building ifft')
+                #print('meshing and building ifft')
                 
                 if(dimension > 2):
                         X, Y   = np.meshgrid(y, x)
@@ -706,9 +706,10 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
                 #axs[iax, iax_col].set_xlabel('Distance from source - South (km)')
                 axs[iax, iax_col].set_ylabel('Altitude (km)')
-                axs[iax, iax_col].text(0.5, 1., 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+                axs[iax, iax_col].text(0.5, 0., 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+                axs[iax, iax_col].yaxis.set_label_position("right")
                 
-                axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
+                axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
                 axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
                 
                 plt.colorbar(plotMyz, cax=axins)
