@@ -10,11 +10,13 @@ import pickle
 import json
 import sys 
 from scipy import fftpack
+import scipy.integrate as spi
+import sparse
 
 from matplotlib import rc
 #rc('font', family='DejaVu Sans', serif='cm10')
 #rc('text', usetex=True)
-font = {'size': 17}
+font = {'size': 14}
 matplotlib.rc('font', **font)
 from scipy import interpolate
 
@@ -61,6 +63,7 @@ class vertical_velocity():
         def compute_veloc(self, r, phi, M, depth, unknown = 'd'):
         
                 comp_deriv = np.pi*2.*1j/self.period if unknown == 'v' else 1.
+                comp_deriv = (np.pi*2.*1j/self.period)*comp_deriv if unknown == 'a' else comp_deriv
                 return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
 
         def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd'):
@@ -133,8 +136,6 @@ class RW_forcing():
         
         def add_one_period(self, period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep):
         
-                import scipy.integrate as spi
-        
                 #M = self.source_spectrum(period)
                 
                 ## Test
@@ -176,13 +177,14 @@ class RW_forcing():
                         
                 #self.uz_tab[iperiod] = np.sum(uz[iperiod])
 
-        def compute_RW_one_mode(self, imode, r, type = 'RW', unknown = 'd'):
+        def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd'):
         
                 ## Source depth
                 depth = self.zsource
         
                 uz_tab = []
                 f_tab  = []
+                #print('Compute mode: ', imode)
                 for iuz in self.uz[imode]:
                      
                      if(iuz):
@@ -191,137 +193,295 @@ class RW_forcing():
                              f  = 1./iuz.period  
                              f_tab.append( f )
                              if(type == 'acoustic'):
-                                uz = iuz.compute_acoustic_spectrum(r, self.phi, M, depth, self.cpa, unknown)
+                                uz = iuz.compute_acoustic_spectrum(r, phi, M, depth, self.cpa, unknown)
                              else:
-                                uz = iuz.compute_veloc(r, self.phi, M, depth, unknown)
-                             uz_tab.append( uz )
-                     
-                response = pd.DataFrame()
-                response['f']  = np.array(f_tab) 
-                response['uz'] = np.array(uz_tab) 
+                                uz = iuz.compute_veloc(r, phi, M, depth, unknown)
+                             
+                             # If 1d mesh passed we just append
+                             if(phi.shape[0] == phi.size):
+                                uz_tab.append( uz.reshape(r.size) )
+                                #if(len(r) > 1):
+                                #        rin = r
+                                #        bp()
+                             # If 2d r/phi mesh passed
+                             # Create a 1d array with increments in phi and then r
+                             else:   
+                                uz_tab.append( uz.reshape(r.shape[1]*r.shape[0],) )
+                                #plt.figure()
+                                #plt.imshow(phi)
+                                #plt.show()
+                                #bp()
+                                #print('mode/freq: ', imode, f)
+                
+                     else:
+                        break
+                
+                #print('Done with mode: ', imode)
+                
+                #rin = r
+                #bp()
+                
+                response         = pd.DataFrame(np.array(uz_tab)) # Transform list into dataframe
+                response.columns = np.arange(0, phi.size)
+                response['f']    = np.array(f_tab) 
+                
+                #response['uz'] = np.array(uz_tab) 
                 
                 return response
                 
-        def response_RW_all_modes(self, r, type = 'RW', unknown = 'd', mode_max = -1):
+        def concat_df_complex(self, A, B, groupby_lab):
+        
+                f        = A[groupby_lab].values
+                mat_temp = B.drop([groupby_lab], axis=1).values
+                mat      = A.drop([groupby_lab], axis=1).values
+                mat[:mat_temp.shape[0], :] += mat_temp
+                A = pd.DataFrame(mat)
+                A.columns = np.arange(0, mat.shape[1])
+                A[groupby_lab]    = f
+                
+                return A
+                
+        def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1):
         
                 mode_max = len(self.uz) if mode_max == -1 else mode_max
                 for imode in range(0, mode_max):
                 
-                        response_RW_temp = self.compute_RW_one_mode(imode, r, type, unknown)
+                        print('Computing mode', imode)
+                
+                        response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown)
                         if(imode == 0):
                                 response_RW = response_RW_temp.copy()
                         else:
                                 #pd.merge(response_RW, response_RW_temp, on=['f']).set_index(['f']).sum(axis=1)
-                                response_RW = pd.concat([response_RW, response_RW_temp]).groupby(['f']).sum().reset_index()
+                                #print('Concatenate mode ', imode)
+
+                                ## Concatenate dataframes with same freq.
+                                ## we can not use pd.concat since it is too slow for complex numbers
+                                response_RW = self.concat_df_complex(response_RW, response_RW_temp, 'f')
+                                
+                                #response_RW = pd.concat([response_RW, response_RW_temp], sort=False).groupby(['f']).sum().reset_index()
+                                #print('Done concatenate mode ', imode)
 
                 return response_RW                        
 
-        def compute_ifft(self, r, type, unknown = 'd', mode_max = -1):
+        def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1):
         
-                from scipy import fftpack
-        
-                rin   = r
-        
-                RW  = self.response_RW_all_modes(r, type, unknown, mode_max)
-                RW_neg = RW.copy()
-                RW_neg['f']  = -RW_neg['f']
-                RW_neg['uz'] = -np.real(RW_neg['uz']) + np.imag(RW_neg['uz'])
-                RW_neg      = RW_neg.sort_values(by=['f'])
-                RW_tot      = pd.concat([RW,RW_neg], ignore_index=True)
-
-                ## Invert back to time domain                
-                ifft_RW = fftpack.ifft(RW_tot['uz'].values)
-                nb_fft  = len(ifft_RW)//2
+                print('Computing positive frequencies')
+                RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max)
+                RW     = RW.sort_values(by=['f'], ascending=True)
                 
-                ifftsave = ifft_RW.copy()
+                print('Add zero frequency')
+                
+                RW_first = RW.iloc[0:1].copy()
+                temp     = pd.DataFrame(RW_first.values*0.)
+                temp.columns = RW_first.columns
+                RW_first     = temp.copy()
+                #RW     = RW_first.append(RW)
+                #RW_first.loc[:,'f'] = 0.*RW_first.loc[:,'f']
+                
+                #RW.loc[RW.index[0], RW.columns != 'f'] = 0.
+                RW_neg = RW.iloc[:].copy()
+                RW_neg.loc[:,'f']  = -RW_neg.loc[:,'f']
+                
+                RW = RW_first.append(RW.iloc[:-1])
+                
+                # Multiply given value by 2 and returns
+                #def change_imag_real(x, ff, sign0, sign1):
+                #        imag          = np.imag(x)
+                #        indimag       = np.where(imag<0)
+                #        imag[indimag] = np.conjugate(imag[indimag])   
+                #        bp()  
+                #        return sign0*np.sign(ff)*1j*imag + sign1*np.real(x)
+                
+                print('Computing negative frequencies')
+                
+                ## Dataframe indexes
+                #phi_idx = np.arange(0, phi.size)
+                #RW_neg[phi_idx] = -np.real(RW_neg[phi_idx]) + np.imag(RW_neg[phi_idx])
+                
+                #RW_neg.loc[:, RW_neg.columns != 'f'] = RW_neg.loc[:, RW_neg.columns != 'f'].apply( lambda x: -np.real(x) + 1j*np.imag(x) )
+                
+                #RW_neg.loc[:, RW_neg.columns != 'f'] = RW_neg.loc[:, RW_neg.columns != 'f'].apply( change_imag_real, () )
+                #KZnew=0.0-real(KZ).*sign(omega_intr)+1i*imag(KZ);
+                
+                RW_neg = RW_neg.sort_values(by=['f'], ascending=True)
+                temp   = pd.DataFrame(np.real(RW_neg.iloc[:1].values))
+                temp.columns = RW_neg.columns
+                #RW_neg.loc[0, RW_neg.columns != 'f'] = 
+                RW_neg = temp.append(RW_neg.drop([0]))
+                
+                print('Make sure that pos and neg are conjugate of each other')
+                
+                temp      = pd.DataFrame(np.real(RW_neg.loc[:, RW_neg.columns != 'f']) + 1j*np.imag(RW_neg.loc[:, RW_neg.columns != 'f']))
+                temp['f'] = RW_neg['f']
+                RW_neg    = temp.copy()
+                #RW_neg.loc[:, RW_neg.columns != 'f'] = np.real(RW_neg.loc[:, RW_neg.columns != 'f']) + np.imag(RW_neg.loc[:, RW_neg.columns != 'f'])
+                
+                temp      = pd.DataFrame(np.real(RW.loc[:, RW.columns != 'f']) - 1j*np.imag(RW.loc[:, RW.columns != 'f']))
+                temp['f'] = RW['f'].values
+                RW        = temp.copy()
+                
+                print('Concatenate all')
+                RW_tot = pd.concat([RW_neg,RW], ignore_index=True)
+                
+                #RW_tot.loc[:, RW_tot.columns != 'f'] = RW_tot.loc[:, RW_tot.columns != 'f'].apply( change_imag_real, args=(RW_tot['f'].values,1, -1) )
+                #RW_tot.loc[:, RW_tot.columns != 'f'] = RW_tot.loc[:, RW_tot.columns != 'f'].apply( change_imag_real, args=(RW_tot['f'].values,1, -1) )
+                
+                #ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.loc[:, RW_neg.columns != 'f'].values), axis=0)
+                #ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.loc[:, RW_neg.columns != 'f'].values), axis=0)
+                #ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.iloc[:,:-1].values), axis=0)
+                #ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.values[:,:-1]), axis=0)
+                ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.values[:,:-1], axes=0), axis=0)
+                nb_fft  = ifft_RW.shape[0]//2
+                
+                #ifftsave = ifft_RW.copy()
                 ifft_RW = ifft_RW[:nb_fft]
                 
                 df = abs(RW_neg['f'].iloc[1] - RW_neg['f'].iloc[0])
                 
-                dt = 1./(2.*RW['f'].max())
+                dt = 1./(2.*abs(RW_neg['f']).max())
                 t  = np.arange(0, dt*nb_fft, dt)    
                 
-                #plt.figure(); plt.plot(t, ifft_RW); plt.show()
-                #plt.figure(); plt.plot(t, ifftsave[:nb_fft]); plt.show()
-                #bp()
+                #plt.figure(); plt.plot(t, ifft_RW[:nb_fft]); plt.show()
+                #plt.figure(); plt.plot(RW_tot['f'].values, np.real(RW_tot[0]), RW_tot['f'].values, np.imag(RW_tot[0])); plt.show()
+                #ff  = RW_tot['f'].values
+                #ind = np.where(ff < 0)
+                #plt.figure(); plt.plot(ff, np.real(RW_tot[0].values)); plt.plot(-ff[ind], np.real(RW_tot[0].values)[ind], ':'); plt.show()
+                #plt.figure(); plt.plot(fftpack.fftshift(ff), fftpack.fftshift(RW_tot.loc[:, RW_neg.columns != 'f'].values)); plt.show()
+                #plt.figure(); plt.plot(fftpack.fftshift(ff), fftpack.fftshift(RW_tot.loc[:, RW_neg.columns != 'f'].values)); plt.show()
                 
-                return t, ifft_RW
+                return (t, ifft_RW)
 
 class field_RW():
 
-        def __init__(self, Green_RW, nb_freq, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], H = 1e10, Nsq = 1e-4, winds = [0., 0.], mode_max = -1):
+        default_loc = (30., 0.) # (km, degree)
+        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-4, winds = [0., 0.], mode_max = -1):
 
                 def nextpow2(x):
                         return np.ceil(np.log2(abs(x)))
         
                 ##################################################
                 ## Initial call to Green_RW to get the time vector
-                t, RW_t = Green_RW.compute_ifft(1., type='RW', unknown='v')
+                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown='v')
+                t      = output[0]
+                
+                #plt.figure(); plt.plot(t, output[1]); plt.show()
+                #bp()
 
                 ########################################
                 ## Define time/spatial domain boundaries
                 mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
                 dt_anal, dx_anal, dy_anal = abs(t[1] - t[0]), dx_in, dy_in
                 xmin, xmax = xbounds[0], xbounds[1]
-                #ymin, ymax = 100., 50000.
+                if(dimension > 2):
+                        ymin, ymax = ybounds[0], ybounds[1]
                 
-                NFFT2 = len(t)
-                #NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
+                NFFT2 = len(t)
+                if(dimension > 2):
+                        NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 
                 #k = np.zeros((NFFT1,NFFT2,NFFT3))
-                k = np.zeros((NFFT1,NFFT2))
-                x = dx_anal * np.arange(0,NFFT1) + xmin
+                #k = np.zeros((NFFT1,NFFT2))
+                x  = dx_anal * np.arange(0,NFFT1)
+                x -= x[-1]/2.
+
                 t = dt_anal * np.arange(0,NFFT2)
-                
-                #y = dy_anal * np.arange(0,NFFT3) + ymin
-                #X, Y, T = np.meshgrid(x, y, t)
-                
+                if(dimension > 2):
+                        y  = dy_anal * np.arange(0,NFFT3) 
+                        y -= y[-1]/2.
+                else:
+                        y = np.array([0.])   
+                        
                 omega = 2.0*np.pi*(1.0/(dt_anal*NFFT2))*np.concatenate((np.arange(0,NFFT2/2+1), -np.arange(NFFT2/2-1,0,-1)))
                 kx =    2.0*np.pi*(1.0/(dx_anal*NFFT1))*np.concatenate((np.arange(0,NFFT1/2+1), -np.arange(NFFT1/2-1,0,-1)))
-                #ky =    2.0*np.pi*(1.0/(dy     *NFFT3))*[np.arange(0:1:NFFT3/2] [0.0-[NFFT3/2-1:-1:1]]];
+                if(dimension > 2):
+                        ky = 2.0*np.pi*(1.0/(dy_anal*NFFT3))*np.concatenate((np.arange(0,NFFT3/2+1), -np.arange(NFFT3/2-1,0,-1)))
                 #KX, KY, Omega = np.meshgrid(kx, ky, omega);
                 
                 ## Mesh
-                X, T      = np.meshgrid(x, t)
-                KX, Omega = np.meshgrid(kx, omega);
+                if(dimension > 2):
+                        #X, Y, T       = np.meshgrid(x, y, t)
+                        KX, Omega, KY = np.meshgrid(kx, omega, ky)
+                else:
+                        #X, T      = np.meshgrid(x, t)
+                        KX, Omega = np.meshgrid(kx, omega)
+                
                 Nsqtab    = 0.*Nsq + 0.0*Omega;
                 #onestab = 0.0*Nsqtab + 1.0;
                 
                 #####################
                 ## Compute RW forcing
-                Mo  = np.zeros(X.shape, dtype=complex)
+                Mo  = np.zeros(Omega.shape, dtype=complex)
                 
                 # setup toolbar
-                cptbar        = 0
-                toolbar_width = 40
-                total_length  = len(x)
-                sys.stdout.write("Building wavenumbers: [%s]" % (" " * toolbar_width))
-                sys.stdout.flush()
-                sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
-                for idx, ix in enumerate(x):
-                        t, RW_t   = Green_RW.compute_ifft(abs(ix)/1000., type='RW', unknown='v', mode_max = mode_max)
-                        Mo[:,idx] = RW_t.copy()
-                        
-                        # update the bar
-                        if(int(toolbar_width*idx/total_length) > cptbar):
-                                cptbar = int(toolbar_width*idx/total_length)
-                                sys.stdout.write("-")
-                                sys.stdout.flush()
+                #cptbar        = 0
+                #toolbar_width = 40
+                #total_length  = len(x)
+                #sys.stdout.write("Building wavenumbers: [%s]" % (" " * toolbar_width))
+                #sys.stdout.flush()
+                #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 
-                sys.stdout.write("] Done\n")
+                #for idx, ix in enumerate(x):
+                        #t, RW_t   = Green_RW.compute_ifft(abs(ix)/1000., type='RW', unknown='v', mode_max = mode_max)
+                        #Mo[:,idx] = RW_t.copy()
+                
+                #if(dimension < 3):
+                #        y   = np.array([Green_RW.phi, Green_RW.phi+np.pi]) 
+                
+                print('meshing and building ifft')
+                
+                if(dimension > 2):
+                        X, Y   = np.meshgrid(y, x)
+                        R      = np.sqrt( X**2 + Y**2 )
+                        ind_where_yp0 = np.where(Y>0)
+                        PHI = X*0.
+                        PHI[ind_where_yp0] = np.arccos( X[ind_where_yp0]/R[ind_where_yp0] )
+                        ind_where_yp0 = np.where(Y<0)
+                        PHI[ind_where_yp0] = -np.arccos( X[ind_where_yp0]/R[ind_where_yp0] )
+                else:
+                        #X, Y   = np.meshgrid(y, x)
+                        R   = abs(x)
+                        PHI = y[0]+R*0.
+                        
+                #PHI    = np.nan_to_num(PHI, 0.)
+                
+                #plt.figure()
+                #plt.imshow(PHI, extent=[x[0]/1000., x[-1]/1000., y[0]/1000., y[-1]/1000.], aspect='auto')
+                #plt.show()
+                #bp()
+                
+                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown='v', mode_max = mode_max)
+                
+                if(dimension > 2):
+                        t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
+                else:
+                        t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.size) )
+                #temp = [Green_RW.compute_ifft(abs(ix)/1000., y, type='RW', unknown='v', mode_max = mode_max) for idx, ix in enumerate(x)] 
+                
+                #Mo[:,] = temp.copy()    
+                        # update the bar
+                        #if(int(toolbar_width*idx/total_length) > cptbar):
+                        #        cptbar = int(toolbar_width*idx/total_length)
+                        #        sys.stdout.write("-")
+                        #        sys.stdout.flush()
+                
+                #sys.stdout.write("] Done\n")
                 
                 TFMo = fftpack.fftn(Mo)
                 
                 ## Loop over all layers
-                
-                
                 self.wind_x = winds[0]
                 self.wind_y = winds[1]
                 Omega_intrinsic = Omega - self.wind_x*KX
+                if(dimension > 2):
+                        Omega_intrinsic -= self.wind_y*KY
                 #Omega_intrinsic = Omega - wind_x*KX - wind_y*KY;
                 
-                KZ = np.sqrt(   (KX**2) * (Nsqtab/(Omega_intrinsic**2) - 1) + (Omega_intrinsic / (Green_RW.cpa*1000.) )**2 )
+                if(dimension > 2):
+                        KZ = np.sqrt(   (KX**2 + KY**2) * (Nsqtab/(Omega_intrinsic**2) - 1) + (Omega_intrinsic / (Green_RW.cpa*1000.) )**2 )
+                else:
+                        KZ = np.sqrt(   (KX**2) * (Nsqtab/(Omega_intrinsic**2) - 1) + (Omega_intrinsic / (Green_RW.cpa*1000.) )**2 )
                 #KZ = sqrt(   (KX.^2+KY.^2) .* (Nsqtab./(Omega_intrinsic.^2) - 1) \
                 #   + (Omega_intrinsic ./ (Green_RW.cpa*1000.) )**2 );
                 
@@ -342,32 +502,80 @@ class field_RW():
                 
                 ## Store wavenumbers
                 self.KZ   = KZ
+                #self.KY   = KY
                 self.TFMo = TFMo
                 self.H    = H
                 self.x    = x
+                self.y    = y
                 self.t    = t
                 
                 
-        def compute_field_for_xz(self, t, z):
+        def compute_field_for_xz(self, t, x, y, z, zvect, dimension, type_slice):
                 
-                Mz = np.zeros((len(z), len(self.x)), dtype=complex)
+                if(type_slice == 'z'):
+                        d1, d2 = len(zvect), len(self.x)
+                        Mz_xz = np.zeros((d1, d2), dtype=complex)
+                        if(dimension > 2):
+                                d1, d2 = len(zvect), len(self.y)
+                                Mz_yz = np.zeros((d1, d2), dtype=complex)
+                elif(type_slice == 'xy'):
+                        #if(len(z) > 1):
+                        #        sys.exit('If slice xy, can not have multidimensional "z" input!')
+                        d1, d2 = len(self.x), len(self.y)
+                        Mz_xy = np.zeros((d1, d2), dtype=complex)
+                        zvect  = [z]
+                else:
+                        sys.exit('Slice "'+str(type_slice)+'" not recognized!')
+                        
                 it = np.argmin( abs(self.t - t) )
                 
                 # setup toolbar
                 cptbar        = 0
                 toolbar_width = 40
-                total_length  = len(z)
+                total_length  = len(zvect)
                 sys.stdout.write("Building wavefield: [%s]" % (" " * toolbar_width))
                 sys.stdout.flush()
                 sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
-                for idz, iz in enumerate(z):
-                        filt      = np.exp(1j*(self.KZ*iz))
-                        
+                
+                #zvect = sparse.COO(np.array([zvect]))
+                #KZ = np.zeros( (self.KZ.shape[0], self.KZ.shape[1], self.KZ.shape[2], 1), dtype=complex )
+                #KZ[:,:,:,0] = self.KZ
+                #KZ = sparse.COO(KZ)
+                
+                #TFMo = np.zeros( (self.KZ.shape[0], self.KZ.shape[1], self.KZ.shape[2], 1), dtype=complex )
+                #TFMo[:,:,:,0] = self.TFMo
+                #TFMo = sparse.COO(TFMo)
+                
+                #block = 5
+                #i0    = 0
+                #np.exp(iz/(2*self.H)) * fftpack.ifftn( TFMo.multiply(np.exp(1j*KZ.dot(zvect[:,i0:i0+5]))), axes = (0,1,2))   
+                #bp()
+                
+                for idz, iz in enumerate(zvect):
+                
+                        field_at_it = np.exp(iz/(2*self.H)) * fftpack.ifftn( np.exp(1j*(self.KZ*iz)) * self.TFMo)        
                         #if(type == 'p'):
                         #        temp = np.exp(iz/(2*self.H)) * filt*self.TFMo
                         #        p    = 1j*( -1*self.wind_x*1j*temp[:,:] )
                         #else:
-                        Mz[idz, :] = np.exp(iz/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[it,:]
+                        
+                        # 3d
+                        if(dimension > 2):
+                        
+                                if(type_slice == 'z'):
+                                
+                                        iy = np.argmin( abs(self.y - y) )
+                                        Mz_xz[idz, :] = field_at_it[it,:,iy]
+                                        
+                                        ix = np.argmin( abs(self.x - x) )
+                                        Mz_yz[idz, :] = field_at_it[it,ix,:]
+                                        
+                                elif(type_slice == 'xy'):
+                                        Mz_xy[:, :] = field_at_it[it,:,:]
+                                        
+                        # 2d
+                        else:
+                                Mz_xz[idz, :] = field_at_it[it,:]
 
                         # update the bar
                         if(int(toolbar_width*idz/total_length) > cptbar):
@@ -377,41 +585,60 @@ class field_RW():
                 
                 sys.stdout.write("] Done\n")
                 
-                return Mz
-                #ix = round((x_station-xmin)/dx_anal) + 1 
-
-        def compute_field_timeseries(self, x, z):
+                if(dimension > 2 and type_slice == 'z'):
+                        return Mz_xz, Mz_yz
+                elif(dimension > 2 and type_slice == 'xy'):
+                        return Mz_xy
+                else:
+                        return Mz_xz
+                        
+        def compute_field_timeseries(self, x, y, z, dimension):
         
                 ix   = np.argmin( abs(self.x - x) )
                 filt = np.exp(1j*(self.KZ*z))
-                Mz   = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:,ix]
+                # 3d
+                if(dimension > 2):
+                        iy = np.argmin( abs(self.y - y) )
+                        Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix, iy]
+                # 2d
+                else:
+                        Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix]
                 
                 return Mz
+
+def generate_default_mechanism():
+
+        mechanism = {}
+        mechanism['zsource'] = 6800 # m
+        mechanism['f0'] = 0.45
+        mechanism['M0'] = 1e0
+        mechanism['M']  = np.zeros((6,))
+        mechanism['M'][0]  = -1.82631379e+13 # Mxx 2.5
+        #mechanism['M'][0]  = 453334337148. # Mxx
+        #mechanism['M'][0]  = -2.83550741e+16 # Mxx 3.1
+        mechanism['M'][1]  = 1.82743497e+13 # Myy 2.5
+        mechanism['M'][2]  = -1.12117778e+10 # Mzz 2.5
+        #mechanism['M'][2]  = 6.36275923e+16 # Mzz 3.1
+        mechanism['M'][3]  = -4.53334337e+11 # Mxy
+        mechanism['M'][4]  = 2.73046441e+10 # Mxz 2.5
+        #mechanism['M'][4]  = -1.64624203e+16 # Mxz 3.1
+        #mechanism['M'][4]  = 0. # Mxz
+        mechanism['M'][5]  = 2.21151605e+12 # Myz
+        mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
+        mechanism['phi']   = 0.
+        
+        return mechanism
 
 def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
 
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
+        ## Wavefield dimensions
+        dimension = options['dimension']
+
         ## Update mechanism if needed
         if(not mechanism):
-                mechanism = {}
-                mechanism['zsource'] = 6800 # m
-                mechanism['f0'] = 0.2
-                mechanism['M0'] = 1e0
-                mechanism['M']  = np.zeros((6,))
-                #mechanism['M'][0]  = -1826313793918.2844 # Mxx 2.5
-                #mechanism['M'][0]  = 453334337148. # Mxx
-                mechanism['M'][0]  = -2.83550741e+16 # Mxx 3.1
-                mechanism['M'][1]  = 0. # Myy
-                #mechanism['M'][2]  = 453334337148. # Mzz 2.5
-                mechanism['M'][2]  = 6.36275923e+16 # Mzz 3.1
-                mechanism['M'][3]  = 0. # Mxy
-                #mechanism['M'][4]  = -11211777000. # Mxz 2.5
-                mechanism['M'][4]  = -1.64624203e+16 # Mxz 3.1
-                #mechanism['M'][4]  = 0. # Mxz
-                mechanism['M'][5]  = 0. # Myz
-                mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
-                mechanism['phi']   = 0.
+                mechanism = generate_default_mechanism()
         
         Green_RW.update_mechanism(mechanism)
 
@@ -423,55 +650,115 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         mode_max = -1
         if(not domain):
                 xbounds    = [-110000., 110000.]
-                dx, dy, dz = 600., 600., 200.
-                z         = np.arange(0, 35000., dz)
+                ybounds    = [-110000., 110000.]
+                dx, dy, dz = 600., 2000., 200.
+                z         = np.arange(0, 25000., dz)
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
-                dx, dy  = domain['dx'], domain['dy']
-                z         = np.arange(domain['zmin'], domain['zmax'], domain['dz'])
+                ybounds = [domain['ymin'], domain['ymax']]
+                dx, dy, dz  = domain['dx'], domain['dy'], domain['dz']
+                z         = np.arange(domain['zmin'], domain['zmax'], dz)
         
-        field = field_RW(Green_RW, nb_freq, dx, dy, xbounds, H, Nsq, winds, mode_max)
+        field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, H, Nsq, winds, mode_max)
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(not station):
-                iz = 25000.
-                ix = 100000.
-                t_station = 80.
+                iz = 20000.
+                iy = 20000.
+                ix = 20000.
+                t_station = 90.
+                type_slice = 'xz'
         else:
                 iz = station['zs']
+                iy = station['ys']
                 ix = station['xs']
                 t_station = station['t_chosen']
+                type_slice = station['type_slice']
                 
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-        Mz   = field.compute_field_for_xz(t_station, z)
-                
+        if(dimension > 2):
+                Mxz, Myz = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'z')
+                Mxy      = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'xy')
+                nb_cols  = 2
+        else:
+                Mxz = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'z') 
+                nb_cols = 1
+               
         ## COmpute time series at a given location
-        Mz_t = field.compute_field_timeseries(ix, iz)
+        Mz_t = field.compute_field_timeseries(ix, iy, iz, dimension)
         
         ## Display
-        fig, axs = plt.subplots(nrows=2, ncols=1)
+        fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
         
-        axs[0].plot(field.t, np.real(Mz_t))
-        axs[0].grid(True)
-        axs[0].set_xlim([field.t[0], field.t[-1]])
-        axs[0].set_xlabel('Time (s)')
-        axs[0].set_ylabel('Velocity (m/s)')
+        if(dimension > 2):
         
-        plotMz = axs[1].imshow(np.flip(np.real(Mz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
-        axs[1].scatter(ix/1000., iz/1000., color='red', zorder=2)
-        axs[1].set_xlabel('Distance from source (km)')
-        axs[1].set_ylabel('Altitude (km)')
-        axs[1].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[1].transAxes)
+                iax = 0
+                iax_col = 0
+                axs[iax, iax_col].plot(field.t, np.real(Mz_t))
+                axs[iax, iax_col].grid(True)
+                axs[iax, iax_col].set_xlim([field.t[0], field.t[-1]])
+                axs[iax, iax_col].set_xlabel('Time (s)')
+                axs[iax, iax_col].set_ylabel('Velocity (m/s)')
+                
+                iax_col += 1
+                
+                plotMyz = axs[iax, iax_col].imshow(np.flip(np.real(Myz), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+                axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
+                #axs[iax, iax_col].set_xlabel('Distance from source - South (km)')
+                axs[iax, iax_col].set_ylabel('Altitude (km)')
+                axs[iax, iax_col].text(0.5, 1., 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+                
+                axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
+                axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
+                
+                plt.colorbar(plotMyz, cax=axins)
+                
+                vmin, vmax = np.real(Myz).min(), np.real(Myz).max()
+                
+                iax += 1
+                iax_col = 0
+                
+                plotMxz = axs[iax, iax_col].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+                axs[iax, iax_col].scatter(ix/1000., iz/1000., color='red', zorder=2)
+                axs[iax, iax_col].set_xlabel('West - East (km)')
+                axs[iax, iax_col].set_ylabel('Altitude (km)')
+                #axs[iax, iax_col].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+                
+                iax_col += 1
+                
+                plotMxy = axs[iax, iax_col].imshow(np.real(Mxy), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+                axs[iax, iax_col].scatter(ix/1000., iy/1000., color='red', zorder=2)
+                axs[iax, iax_col].set_xlabel('West - East (km)')
+                axs[iax, iax_col].set_ylabel('North - South (km)')
+                axs[iax, iax_col].yaxis.set_label_position("right")
+                axs[iax, iax_col].yaxis.tick_right()
+                #axs[iax, iax_col].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
         
-        axins = inset_axes(axs[1], width="2.5%", height="80%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[1].transAxes, borderpad=0)
-        axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
+        else:
         
-        plt.colorbar(plotMz, cax=axins)
+                iax = 0
+                axs[iax].plot(field.t, np.real(Mz_t))
+                axs[iax].grid(True)
+                axs[iax].set_xlim([field.t[0], field.t[-1]])
+                axs[iax].set_xlabel('Time (s)')
+                axs[iax].set_ylabel('Velocity (m/s)')
+                
+                iax += 1
+                plotMxz = axs[iax].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+                axs[iax].scatter(ix/1000., iz/1000., color='red', zorder=2)
+                axs[iax].set_xlabel('Distance from source (km)')
+                axs[iax].set_ylabel('Altitude (km)')
+                axs[iax].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax].transAxes)
+                
+                axins = inset_axes(axs[iax], width="2.5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[iax].transAxes, borderpad=0)
+                axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
+                
+                plt.colorbar(plotMxz, cax=axins)
         
-        fig.subplots_adjust(hspace=0.28, right=0.8, left=0.2, top=0.98, bottom=0.15)
+        fig.subplots_adjust(hspace=0.28, right=0.8, left=0.2, top=0.94, bottom=0.15)
         
         if(not options['GOOGLE_COLAB']):
-                plt.show()
+                plt.savefig(options['global_folder'] + 'map_wavefield_vz.png')
 
         ## Save waveform        
         df = pd.DataFrame()
@@ -479,6 +766,9 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         df['vz'] = np.real(Mz_t)
         df.to_csv(options['global_folder'] + 'waveform.csv', index=False)
         print('save waveform to: '+options['global_folder'] + 'waveform.csv')
+        
+        if(not options['GOOGLE_COLAB']):
+                bp()
         
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
@@ -529,20 +819,7 @@ def get_eigenfunctions(current_struct, mechanism, options):
         
         ## Define a default mechanism
         if(not mechanism):
-                mechanism = {}
-                mechanism['zsource'] = 6800 # m
-                mechanism['f0'] = 0.4
-                mechanism['M0'] = 1e0
-                mechanism['M']  = np.zeros((6,))
-                mechanism['M'][0]  = -1826313793918.2844 # Mxx
-                mechanism['M'][1]  = 0. # Myy
-                mechanism['M'][2]  = 453334337148. # Mzz
-                mechanism['M'][3]  = 0. # Mxy
-                mechanism['M'][4]  = -11211777000. # Mxz
-                mechanism['M'][5]  = 0. # Myz
-                mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
-                mechanism['phi']   = 0.
-                mechanism['cpa']   = 0.340
+                mechanism = generate_default_mechanism()
         
         ## Construct RW spectrum object 
         Green_RW = RW_forcing(mechanism, options)
@@ -878,6 +1155,8 @@ def compute_trans_coefficients(options_in = {}):
         
         ##########
         ## Options
+        options['dimension']   = 3
+        
         options['nb_modes']    = [0, 3] # min / max
         options['type_wave']   = 1 # Surface wave type.  (1 = Rayleigh; >1 = Love.)
         options['way_forward'] = 1
@@ -975,19 +1254,6 @@ if __name__ == '__main__':
         
         mechanism, station, domain = {}, {}, {}
         
-        mechanism = {}
-        mechanism['zsource'] = 35800 # m
-        mechanism['f0'] = 0.1
-        mechanism['M0'] = 1e0
-        mechanism['M']  = np.zeros((6,))
-        mechanism['M'][0]  = -1826313793918.2844 # Mxx
-        mechanism['M'][1]  = 0. # Myy
-        mechanism['M'][2]  = 453334337148. # Mzz
-        mechanism['M'][3]  = 0. # Mxy
-        mechanism['M'][4]  = -11211777000. # Mxz
-        mechanism['M'][5]  = 0. # Myz
-        mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
-        mechanism['phi']   = 0.
-        mechanism['cpa']   = 0.340
+        mechanism = generate_default_mechanism()
         
         compute_analytical_acoustic(Green_RW, mechanism, station, domain, options_out)
