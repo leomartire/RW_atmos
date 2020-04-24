@@ -71,7 +71,7 @@ class vertical_velocity():
                 
                 ## 2d
                 else:
-                        return comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
+                        return comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/2. ) )*self.directivity.compute_directivity(phi, M, depth)
                         
         def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd', dimension_seismic = 3):
         
@@ -583,6 +583,9 @@ class field_RW():
         def generate_atmospheric_model(self, param_atmos):
         
                 self.atmospheric_model_is_generated = True
+                
+                ## Remove errors 
+                np.seterr(divide='ignore', invalid='ignore')  
         
                 self.isothermal = param_atmos['isothermal']
                 if(self.isothermal):
@@ -624,12 +627,20 @@ class field_RW():
                                 temp = temp_i.copy()
                         
                         self.z = temp['z'].values
-                        self.H     = -(np.roll(self.z, 1) - self.z)/np.log( np.roll(temp['p'].values, 1)/temp['p'].values )
-                        self.H[1] = self.H[0]
-                        self.H[-1] = self.H[-2]
-                        self.Nsq   = np.sqrt(-(temp['g'].values/temp['rho'].values[0])*np.gradient(temp['rho'].values, self.z, edge_order=2))**2
+                        zshift = -(np.roll(self.z, 1) - self.z)
+                        pshift = np.log( np.roll(temp['p'].values, 1)/temp['p'].values )
+                        locbad = np.where(zshift <= 0)
+                        if(locbad[0].size > 0):
+                                zshift[locbad] = zshift[locbad[0][-1]+1]
+                        
+                        locbad = np.where(pshift <= 0)
+                        if(locbad[0].size > 0):
+                                pshift[locbad] = pshift[locbad[0][-1]+1]
+                        
+                        self.H      = zshift/pshift
+                        self.Nsq    = np.sqrt(-(temp['g'].values/temp['rho'].values[0])*np.gradient(temp['rho'].values, self.z, edge_order=2))**2
                         self.Nsq[0] = self.Nsq[1]
-                        #plt.figure(); plt.plot(self.Nsq, self.z); plt.show()
+
                         self.winds = []
                         self.winds.append( temp['wx'].values )
                         self.winds.append( temp['wy'].values )
@@ -644,7 +655,8 @@ class field_RW():
                                 
         def compute_vertical_wavenumber(self, id_layer):    
         
-                np.seterr(divide='ignore')    
+                ## Ignore division/invalid errors in KZ computation
+                np.seterr(divide='ignore', invalid='ignore')    
                 
                 ## Get corresponding atmospheric parameters
                 H      = self.H[id_layer]
