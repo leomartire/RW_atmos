@@ -601,6 +601,21 @@ class field_RW():
                                 temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
                                 temp.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
                         
+                        if(param_atmos['subsampling']):
+                                nb_layers = param_atmos['subsampling_layers']
+                                temp_i = pd.DataFrame()
+                                zi     = np.linspace(temp['z'].min(), temp['z'].max(), nb_layers)
+                                temp_i['z'] = zi
+                                for (columnName, columnData) in temp.iteritems():
+                                        if('z' in columnName):
+                                                continue
+                                                
+                                        f = interpolate.interp1d(temp['z'].values, columnData.values, kind='cubic')
+                                        unknown = f(zi)
+                                        #plt.figure(); plt.plot(unknown, zi); plt.plot(columnData.values, temp['z'].values, ':'); plt.show()
+                                        temp_i[columnName] = unknown.copy()
+                                temp = temp_i.copy()
+                        
                         self.z = temp['z'].values
                         self.H     = -(np.roll(self.z, 1) - self.z)/np.log( np.roll(temp['p'].values, 1)/temp['p'].values )
                         self.H[1] = self.H[0]
@@ -842,7 +857,9 @@ class field_RW():
 def generate_default_atmos():
         
         param_atmos = {}
-        param_atmos['isothermal'] = True
+        param_atmos['isothermal'] = False
+        param_atmos['subsampling'] = True
+        param_atmos['subsampling_layers'] = 100
         param_atmos['file'] = './atmospheric_model.dat'
         param_atmos['cpa']    = 3.4e2 # m/s
         param_atmos['H']      = 7.e3 # m
