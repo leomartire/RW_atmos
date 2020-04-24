@@ -60,15 +60,22 @@ class vertical_velocity():
                 self.kn   = kn
                 self.angle_RW = angle_RW
 
-        def compute_veloc(self, r, phi, M, depth, unknown = 'd'):
+        def compute_veloc(self, r, phi, M, depth, unknown = 'd', dimension_seismic = 3):
         
                 comp_deriv = np.pi*2.*1j/self.period if unknown == 'v' else 1.
                 comp_deriv = (np.pi*2.*1j/self.period)*comp_deriv if unknown == 'a' else comp_deriv
-                return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
-
-        def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd'):
+                
+                ## 3d
+                if(dimension_seismic == 3):
+                        return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
+                
+                ## 2d
+                else:
+                        return comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
+                        
+        def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd', dimension_seismic = 3):
         
-                perioda = (1./self.compute_veloc(r, phi, M, depth, unknown))*np.sin(self.angle_RW)*self.cphi/cpa
+                perioda = (1./self.compute_veloc(r, phi, M, depth, unknown, dimension_seismic))*np.sin(self.angle_RW)*self.cphi/cpa
                 return 1./perioda
 
 class directivity():
@@ -184,7 +191,7 @@ class RW_forcing():
                         
                 #self.uz_tab[iperiod] = np.sum(uz[iperiod])
 
-        def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd'):
+        def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd', dimension_seismic = 3):
         
                 ## Source depth
                 depth = self.zsource
@@ -200,9 +207,9 @@ class RW_forcing():
                              f  = 1./iuz.period  
                              f_tab.append( f )
                              if(type == 'acoustic'):
-                                uz = iuz.compute_acoustic_spectrum(r, phi, M, depth, self.cpa, unknown)
+                                uz = iuz.compute_acoustic_spectrum(r, phi, M, depth, self.cpa, unknown, dimension_seismic)
                              else:
-                                uz = iuz.compute_veloc(r, phi, M, depth, unknown)
+                                uz = iuz.compute_veloc(r, phi, M, depth, unknown, dimension_seismic)
                              
                              # If 1d mesh passed we just append
                              if(phi.shape[0] == phi.size):
@@ -239,14 +246,14 @@ class RW_forcing():
                 
                 return A
                 
-        def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1):
+        def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3):
         
                 mode_max = len(self.uz) if mode_max == -1 else mode_max
                 for imode in range(0, mode_max):
                 
                         #print('Computing mode', imode)
                 
-                        response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown)
+                        response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown, dimension_seismic)
                         if(imode == 0):
                                 response_RW = response_RW_temp.copy()
                         else:
@@ -262,10 +269,10 @@ class RW_forcing():
 
                 return response_RW                        
 
-        def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1):
+        def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1, dimension_seismic = 3):
         
                 #print('Computing positive frequencies')
-                RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max)
+                RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max, dimension_seismic)
                 RW     = RW.sort_values(by=['f'], ascending=True)
                 
                #print('Add zero frequency')
@@ -353,7 +360,7 @@ class RW_forcing():
 class field_RW():
 
         default_loc = (30., 0.) # (km, degree)
-        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-10, winds = [0., 0.], mode_max = -1):
+        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-10, winds = [0., 0.], mode_max = -1, dimension_seismic = 3):
 
                 def nextpow2(x):
                         return np.ceil(np.log2(abs(x)))
@@ -363,7 +370,7 @@ class field_RW():
         
                 ##################################################
                 ## Initial call to Green_RW to get the time vector
-                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown='v')
+                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown='v', dimension_seismic = dimension_seismic)
                 t      = output[0]
                 
                 ## Store seismic model
@@ -431,7 +438,7 @@ class field_RW():
                                 
                 #########################
                 ## Compute bottom forcing                
-                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown='v', mode_max = mode_max)
+                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown='v', mode_max = mode_max, dimension_seismic = dimension_seismic)
                 if(dimension > 2):
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
@@ -635,7 +642,9 @@ class field_RW():
                         self.gamma = temp['gamma'].values
                                 
                                 
-        def compute_vertical_wavenumber(self, id_layer):        
+        def compute_vertical_wavenumber(self, id_layer):    
+        
+                np.seterr(divide='ignore')    
                 
                 ## Get corresponding atmospheric parameters
                 H      = self.H[id_layer]
@@ -903,7 +912,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
         ## Wavefield dimensions
-        dimension = options['dimension']
+        dimension         = options['dimension']
+        dimension_seismic = options['dimension_seismic']
 
         ## Update mechanism if needed
         if(not mechanism):
@@ -928,7 +938,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 dx, dy, dz  = domain['dx'], domain['dy'], domain['dz']
                 z         = np.arange(domain['zmin'], domain['zmax'], dz)
         
-        field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, H, Nsq, winds, mode_max)
+        field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, H, Nsq, winds, mode_max, dimension_seismic)
         
         ## Create atmospheric profiles
         if(not param_atmos):
@@ -1429,6 +1439,7 @@ def compute_trans_coefficients(options_in = {}):
         ##########
         ## Options
         options['dimension']   = 2
+        options['dimension_seismic'] = 2
         
         options['nb_modes']    = [0, 3] # min / max
         options['type_wave']   = 1 # Surface wave type.  (1 = Rayleigh; >1 = Love.)
