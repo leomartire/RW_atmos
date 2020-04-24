@@ -119,6 +119,8 @@ class RW_forcing():
                 ## Add source characteristics
                 self.update_mechanism(mechanism)
                 
+                self.google_colab = options['GOOGLE_COLAB']
+                
                 ## Medium
                 self.update_cpa(0.34)
 
@@ -366,6 +368,7 @@ class field_RW():
                 
                 ## Store seismic model
                 self.seismic = Green_RW.seismic
+                self.google_colab = Green_RW.google_colab
                 
                 ########################################
                 ## Define time/spatial domain boundaries
@@ -520,8 +523,8 @@ class field_RW():
                 wx  = self.winds[0]
                 wy  = self.winds[1]
                 if(self.isothermal):
-                        z = np.linspace(0, 50, 4)
-                        rho = self.rho[0]+z*0
+                        z = np.linspace(0, 50, 100)
+                        rho = self.rho[0]*np.exp(-z/(self.H[0]/1000.))+z*0
                         cpa = self.cpa[0]+z*0
                         wx  = self.winds[0][0]+z*0
                         wy  = self.winds[1][0]+z*0
@@ -530,7 +533,7 @@ class field_RW():
                         
                 iax     = 0
                 iax_row = 0
-                unknown = self.rho.copy()/1000.
+                unknown = rho/1000.
                 axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
                 axs[iax_row, iax].grid()
                 axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -541,30 +544,33 @@ class field_RW():
                 axs[iax_row, iax].set_xscale('log')
                 
                 iax += 1
-                unknown = self.cpa.copy()/1000.
+                unknown = cpa/1000.
                 axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
                 axs[iax_row, iax].grid()
-                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                if(not self.isothermal):
+                        axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
                 axs[iax_row, iax].set_ylim([z.min(), z.max()])
                 axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
                 axs[iax_row, iax].set_title('$c_p$ (km/s)')
                 
                 
                 iax += 1
-                unknown = self.winds[0].copy()/1000.
+                unknown = wx/1000.
                 axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
-                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                if(not self.isothermal):
+                        axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
                 axs[iax_row, iax].set_ylim([z.min(), z.max()])
                 if(self.dimension > 2):
-                        axs[iax_row, iax].plot(self.winds[1], self.z)
-                        axs[iax_row, iax].set_xlim([min(unknown.min(), self.winds[1].min()), max(unknown.max(), self.winds[1].max())])
+                        axs[iax_row, iax].plot(wy/1000., self.z)
+                        if(not self.isothermal):
+                                axs[iax_row, iax].set_xlim([min(unknown.min(), self.winds[1].min()), max(unknown.max(), self.winds[1].max())])
                 axs[iax_row, iax].grid()
                 axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
                 axs[iax_row, iax].set_title('winds (km/s)')
                 
                 fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
                 
-                if(not options['GOOGLE_COLAB']):
+                if(not self.google_colab):
                         plt.savefig(self.global_folder + 'seismic_and_atmos_profiles.png')
                 
         def generate_atmospheric_model(self, param_atmos):
@@ -573,18 +579,18 @@ class field_RW():
         
                 self.isothermal = param_atmos['isothermal']
                 if(self.isothermal):
-                        self.H = [param_atmos['H']]
-                        self.cpa = [param_atmos['cpa']]
-                        self.Nsq = [param_atmos['Nsq']]
+                        self.H = np.array([param_atmos['H']])
+                        self.cpa = np.array([param_atmos['cpa']])
+                        self.Nsq = np.array([param_atmos['Nsq']])
                         self.winds = []
-                        self.winds.append( [param_atmos['wind_x']] )
-                        self.winds.append( [param_atmos['wind_y']] )
-                        self.bulk  = [param_atmos['bulk']]
-                        self.shear = [param_atmos['shear']]
-                        self.kappa = [param_atmos['kappa']]
-                        self.gamma = [param_atmos['gamma']]
-                        self.rho   = [param_atmos['rho']]
-                        self.cp    = [param_atmos['cp']]
+                        self.winds.append( np.array([param_atmos['wind_x']]) )
+                        self.winds.append( np.array([param_atmos['wind_y']]) )
+                        self.bulk  = np.array([param_atmos['bulk']])
+                        self.shear = np.array([param_atmos['shear']])
+                        self.kappa = np.array([param_atmos['kappa']])
+                        self.gamma = np.array([param_atmos['gamma']])
+                        self.rho   = np.array([param_atmos['rho']])
+                        self.cp    = np.array([param_atmos['cp']])
                 else:
                         #sys.exit('Has to be implemented!')
                         temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
@@ -830,7 +836,7 @@ class field_RW():
 def generate_default_atmos():
         
         param_atmos = {}
-        param_atmos['isothermal'] = False
+        param_atmos['isothermal'] = True
         param_atmos['file'] = './atmospheric_model.dat'
         param_atmos['cpa']    = 3.4e2 # m/s
         param_atmos['H']      = 7.e3 # m
