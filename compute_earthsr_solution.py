@@ -592,9 +592,15 @@ class field_RW():
                         self.rho   = np.array([param_atmos['rho']])
                         self.cp    = np.array([param_atmos['cp']])
                 else:
-                        #sys.exit('Has to be implemented!')
-                        temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
-                        temp.columns = ['z', 'rho', 'dummy1', 'cpa', 'p', 'dummy2', 'g', 'dummy3', 'kappa', 'mu', 'dummy4', 'dummy5', 'dummy6', 'wx', 'cp', 'cv', 'gamma']
+                        try:
+                                temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
+                                temp.columns = ['z', 'rho', 'dummy1', 'cpa', 'p', 'dummy2', 'g', 'dummy3', 'kappa', 'mu', 'dummy4', 'dummy5', 'dummy6', 'wx', 'cp', 'cv', 'gamma']
+                                temp['bulk'] = temp['mu']
+                                temp['wy'] = temp['wx']
+                        except:
+                                temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
+                                temp.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
+                        
                         self.z = temp['z'].values
                         self.H     = -(np.roll(self.z, 1) - self.z)/np.log( np.roll(temp['p'].values, 1)/temp['p'].values )
                         self.H[1] = self.H[0]
@@ -604,10 +610,10 @@ class field_RW():
                         #plt.figure(); plt.plot(self.Nsq, self.z); plt.show()
                         self.winds = []
                         self.winds.append( temp['wx'].values )
-                        self.winds.append( temp['wx'].values )
+                        self.winds.append( temp['wy'].values )
                         self.cpa = temp['cpa'].values
                         self.rho   = temp['rho'].values
-                        self.bulk  = temp['mu'].values
+                        self.bulk  = temp['bulk'].values
                         self.shear = temp['mu'].values
                         self.kappa = temp['kappa'].values
                         self.cp    = temp['cp'].values
@@ -856,7 +862,7 @@ def generate_default_atmos():
 def generate_default_mechanism():
 
         mechanism = {}
-        mechanism['zsource'] = 3400 # m
+        mechanism['zsource'] = 6800. # m
         mechanism['f0'] = 0.2
         mechanism['M0'] = 1e0
         mechanism['M']  = np.zeros((6,))
@@ -867,10 +873,9 @@ def generate_default_mechanism():
         mechanism['M'][2]  = -1.12117778e+10 # Mzz 2.5
         #mechanism['M'][2]  = 6.36275923e+16 # Mzz 3.1
         mechanism['M'][3]  = -4.53334337e+11 # Mxy
-        mechanism['M'][4]  = 2.73046441e+17 # Mxz 2.5
+        mechanism['M'][4]  = 2.73046441e+10 # Mxz 2.5
         #mechanism['M'][4]  = -1.64624203e+16 # Mxz 3.1
-        #mechanism['M'][4]  = 0. # Mxz
-        mechanism['M'][5]  = 2.21151605e+14 # Myz
+        mechanism['M'][5]  = 2.21151605e+12 # Myz
         mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
         mechanism['phi']   = 0.
         
@@ -920,8 +925,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         if(not station):
                 iz = 20000.
                 iy = 20000.
-                ix = 20000.
-                t_station = 250.
+                ix = 40000.
+                t_station = 60.
                 type_slice = 'xz'
         else:
                 iz = station['zs']
@@ -1320,8 +1325,8 @@ def read_specfem_files(options):
                 temp.columns = ['z', 'rho', 'vp', 'vs', 'Qa', 'Qp']
                 
                 if(temp['z'].iloc[0] > 0):
-                        temp_add = temp.loc[ temp['z'] == temp['z'].min() ]
-                        temp_add['z'].iloc[0] = 0.
+                        temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
+                        temp_add.loc[0, 'z'] = 0.
                         temp = pd.concat([temp_add, temp]).reset_index()
                 
                 zover0 = temp[ 'z' ].values
