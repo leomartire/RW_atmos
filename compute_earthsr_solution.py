@@ -11,6 +11,7 @@ import json
 import sys 
 from scipy import fftpack
 import scipy.integrate as spi
+from scipy import signal
 
 from matplotlib import rc
 #rc('font', family='DejaVu Sans', serif='cm10')
@@ -102,6 +103,8 @@ class RW_forcing():
                 self.f_tab = options['f_tab']
                 self.nb_modes = options['nb_modes'][1]
                 
+                self.global_folder = options['global_folder'] # Save folder path from Green's class
+                
                 ## Attributes containing seismic/acoustic spectra
                 self.directivity = [ [ [] for aa in range(0, len(self.f_tab)) ] for bb in range(0, options['nb_modes'][1]) ]
                 #self.uz_tab      = np.zeros((len(self.f_tab),))
@@ -109,6 +112,9 @@ class RW_forcing():
                 #self.freq_tab    = np.zeros((len(self.f_tab). options['nb_modes'][1]))
                 #self.freqa_tab   = np.zeros((len(self.f_tab), options['nb_modes'][1]))
                 self.angle_RW    = np.zeros((len(self.f_tab), options['nb_modes'][1]))
+                
+                ## Extract seismic model for later plots
+                self.extract_seismic_parameters(options)
                 
                 ## Add source characteristics
                 self.update_mechanism(mechanism)
@@ -199,34 +205,25 @@ class RW_forcing():
                              # If 1d mesh passed we just append
                              if(phi.shape[0] == phi.size):
                                 uz_tab.append( uz.reshape(r.size) )
-                                #if(len(r) > 1):
-                                #        rin = r
-                                #        bp()
+
                              # If 2d r/phi mesh passed
                              # Create a 1d array with increments in phi and then r
                              else:   
                                 uz_tab.append( uz.reshape(r.shape[1]*r.shape[0],) )
-                                #plt.figure()
-                                #plt.imshow(phi)
-                                #plt.show()
-                                #bp()
-                                #print('mode/freq: ', imode, f)
                 
                      else:
                         break
-                
-                #print('Done with mode: ', imode)
-                
-                #rin = r
-                #bp()
                 
                 response         = pd.DataFrame(np.array(uz_tab)) # Transform list into dataframe
                 response.columns = np.arange(0, phi.size)
                 response['f']    = np.array(f_tab) 
                 
-                #response['uz'] = np.array(uz_tab) 
-                
                 return response
+
+        def extract_seismic_parameters(self, options):
+        
+                self.seismic = pd.read_csv( options['models'][options['chosen_model']], delim_whitespace=True, header=None )
+                self.seismic.columns = ['z', 'rho', 'vp', 'vs', 'Qa', 'Qp']
                 
         def concat_df_complex(self, A, B, groupby_lab):
         
@@ -354,19 +351,22 @@ class RW_forcing():
 class field_RW():
 
         default_loc = (30., 0.) # (km, degree)
-        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-4, winds = [0., 0.], mode_max = -1):
+        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-10, winds = [0., 0.], mode_max = -1):
 
                 def nextpow2(x):
                         return np.ceil(np.log2(abs(x)))
+        
+                self.atmospheric_model_is_generated = False
+                self.global_folder = Green_RW.global_folder # Save folder path from Green's class
         
                 ##################################################
                 ## Initial call to Green_RW to get the time vector
                 output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown='v')
                 t      = output[0]
                 
-                #plt.figure(); plt.plot(t, output[1]); plt.show()
-                #bp()
-
+                ## Store seismic model
+                self.seismic = Green_RW.seismic
+                
                 ########################################
                 ## Define time/spatial domain boundaries
                 mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
@@ -380,8 +380,6 @@ class field_RW():
                 if(dimension > 2):
                         NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 
-                #k = np.zeros((NFFT1,NFFT2,NFFT3))
-                #k = np.zeros((NFFT1,NFFT2))
                 x  = dx_anal * np.arange(0,NFFT1)
                 x -= x[-1]/2.
 
@@ -391,45 +389,28 @@ class field_RW():
                         y -= y[-1]/2.
                 else:
                         y = np.array([0.])   
-                        
-                omega = 2.0*np.pi*(1.0/(dt_anal*NFFT2))*np.concatenate((np.arange(0,NFFT2/2+1), -np.arange(NFFT2/2-1,0,-1)))
-                kx =    2.0*np.pi*(1.0/(dx_anal*NFFT1))*np.concatenate((np.arange(0,NFFT1/2+1), -np.arange(NFFT1/2-1,0,-1)))
+                   
+                ############################        
+                ## Frequency/Wavenumber mesh
+                omega = 2.0*np.pi*(1.0/(dt_anal*NFFT2))*np.concatenate((np.arange(0,NFFT2/2), -np.arange(NFFT2/2,0,-1)))
+                kx =    2.0*np.pi*(1.0/(dx_anal*NFFT1))*np.concatenate((np.arange(0,NFFT1/2), -np.arange(NFFT1/2,0,-1)))
                 if(dimension > 2):
-                        ky = 2.0*np.pi*(1.0/(dy_anal*NFFT3))*np.concatenate((np.arange(0,NFFT3/2+1), -np.arange(NFFT3/2-1,0,-1)))
-                #KX, KY, Omega = np.meshgrid(kx, ky, omega);
+                        ky = 2.0*np.pi*(1.0/(dy_anal*NFFT3))*np.concatenate((np.arange(0,NFFT3/2), -np.arange(NFFT3/2,0,-1)))
                 
-                ## Mesh
                 if(dimension > 2):
-                        #X, Y, T       = np.meshgrid(x, y, t)
                         KX, Omega, KY = np.meshgrid(kx, omega, ky)
                 else:
-                        #X, T      = np.meshgrid(x, t)
                         KX, Omega = np.meshgrid(kx, omega)
                 
-                Nsqtab    = 0.*Nsq + 0.0*Omega;
+                #Nsqtab    = 0.*Nsq + 0.0*Omega;
                 #onestab = 0.0*Nsqtab + 1.0;
                 
                 #####################
                 ## Compute RW forcing
                 Mo  = np.zeros(Omega.shape, dtype=complex)
                 
-                # setup toolbar
-                #cptbar        = 0
-                #toolbar_width = 40
-                #total_length  = len(x)
-                #sys.stdout.write("Building wavenumbers: [%s]" % (" " * toolbar_width))
-                #sys.stdout.flush()
-                #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
-                
-                #for idx, ix in enumerate(x):
-                        #t, RW_t   = Green_RW.compute_ifft(abs(ix)/1000., type='RW', unknown='v', mode_max = mode_max)
-                        #Mo[:,idx] = RW_t.copy()
-                
-                #if(dimension < 3):
-                #        y   = np.array([Green_RW.phi, Green_RW.phi+np.pi]) 
-                
-                #print('meshing and building ifft')
-                
+                ###################################################################
+                ## Conversion of cartesian coordinates into cylindrical coordinates
                 if(dimension > 2):
                         X, Y   = np.meshgrid(y, x)
                         R      = np.sqrt( X**2 + Y**2 )
@@ -441,55 +422,222 @@ class field_RW():
                 else:
                         #X, Y   = np.meshgrid(y, x)
                         R   = abs(x)
+                        #PHI = y[0]+R*0.
                         PHI = y[0]+R*0.
-                        
-                #PHI    = np.nan_to_num(PHI, 0.)
-                
-                #plt.figure()
-                #plt.imshow(PHI, extent=[x[0]/1000., x[-1]/1000., y[0]/1000., y[-1]/1000.], aspect='auto')
-                #plt.show()
-                #bp()
-                
+                        PHI[:len(x)//2] = np.pi
+                                
+                #########################
+                ## Compute bottom forcing                
                 temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown='v', mode_max = mode_max)
-                
                 if(dimension > 2):
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.size) )
-                #temp = [Green_RW.compute_ifft(abs(ix)/1000., y, type='RW', unknown='v', mode_max = mode_max) for idx, ix in enumerate(x)] 
                 
-                #Mo[:,] = temp.copy()    
-                        # update the bar
-                        #if(int(toolbar_width*idx/total_length) > cptbar):
-                        #        cptbar = int(toolbar_width*idx/total_length)
-                        #        sys.stdout.write("-")
-                        #        sys.stdout.flush()
-                
-                #sys.stdout.write("] Done\n")
-                
-                TFMo = fftpack.fftn(Mo)
-                
-                ## Loop over all layers
-                self.wind_x = winds[0]
-                self.wind_y = winds[1]
-                Omega_intrinsic = Omega - self.wind_x*KX
+                ## Taper signal
                 if(dimension > 2):
-                        Omega_intrinsic -= self.wind_y*KY
-                #Omega_intrinsic = Omega - wind_x*KX - wind_y*KY;
-                
-                if(dimension > 2):
-                        KZ = np.sqrt(   (KX**2 + KY**2) * (Nsqtab/(Omega_intrinsic**2) - 1) + (Omega_intrinsic / (Green_RW.cpa*1000.) )**2 )
+                        self.Mo = Mo*np.tile(signal.tukey(len(t)), len(x)*len(y)).reshape(Mo.shape)
                 else:
-                        KZ = np.sqrt(   (KX**2) * (Nsqtab/(Omega_intrinsic**2) - 1) + (Omega_intrinsic / (Green_RW.cpa*1000.) )**2 )
-                #KZ = sqrt(   (KX.^2+KY.^2) .* (Nsqtab./(Omega_intrinsic.^2) - 1) \
-                #   + (Omega_intrinsic ./ (Green_RW.cpa*1000.) )**2 );
+                        self.Mo = Mo*np.tile(signal.tukey(len(t)), len(x)).reshape(Mo.shape)
                 
-                #indimag = find(imag(KZ)<0);
-                #KZ(indimag) = conj(KZ(indimag));
-                #ind2=find(isinf(KZ));
+                self.TFMo  = fftpack.fftn(self.Mo)
+                self.Omega = Omega
+                self.KX = -KX
+                if(dimension > 2):
+                        self.KY = -KY
+
+                ##############################
+                ## Compute vertical wavenumber
+                #self.compute_vertical_wavenumber(TFMo, H, Nsq, winds)
+
+                self.dimension = dimension
+
+                ########################
+                ## Store mesh parameters                
+                self.x    = x
+                self.y    = y
+                self.t    = t
+           
+        def plot_atmosphere_and_seismic(self):
+        
+                import matplotlib.colors as mcolors
+        
+                if(not self.atmospheric_model_is_generated):
+                        print('Generate atmospheric model first')
+                        return
+                
+                nb_cols = 3
+                fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
+                
+                #seismic = self.seismic
+
+                colors = [icolor for icolor in mcolors.TABLEAU_COLORS]
+                
+                iax     = 0
+                iax_row = 1
+                
+                z  = self.seismic['z'].values/1000.
+                zi = np.linspace(z[0], z[-1], 10000)
+                
+                f = interpolate.interp1d(z, self.seismic['rho'].values/1000., kind='previous')
+                unknown = f(zi)
+                axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].set_yscale('log')
+                axs[iax_row, iax].set_ylabel('Depth (km)')
+                axs[iax_row, iax].set_xlabel('Density (g/cm$^3$)')
+                axs[iax_row, iax].text(-0.8, 0.5, 'Seismic', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
+                axs[iax_row, iax].invert_yaxis()
+                
+                iax += 1
+                f = interpolate.interp1d(z, self.seismic['vp'].values/1000., kind='previous')
+                unknown = f(zi)
+                axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+                axs[iax_row, iax].set_yscale('log')
+                axs[iax_row, iax].invert_yaxis()
+                axs[iax_row, iax].set_xlabel('$v_p$ (km/s)')
+                
+                iax += 1
+                f = interpolate.interp1d(z, self.seismic['vs'].values/1000., kind='previous')
+                unknown = f(zi)
+                axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+                axs[iax_row, iax].set_yscale('log')
+                axs[iax_row, iax].invert_yaxis()
+                axs[iax_row, iax].set_xlabel('$v_s$ (km/s)')
+                
+                axs[iax_row, iax].get_shared_y_axes().join(axs[iax_row, 0], axs[iax_row, 1], axs[iax_row, 2])
+                
+                ## Create a profile from a few altitude points if isothermal model
+                rho = self.rho
+                cpa = self.cpa
+                wx  = self.winds[0]
+                wy  = self.winds[1]
+                if(self.isothermal):
+                        z = np.linspace(0, 50, 4)
+                        rho = self.rho[0]+z*0
+                        cpa = self.cpa[0]+z*0
+                        wx  = self.winds[0][0]+z*0
+                        wy  = self.winds[1][0]+z*0
+                else:
+                        z = self.z/1000.
+                        
+                iax     = 0
+                iax_row = 0
+                unknown = self.rho.copy()/1000.
+                axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].set_ylim([z.min(), z.max()])
+                axs[iax_row, iax].set_ylabel('Altitude (km)')
+                axs[iax_row, iax].text(-0.8, 0.5, 'Atmosphere', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
+                axs[iax_row, iax].set_title('Density (g/cm$^3$)')
+                axs[iax_row, iax].set_xscale('log')
+                
+                iax += 1
+                unknown = self.cpa.copy()/1000.
+                axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].set_ylim([z.min(), z.max()])
+                axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+                axs[iax_row, iax].set_title('$c_p$ (km/s)')
+                
+                
+                iax += 1
+                unknown = self.winds[0].copy()/1000.
+                axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+                axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+                axs[iax_row, iax].set_ylim([z.min(), z.max()])
+                if(self.dimension > 2):
+                        axs[iax_row, iax].plot(self.winds[1], self.z)
+                        axs[iax_row, iax].set_xlim([min(unknown.min(), self.winds[1].min()), max(unknown.max(), self.winds[1].max())])
+                axs[iax_row, iax].grid()
+                axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+                axs[iax_row, iax].set_title('winds (km/s)')
+                
+                fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
+                
+                if(not options['GOOGLE_COLAB']):
+                        plt.savefig(self.global_folder + 'seismic_and_atmos_profiles.png')
+                
+        def generate_atmospheric_model(self, param_atmos):
+        
+                self.atmospheric_model_is_generated = True
+        
+                self.isothermal = param_atmos['isothermal']
+                if(self.isothermal):
+                        self.H = [param_atmos['H']]
+                        self.cpa = [param_atmos['cpa']]
+                        self.Nsq = [param_atmos['Nsq']]
+                        self.winds = []
+                        self.winds.append( [param_atmos['wind_x']] )
+                        self.winds.append( [param_atmos['wind_y']] )
+                        self.bulk  = [param_atmos['bulk']]
+                        self.shear = [param_atmos['shear']]
+                        self.kappa = [param_atmos['kappa']]
+                        self.gamma = [param_atmos['gamma']]
+                        self.rho   = [param_atmos['rho']]
+                        self.cp    = [param_atmos['cp']]
+                else:
+                        #sys.exit('Has to be implemented!')
+                        temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
+                        temp.columns = ['z', 'rho', 'dummy1', 'cpa', 'p', 'dummy2', 'g', 'dummy3', 'kappa', 'mu', 'dummy4', 'dummy5', 'dummy6', 'wx', 'cp', 'cv', 'gamma']
+                        self.z = temp['z'].values
+                        self.H     = -(np.roll(self.z, 1) - self.z)/np.log( np.roll(temp['p'].values, 1)/temp['p'].values )
+                        self.H[1] = self.H[0]
+                        self.H[-1] = self.H[-2]
+                        self.Nsq   = np.sqrt(-(temp['g'].values/temp['rho'].values[0])*np.gradient(temp['rho'].values, self.z, edge_order=2))**2
+                        self.Nsq[0] = self.Nsq[1]
+                        #plt.figure(); plt.plot(self.Nsq, self.z); plt.show()
+                        self.winds = []
+                        self.winds.append( temp['wx'].values )
+                        self.winds.append( temp['wx'].values )
+                        self.cpa = temp['cpa'].values
+                        self.rho   = temp['rho'].values
+                        self.bulk  = temp['mu'].values
+                        self.shear = temp['mu'].values
+                        self.kappa = temp['kappa'].values
+                        self.cp    = temp['cp'].values
+                        self.gamma = temp['gamma'].values
+                                
+                                
+        def compute_vertical_wavenumber(self, id_layer):        
+                
+                ## Get corresponding atmospheric parameters
+                H      = self.H[id_layer]
+                Nsq    = self.Nsq[id_layer]
+                wind_x = self.winds[0][id_layer]
+                wind_y = self.winds[1][id_layer]
+                cpa    = self.cpa[id_layer]
+                bulk   = self.bulk[id_layer]
+                shear  = self.shear[id_layer]
+                kappa  = self.kappa[id_layer]
+                gamma  = self.gamma[id_layer]
+                rho    = self.rho[id_layer]
+                cp     = self.cp[id_layer]
+                
+                ## Compute intrinsic frequencies
+                Omega_intrinsic = self.Omega - wind_x*self.KX
+                if(self.dimension > 2):
+                        Omega_intrinsic -= wind_y*self.KY
+                
+                #KZ = np.zeros(Omega.shape, dtype=complex)
+                if(self.dimension > 2):
+                        KZ = np.lib.scimath.sqrt(  -self.KX**2 -self.KY**2 + (self.KX**2 + self.KY**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
+                else:
+                        KZ = np.lib.scimath.sqrt( -self.KX**2 + (self.KX**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
+                
+                ## Remove infinite/nan numbers that correspond to zero frequencies
                 KZ   = np.nan_to_num(KZ, 0.)
                 
-                indimag = np.where(np.imag(KZ)<0)
+                indimag     = np.where(np.imag(KZ)<0)
                 KZ[indimag] = np.conjugate(KZ[indimag])
                 # real(KZ) should be positive for positive frequencies and negative for
                 # negative frequencies in order to shift signal in positive times
@@ -497,38 +645,114 @@ class field_RW():
                 #     KZnew=real(KZ).*sign((Omega-wind_x*KX)).*sign(KX)+1i*imag(KZ);
                 # !!! Why KZ should have a sign opposite to Omega for GW NOT UNDERSTOOD !!!
                 # => because vg perpendicular to Vphi ?
+                
                 KZ = 0.0 - np.real(KZ)*np.sign(Omega_intrinsic) + 1j*np.imag(KZ)
+                #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(Omega_intrinsic)
+                #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(self.KX)
+                #KZ(:,NFFT2/2:-1:2)=0.0-real(KZ(:,NFFT2/2+2:NFFT2))+1i*imag(KZ(:,NFFT2/2+2:NFFT2));
                 
-                ## Store wavenumbers
-                self.KZ   = KZ
-                #self.KY   = KY
-                self.TFMo = TFMo
-                self.H    = H
-                self.x    = x
-                self.y    = y
-                self.t    = t
+                #bp()
                 
                 
-        def compute_field_for_xz(self, t, x, y, z, zvect, dimension, type_slice):
+                #ind_m0 = np.where(Omega<0.)
+                #ind_p0 = np.where(self.Omega>=0.)
+                #KZ[ ind_p0 ] = np.real(KZ[ ind_p0 ]) - 1j*np.imag(KZ[ ind_p0 ])
                 
+                return KZ
+        
+        def compute_response_at_given_z(self, z1, z0, TFMo, KZ_in = [], last_layer_in = -1):
+        
+                ## Find all layers for which we have to compute the wavenumbers 
+                def find_id_layers_and_heights(z0, z1, zlayer):
+                
+                        id_layers = []
+                        h_layers  = []
+                        
+                        id_first_layer = 0
+                        if(z0 > zlayer[0]):
+                                id_first_layer = np.where(zlayer<z0)[0][-1]
+                        
+                        id_last_layer = 0
+                        if(z1 > zlayer[0]):
+                                id_last_layer  = np.where(zlayer<z1)[0][-1]
+                                
+                        zprev = z0
+                        for current_id in range(id_first_layer, id_last_layer):
+                                h = zlayer[current_id+1]-zprev
+                                if(h > 0):
+                                        h_layers.append( h )
+                                        id_layers.append( current_id )
+                                zprev = zlayer[current_id+1]
+                        
+                        ## Last element    
+                        if not id_first_layer == id_last_layer:
+                                h = z1-zlayer[id_last_layer] 
+                        else:
+                                h = z1-z0
+                        
+                        if(h > 0):
+                                h_layers.append( h )
+                                id_layers.append( id_last_layer )
+                        
+                        return h_layers, id_layers  
+                
+                KZ         = KZ_in
+                last_layer = last_layer_in
+                ## We only compute the solution if we are not at the surface or below 
+                if(z1 > 0):
+                        
+                        ## If isothermal model
+                        if(self.isothermal):
+                                ## Compute the vertical response from the ground forcing
+                                if(not KZ):
+                                        KZ = self.compute_vertical_wavenumber(0)       
+                                field_at_it = np.exp(z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * self.TFMo)
+                        
+                        ## If layered model
+                        else:
+                        
+                                h_layers, id_layers = find_id_layers_and_heights(z0, z1, self.z)
+                                for idx, id_layer in enumerate(id_layers):
+                        
+                                        ## Compute the vertical response from the forcing of the layer beneath (idz-1)
+                                        if(not last_layer == id_layer):
+                                                KZ = self.compute_vertical_wavenumber(id_layer)       
+                                        TFMo *= np.exp(h_layers[idx]/(2*self.H[id_layer])) * np.exp(1j*(KZ*h_layers[idx])) 
+                                
+                                field_at_it = fftpack.ifftn( TFMo )
+                                        
+                                last_layer = id_layer        
+                                        
+                else:
+                        field_at_it = fftpack.ifftn(TFMo)
+                
+                #if(z0 == 0. and z1 > 10000.):
+                #        plt.figure(); plt.imshow(np.real(field_at_it), extent=[self.x[0], self.x[-1], self.t[-1], self.t[0]], aspect='auto'); plt.gca().axvline(20000., color='r'); plt.show()
+                #        bp()
+                
+                return field_at_it, last_layer, KZ, TFMo
+                
+        ## Compute wavefield for a given physical domain
+        def compute_field_for_xz(self, t, x, y, z, zvect, type_slice):
+                
+                ## Build a response matrix based on required slice dimensions
                 if(type_slice == 'z'):
                         d1, d2 = len(zvect), len(self.x)
                         Mz_xz = np.zeros((d1, d2), dtype=complex)
-                        if(dimension > 2):
+                        if(self.dimension > 2):
                                 d1, d2 = len(zvect), len(self.y)
                                 Mz_yz = np.zeros((d1, d2), dtype=complex)
                 elif(type_slice == 'xy'):
-                        #if(len(z) > 1):
-                        #        sys.exit('If slice xy, can not have multidimensional "z" input!')
                         d1, d2 = len(self.x), len(self.y)
                         Mz_xy = np.zeros((d1, d2), dtype=complex)
                         zvect  = [z]
                 else:
                         sys.exit('Slice "'+str(type_slice)+'" not recognized!')
                         
+                ## Get required time index        
                 it = np.argmin( abs(self.t - t) )
                 
-                # setup toolbar
+                ## setup progress bar
                 cptbar        = 0
                 toolbar_width = 40
                 total_length  = len(zvect)
@@ -536,16 +760,24 @@ class field_RW():
                 sys.stdout.flush()
                 sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 
+                ## Load initial surface forcing
+                TFMo    = self.TFMo.copy()
+                
+                iz_prev = 0.
+                last_layer_prev = -1
+                KZ_prev = []
+                ## Loop over all layers
                 for idz, iz in enumerate(zvect):
                 
-                        field_at_it = np.exp(iz/(2*self.H)) * fftpack.ifftn( np.exp(1j*(self.KZ*iz)) * self.TFMo)        
-                        #if(type == 'p'):
-                        #        temp = np.exp(iz/(2*self.H)) * filt*self.TFMo
-                        #        p    = 1j*( -1*self.wind_x*1j*temp[:,:] )
-                        #else:
+                        field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(iz, iz_prev, TFMo, KZ_prev, last_layer_prev)
+                        ## Store wavenumber if a new wavenumber has been computed
+                        if(last_layer > -1):
+                                last_layer_prev = last_layer
+                                KZ_prev = KZ.copy()
+                        iz_prev = iz
                         
-                        # 3d
-                        if(dimension > 2):
+                        ## 3d
+                        if(self.dimension > 2):
                         
                                 if(type_slice == 'z'):
                                 
@@ -558,11 +790,11 @@ class field_RW():
                                 elif(type_slice == 'xy'):
                                         Mz_xy[:, :] = field_at_it[it,:,:]
                                         
-                        # 2d
+                        ## 2d
                         else:
                                 Mz_xz[idz, :] = field_at_it[it,:]
 
-                        # update the bar
+                        ## update the bar
                         if(int(toolbar_width*idz/total_length) > cptbar):
                                 cptbar = int(toolbar_width*idz/total_length)
                                 sys.stdout.write("-")
@@ -570,32 +802,56 @@ class field_RW():
                 
                 sys.stdout.write("] Done\n")
                 
-                if(dimension > 2 and type_slice == 'z'):
+                if(self.dimension > 2 and type_slice == 'z'):
                         return Mz_xz, Mz_yz
-                elif(dimension > 2 and type_slice == 'xy'):
+                elif(self.dimension > 2 and type_slice == 'xy'):
                         return Mz_xy
                 else:
                         return Mz_xz
                         
-        def compute_field_timeseries(self, x, y, z, dimension):
+        def compute_field_timeseries(self, x, y, z):
         
                 ix   = np.argmin( abs(self.x - x) )
-                filt = np.exp(1j*(self.KZ*z))
+                #filt = np.exp(1j*(self.KZ*z))
+                field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(z, 0., self.TFMo)
+                
                 # 3d
-                if(dimension > 2):
+                if(self.dimension > 2):
                         iy = np.argmin( abs(self.y - y) )
-                        Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix, iy]
+                        #Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix, iy]
+                        Mz = field_at_it[:, ix, iy]
                 # 2d
                 else:
-                        Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix]
+                        #Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix]
+                        Mz = field_at_it[:, ix]
                 
                 return Mz
+
+def generate_default_atmos():
+        
+        param_atmos = {}
+        param_atmos['isothermal'] = False
+        param_atmos['file'] = './atmospheric_model.dat'
+        param_atmos['cpa']    = 3.4e2 # m/s
+        param_atmos['H']      = 7.e3 # m
+        param_atmos['Nsq']    = 1e-10
+        param_atmos['wind_x'] = 0.
+        param_atmos['wind_y'] = 0.
+        
+        param_atmos['bulk']   = 0.
+        param_atmos['shear']  = 0.
+        param_atmos['kappa']  = 0.
+        param_atmos['gamma']  = 1.4
+        param_atmos['rho']    = 1.2
+        param_atmos['cp']     = 3000.
+        
+        return param_atmos
 
 def generate_default_mechanism():
 
         mechanism = {}
-        mechanism['zsource'] = 6800 # m
-        mechanism['f0'] = 0.45
+        mechanism['zsource'] = 3400 # m
+        mechanism['f0'] = 0.2
         mechanism['M0'] = 1e0
         mechanism['M']  = np.zeros((6,))
         mechanism['M'][0]  = -1.82631379e+13 # Mxx 2.5
@@ -605,16 +861,16 @@ def generate_default_mechanism():
         mechanism['M'][2]  = -1.12117778e+10 # Mzz 2.5
         #mechanism['M'][2]  = 6.36275923e+16 # Mzz 3.1
         mechanism['M'][3]  = -4.53334337e+11 # Mxy
-        mechanism['M'][4]  = 2.73046441e+10 # Mxz 2.5
+        mechanism['M'][4]  = 2.73046441e+17 # Mxz 2.5
         #mechanism['M'][4]  = -1.64624203e+16 # Mxz 3.1
         #mechanism['M'][4]  = 0. # Mxz
-        mechanism['M'][5]  = 2.21151605e+12 # Myz
+        mechanism['M'][5]  = 2.21151605e+14 # Myz
         mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
         mechanism['phi']   = 0.
         
         return mechanism
 
-def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
+def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
 
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -637,7 +893,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 xbounds    = [-110000., 110000.]
                 ybounds    = [-110000., 110000.]
                 dx, dy, dz = 600., 2000., 200.
-                z         = np.arange(0, 25000., dz)
+                z         = np.arange(0, 50000., dz)
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
                 ybounds = [domain['ymin'], domain['ymax']]
@@ -646,12 +902,20 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
         
         field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, H, Nsq, winds, mode_max)
         
+        ## Create atmospheric profiles
+        if(not param_atmos):
+                param_atmos = generate_default_atmos()
+        field.generate_atmospheric_model(param_atmos)
+        
+        ## Plot profiles
+        field.plot_atmosphere_and_seismic()
+        
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(not station):
                 iz = 20000.
                 iy = 20000.
                 ix = 20000.
-                t_station = 90.
+                t_station = 250.
                 type_slice = 'xz'
         else:
                 iz = station['zs']
@@ -662,15 +926,15 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(dimension > 2):
-                Mxz, Myz = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'z')
-                Mxy      = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'xy')
+                Mxz, Myz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z')
+                Mxy      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy')
                 nb_cols  = 2
         else:
-                Mxz = field.compute_field_for_xz(t_station, ix, iy, iz, z, dimension, 'z') 
+                Mxz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z') 
                 nb_cols = 1
                
         ## COmpute time series at a given location
-        Mz_t = field.compute_field_timeseries(ix, iy, iz, dimension)
+        Mz_t = field.compute_field_timeseries(ix, iy, iz)
         
         ## Display
         fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
@@ -736,12 +1000,12 @@ def compute_analytical_acoustic(Green_RW, mechanism, station, domain, options):
                 axs[iax].set_ylabel('Altitude (km)')
                 axs[iax].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax].transAxes)
                 
-                axins = inset_axes(axs[iax], width="2.5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0.1, 1, 1.), bbox_transform=axs[iax].transAxes, borderpad=0)
+                axins = inset_axes(axs[iax], width="2.5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax].transAxes, borderpad=0)
                 axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
                 
                 plt.colorbar(plotMxz, cax=axins)
         
-        fig.subplots_adjust(hspace=0.28, right=0.8, left=0.2, top=0.94, bottom=0.15)
+        fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
         
         if(not options['GOOGLE_COLAB']):
                 plt.savefig(options['global_folder'] + 'map_wavefield_vz.png')
@@ -1093,11 +1357,6 @@ def create_velocity_model(options):
         
                 side[iunknown] = data_interp[chosen_model][iunknown].copy()
                 
-        #plt.figure()
-        #plt.plot(side['vs'], options['z'])
-        #plt.show()
-        #bp()
-                        
         side['z']  = options['z'].copy()
         ## No attenuation because we only want eigenfunctions        
         side['Qa'] = side['vs']*0 + 9999. # P-wave Q
@@ -1141,7 +1400,7 @@ def compute_trans_coefficients(options_in = {}):
         
         ##########
         ## Options
-        options['dimension']   = 3
+        options['dimension']   = 2
         
         options['nb_modes']    = [0, 3] # min / max
         options['type_wave']   = 1 # Surface wave type.  (1 = Rayleigh; >1 = Love.)
@@ -1159,6 +1418,7 @@ def compute_trans_coefficients(options_in = {}):
         ## Hetergeneous structure
         options['models'] = {}
         options['models']['specfem'] = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_test_Jennifer_1/Ridgecrest_seismic.txt'
+        options['models']['specfem'] = '/home/quentin/Desktop/Ridgecrest_seismic.txt'
         options['chosen_model'] = 'specfem'
         options['zmax'] = 50000.
 
@@ -1175,7 +1435,7 @@ def compute_trans_coefficients(options_in = {}):
         options['source_depth']   = 6.8 # (km)
         options['receiver_depth'] = 0 # (km)
         options['coef_low_freq']  = 0.001
-        options['coef_high_freq'] = 0.6 # 1.85
+        options['coef_high_freq'] = 0.3 # 1.85
         options['Loop']           = 0 # This this point the program loops over another set of input lines starting with the surface wave type (1st line after model).  If this is set to zero, the program will terminate.
         
         ## Update each option based on user input
@@ -1242,4 +1502,6 @@ if __name__ == '__main__':
         
         mechanism = generate_default_mechanism()
         
-        compute_analytical_acoustic(Green_RW, mechanism, station, domain, options_out)
+        param_atmos = generate_default_atmos()
+        
+        compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
