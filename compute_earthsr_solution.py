@@ -62,8 +62,8 @@ class vertical_velocity():
 
         def compute_veloc(self, r, phi, M, depth, unknown = 'd', dimension_seismic = 3):
         
-                comp_deriv = np.pi*2.*1j/self.period if unknown == 'v' else 1.
-                comp_deriv = (np.pi*2.*1j/self.period)*comp_deriv if unknown == 'a' else comp_deriv
+                comp_deriv = -np.pi*2.*1j/self.period if unknown == 'v' else 1.
+                comp_deriv = (-np.pi*2.*1j/self.period)*comp_deriv if unknown == 'a' else comp_deriv
                 
                 ## 3d
                 if(dimension_seismic == 3):
@@ -133,8 +133,12 @@ class RW_forcing():
 
         def update_mechanism(self, mechanism):
         
+                self.stf = mechanism['stf']
                 self.zsource = mechanism['zsource'] # m
-                self.f0    = mechanism['f0']
+                if(self.stf == 'gaussian'):
+                        self.f0    = mechanism['f0']
+                else:
+                        self.f0    = mechanism['f0']*1.628
                 self.alpha = (np.pi*self.f0)**2
                 self.M0    = mechanism['M0']
                 self.M     = mechanism['M']*self.M0
@@ -146,7 +150,15 @@ class RW_forcing():
 
         def source_spectrum(self, period):
         
-                return self.M*np.sqrt(np.pi/self.alpha)*np.exp(-((np.pi/period)**2)/self.alpha)*np.exp(-2*np.pi*1j*(1.2/self.f0)/period)
+                if(self.stf == 'gaussian'):
+                        return self.M*np.sqrt(np.pi/self.alpha)*np.exp(-((np.pi/period)**2)/self.alpha)*np.exp(2*np.pi*1j*(1.2/self.f0)/period)
+                
+                elif(self.stf == 'erf'):
+                        erf = -1j*(1./self.f0)*np.exp(-(np.pi/(period*self.f0))**2)/(np.pi/(period*self.f0))
+                        dirac = 0.
+                        return 0.5*(dirac+erf) * self.M*np.exp(2*np.pi*1j*(2.*2./self.f0)/period)
+                else:
+                        sys.exit('Source time function "'+self.stf+'" not recognized!')
         
         def add_one_period(self, period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep):
         
@@ -175,22 +187,15 @@ class RW_forcing():
                         
                         I1   = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
                         
-                        #r2_source = r2[idz_source]
-                        #r1_source = r1[idz_source]
                         kn = kn[0]
                         self.directivity[imode][iperiod] = directivity(dep, d_r1_dz, d_r2_dz, kn, r1, r2)
                         
                         r2 = r2[0]
                         r1 = r1[0]
                         
-                        #dr2dz_source = d_r2_dz[idz_source]
-                        #dr1dz_source = d_r1_dz[idz_source]
-                        
                         self.angle_RW[iperiod, imode]  = np.arctan(self.cpa/cphi)
                         self.uz[imode][iperiod]        = vertical_velocity(period, r2, cphi, cg, I1, kn, self.directivity[imode][iperiod], self.angle_RW[iperiod, imode])
                         
-                #self.uz_tab[iperiod] = np.sum(uz[iperiod])
-
         def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd', dimension_seismic = 3):
         
                 ## Source depth
@@ -367,10 +372,11 @@ class field_RW():
         
                 self.atmospheric_model_is_generated = False
                 self.global_folder = Green_RW.global_folder # Save folder path from Green's class
+                self.type_output = 'v'
         
                 ##################################################
                 ## Initial call to Green_RW to get the time vector
-                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown='v', dimension_seismic = dimension_seismic)
+                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[0]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic)
                 t      = output[0]
                 
                 ## Store seismic model
@@ -398,7 +404,7 @@ class field_RW():
                         y  = dy_anal * np.arange(0,NFFT3) 
                         y -= y[-1]/2.
                 else:
-                        y = np.array([0.])   
+                        y = np.array([Green_RW.phi])   
                    
                 ############################        
                 ## Frequency/Wavenumber mesh
@@ -411,9 +417,6 @@ class field_RW():
                         KX, Omega, KY = np.meshgrid(kx, omega, ky)
                 else:
                         KX, Omega = np.meshgrid(kx, omega)
-                
-                #Nsqtab    = 0.*Nsq + 0.0*Omega;
-                #onestab = 0.0*Nsqtab + 1.0;
                 
                 #####################
                 ## Compute RW forcing
@@ -430,15 +433,13 @@ class field_RW():
                         ind_where_yp0 = np.where(Y<0)
                         PHI[ind_where_yp0] = -np.arccos( X[ind_where_yp0]/R[ind_where_yp0] )
                 else:
-                        #X, Y   = np.meshgrid(y, x)
                         R   = abs(x)
-                        #PHI = y[0]+R*0.
                         PHI = y[0]+R*0.
                         PHI[:len(x)//2] = np.pi
                                 
                 #########################
                 ## Compute bottom forcing                
-                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown='v', mode_max = mode_max, dimension_seismic = dimension_seismic)
+                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown=self.type_output, mode_max = mode_max, dimension_seismic = dimension_seismic)
                 if(dimension > 2):
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
@@ -708,7 +709,7 @@ class field_RW():
                 
                 return KZ
         
-        def compute_response_at_given_z(self, z1, z0, TFMo, KZ_in = [], last_layer_in = -1):
+        def compute_response_at_given_z(self, z1, z0, TFMo, comp, KZ_in = [], last_layer_in = -1):
         
                 ## Find all layers for which we have to compute the wavenumbers 
                 def find_id_layers_and_heights(z0, z1, zlayer):
@@ -744,6 +745,9 @@ class field_RW():
                         
                         return h_layers, id_layers  
                 
+                ## If pressure amplitude decreases with altitude
+                coef_amplitude = 1. if comp == 'vz' else -1.
+                
                 KZ         = KZ_in
                 last_layer = last_layer_in
                 ## We only compute the solution if we are not at the surface or below 
@@ -754,7 +758,7 @@ class field_RW():
                                 ## Compute the vertical response from the ground forcing
                                 if(not KZ):
                                         KZ = self.compute_vertical_wavenumber(0)       
-                                field_at_it = np.exp(z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * self.TFMo)
+                                field_at_it = np.exp(coef_amplitude*z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * self.TFMo)
                         
                         ## If layered model
                         else:
@@ -765,7 +769,7 @@ class field_RW():
                                         ## Compute the vertical response from the forcing of the layer beneath (idz-1)
                                         if(not last_layer == id_layer):
                                                 KZ = self.compute_vertical_wavenumber(id_layer)       
-                                        TFMo *= np.exp(h_layers[idx]/(2*self.H[id_layer])) * np.exp(1j*(KZ*h_layers[idx])) 
+                                        TFMo *= np.exp(coef_amplitude*h_layers[idx]/(2*self.H[id_layer])) * np.exp(1j*(KZ*h_layers[idx])) 
                                 
                                 field_at_it = fftpack.ifftn( TFMo )
                                         
@@ -780,8 +784,21 @@ class field_RW():
                 
                 return field_at_it, last_layer, KZ, TFMo
                 
+        def convert_TFMo_to_pressure(self):
+        
+                ## Ignore division/invalid errors in P computation
+                np.seterr(divide='ignore', invalid='ignore')   
+        
+                KZ = self.compute_vertical_wavenumber(0)
+                indnot0 = np.where(abs(self.Omega) > 0)
+                P = np.zeros(self.Omega.shape, dtype=complex)
+                P[indnot0] = -self.rho[0]*(self.cpa[0]**2)*KZ[indnot0]*self.TFMo[indnot0]/(self.Omega[indnot0]) 
+                P = np.nan_to_num(P, 0.) 
+                
+                return P
+                
         ## Compute wavefield for a given physical domain
-        def compute_field_for_xz(self, t, x, y, z, zvect, type_slice):
+        def compute_field_for_xz(self, t, x, y, z, zvect, type_slice, comp):
                 
                 ## Build a response matrix based on required slice dimensions
                 if(type_slice == 'z'):
@@ -809,15 +826,18 @@ class field_RW():
                 sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 
                 ## Load initial surface forcing
-                TFMo    = self.TFMo.copy()
-                
+                if(comp == 'vz'):
+                        TFMo    = self.TFMo.copy()
+                else:
+                        TFMo    = self.convert_TFMo_to_pressure()
+                        
                 iz_prev = 0.
                 last_layer_prev = -1
                 KZ_prev = []
                 ## Loop over all layers
                 for idz, iz in enumerate(zvect):
                 
-                        field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(iz, iz_prev, TFMo, KZ_prev, last_layer_prev)
+                        field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(iz, iz_prev, TFMo, comp, KZ_prev, last_layer_prev)
                         ## Store wavenumber if a new wavenumber has been computed
                         if(last_layer > -1):
                                 last_layer_prev = last_layer
@@ -857,33 +877,35 @@ class field_RW():
                 else:
                         return Mz_xz
                         
-        def compute_field_timeseries(self, x, y, z):
+        def compute_field_timeseries(self, x, y, z, comp):
         
                 ix   = np.argmin( abs(self.x - x) )
-                #filt = np.exp(1j*(self.KZ*z))
-                field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(z, 0., self.TFMo)
+                if(comp == 'vz'):
+                        TFMo = self.TFMo
+                else:
+                        TFMo = self.convert_TFMo_to_pressure()
+                
+                field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(z, 0., TFMo, comp)
                 
                 # 3d
                 if(self.dimension > 2):
                         iy = np.argmin( abs(self.y - y) )
-                        #Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix, iy]
                         Mz = field_at_it[:, ix, iy]
                 # 2d
                 else:
-                        #Mz = np.exp(z/(2*self.H)) * fftpack.ifftn(filt*self.TFMo)[:, ix]
                         Mz = field_at_it[:, ix]
                 
-                return Mz
+                return Mz, self.Mo[:, ix]
 
 def generate_default_atmos():
         
         param_atmos = {}
-        param_atmos['isothermal'] = False
+        param_atmos['isothermal'] = False       
         param_atmos['subsampling'] = True
-        param_atmos['subsampling_layers'] = 100
+        param_atmos['subsampling_layers'] = 80
         param_atmos['file'] = './atmospheric_model.dat'
-        param_atmos['cpa']    = 3.4e2 # m/s
-        param_atmos['H']      = 7.e3 # m
+        param_atmos['cpa']    = 3.2e2 # m/s
+        param_atmos['H']      = 1.e10 # m
         param_atmos['Nsq']    = 1e-10
         param_atmos['wind_x'] = 0.
         param_atmos['wind_y'] = 0.
@@ -900,20 +922,28 @@ def generate_default_atmos():
 def generate_default_mechanism():
 
         mechanism = {}
+        mechanism['stf'] = 'gaussian' # gaussian or erf
         mechanism['zsource'] = 6800. # m
-        mechanism['f0'] = 0.2
-        mechanism['M0'] = 1e0
+        mechanism['M0'] = 1e13
         mechanism['M']  = np.zeros((6,))
-        mechanism['M'][0]  = -1.82631379e+13 # Mxx 2.5
+        mechanism['M'][0]  = -1.82631379 # Mxx 2.5
         #mechanism['M'][0]  = 453334337148. # Mxx
         #mechanism['M'][0]  = -2.83550741e+16 # Mxx 3.1
-        mechanism['M'][1]  = 1.82743497e+13 # Myy 2.5
-        mechanism['M'][2]  = -1.12117778e+10 # Mzz 2.5
+        mechanism['M'][1]  = 1.82743497 # Myy 2.5
+        mechanism['M'][2]  = -1.12117778e-3 # Mzz 2.5
         #mechanism['M'][2]  = 6.36275923e+16 # Mzz 3.1
-        mechanism['M'][3]  = -4.53334337e+11 # Mxy
-        mechanism['M'][4]  = 2.73046441e+10 # Mxz 2.5
+        mechanism['M'][3]  = 2.73046441e-3 # Mxy
+        mechanism['M'][4]  = -4.53334337e-2 # Mxz 2.5
         #mechanism['M'][4]  = -1.64624203e+16 # Mxz 3.1
-        mechanism['M'][5]  = 2.21151605e+12 # Myz
+        mechanism['M'][5]  = 2.21151605e-1 # Myz
+        
+        mechanism['f0'] = 0.4
+        #mechanism['f0'] = 1./((1.05*(1e-8)*(mechanism['M0']*1e7)**(1./3.))) # From Ekstrom, 2012
+        
+        mechanism['M0'] = 1e0
+        #mechanism['M'] = np.array([ -1.44790502e+13,  -1.13715534e+12,   1.56162055e+13, -4.31542275e+12,   9.36646867e+12,   4.58899052e+12]) # Mw 2.47
+        #mechanism['M'] = np.array([ -1.12117778e+10, 1.82743497e+13, -1.82631379e+13, 2.73046441e+10, 4.53334337e+11, -2.21151605e+12])
+        mechanism['M'] = np.array([ -1.12117778e+10,   1.56600912e+13,  -1.56488795e+13,-1.24122814e+11,   4.36865073e+11,   9.67341164e+12]) #2.5 Hare2
         mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
         mechanism['phi']   = 0.
         
@@ -942,8 +972,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         if(not domain):
                 xbounds    = [-110000., 110000.]
                 ybounds    = [-110000., 110000.]
-                dx, dy, dz = 600., 2000., 200.
-                z         = np.arange(0, 50000., dz)
+                dx, dy, dz = 150., 2000., 300.
+                z         = np.arange(0, 30000., dz)
         else:
                 xbounds = [domain['xmin'], domain['xmax']]
                 ybounds = [domain['ymin'], domain['ymax']]
@@ -962,29 +992,31 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(not station):
-                iz = 20000.
-                iy = 20000.
-                ix = 40000.
-                t_station = 60.
+                iz = 0
+                iy = 0.
+                ix = 22398
+                t_station = 40.
                 type_slice = 'xz'
+                comp = 'vz'
         else:
                 iz = station['zs']
                 iy = station['ys']
                 ix = station['xs']
                 t_station = station['t_chosen']
                 type_slice = station['type_slice']
+                comp = station['comp']
                 
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(dimension > 2):
-                Mxz, Myz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z')
-                Mxy      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy')
+                Mxz, Myz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp)
+                Mxy      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy', comp)
                 nb_cols  = 2
         else:
-                Mxz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z') 
+                Mxz = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp) 
                 nb_cols = 1
                
-        ## COmpute time series at a given location
-        Mz_t = field.compute_field_timeseries(ix, iy, iz)
+        ## Compute time series at a given location
+        Mz_t, RW_Mz_t = field.compute_field_timeseries(ix, iy, iz, comp)
         
         ## Display
         fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
@@ -1036,12 +1068,76 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         
         else:
         
+                def align_yaxis_np(axes):
+                    """Align zeros of the two axes, zooming them out by same ratio"""
+                    axes = np.array(axes)
+                    extrema = np.array([ax.get_ylim() for ax in axes])
+
+                    # reset for divide by zero issues
+                    for i in range(len(extrema)):
+                        if np.isclose(extrema[i, 0], 0.0):
+                            extrema[i, 0] = -1
+                        if np.isclose(extrema[i, 1], 0.0):
+                            extrema[i, 1] = 1
+
+                    # upper and lower limits
+                    lowers = extrema[:, 0]
+                    uppers = extrema[:, 1]
+
+                    # if all pos or all neg, don't scale
+                    all_positive = False
+                    all_negative = False
+                    if lowers.min() > 0.0:
+                        all_positive = True
+
+                    if uppers.max() < 0.0:
+                        all_negative = True
+
+                    if all_negative or all_positive:
+                        # don't scale
+                        return
+
+                    # pick "most centered" axis
+                    res = abs(uppers+lowers)
+                    min_index = np.argmin(res)
+
+                    # scale positive or negative part
+                    multiplier1 = abs(uppers[min_index]/lowers[min_index])
+                    multiplier2 = abs(lowers[min_index]/uppers[min_index])
+
+                    for i in range(len(extrema)):
+                        # scale positive or negative part based on which induces valid
+                        if i != min_index:
+                            lower_change = extrema[i, 1] * -1*multiplier2
+                            upper_change = extrema[i, 0] * -1*multiplier1
+                            if upper_change < extrema[i, 1]:
+                                extrema[i, 0] = lower_change
+                            else:
+                                extrema[i, 1] = upper_change
+
+                        # bump by 10% for a margin
+                        extrema[i, 0] *= 1.1
+                        extrema[i, 1] *= 1.1
+
+                    # set axes limits
+                    [axes[i].set_ylim(*extrema[i]) for i in range(len(extrema))]
+        
                 iax = 0
-                axs[iax].plot(field.t, np.real(Mz_t))
+                axs[iax].plot(field.t, np.real(Mz_t), zorder=2)
+                
                 axs[iax].grid(True)
                 axs[iax].set_xlim([field.t[0], field.t[-1]])
                 axs[iax].set_xlabel('Time (s)')
                 axs[iax].set_ylabel('Velocity (m/s)')
+                
+                if(options['PLOT_RW_time_series']):
+                        ax2 = axs[iax].twinx()  # instantiate a second axes that shares the same x-axis
+                        color = 'tab:red'
+                        ax2.set_ylabel('RW', color=color)  # we already handled the x-label with ax1
+                        ax2.plot(field.t, np.real(RW_Mz_t), color=color, zorder=1, linestyle='--')
+                        ax2.tick_params(axis='y', labelcolor=color)
+                        
+                        align_yaxis_np([axs[iax],ax2])
                 
                 iax += 1
                 plotMxz = axs[iax].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
@@ -1054,6 +1150,37 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
                 
                 plt.colorbar(plotMxz, cax=axins)
+                
+        if(False):
+                import obspy
+                tr = obspy.Trace()
+                tr.data = np.real(Mz_t)
+                tr.stats.delta     = abs( field.t[1] - field.t[0] )
+                tr.stats.station   = 'balloon'
+                tr.decimate(factor=1, strict_length=False)
+                tr.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                
+                tr_RW = obspy.Trace()
+                tr_RW.data = np.real(RW_Mz_t)
+                tr_RW.stats.delta     = abs( field.t[1] - field.t[0] )
+                tr_RW.stats.station   = 'balloon'
+                tr_RW.decimate(factor=1, strict_length=False)
+                tr_RW.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_batch2_3/OUTPUT_FILES/AA.S0020.BXZ.semd'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/BA.S0001.BXX.semv'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/AA.S0021.BXZ.semv'
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXP.semp'
+                data_simu = pd.read_csv( dir, delim_whitespace=True, header=None )
+                data_simu.columns = ['t', 'amp']
+                tr_s = obspy.Trace()
+                tr_s.data = data_simu['amp'].values
+                tr_s.stats.delta     = abs( data_simu['t'].values[1] - data_simu['t'].values[0] )
+                tr_s.stats.station   = 'balloon'
+                tr_s.decimate(factor=1, strict_length=False)
+                tr_s.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                
+                plt.figure(); plt.plot(tr.times(), 1*tr.data/(abs(tr.data).max()*0.+1.), tr_s.times()+1., 1.*tr_s.data/(abs(tr_s.data).max()*0.+1.)); plt.show()
         
         fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
         
@@ -1161,7 +1288,6 @@ def get_eigenfunctions(current_struct, mechanism, options):
                 # Eq. (7.28) Aki-Richards
                 # r1 = b2 r2 = b1
                 # r3 = b4 r4 = b3
-                # Extra omega factor
                 d_b2_dz = (omega*orig_b4-np.multiply(kmu,orig_b1))/mu # numpy.multiply does element wise array multiplication
                 d_b1_dz = (np.multiply(klamda,orig_b2)+omega*orig_b3)/(lamda+2*mu)
                 dxz     = np.gradient(orig_b2[:,0])
@@ -1170,12 +1296,9 @@ def get_eigenfunctions(current_struct, mechanism, options):
                 ## Construct Green's function for a given period 
                 Green_RW.add_one_period(period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
                 
-                #print('Finish reading period ' + str(period))
-                # update the bar
                 if(int(toolbar_width*iperiod/total_length) > cptbar):
                         cptbar = int(toolbar_width*iperiod/total_length)
                         sys.stdout.write("-")
-                        #print(cptbar, iperiod)
                         sys.stdout.flush()
                 
         sys.stdout.write("] Done\n")
@@ -1339,11 +1462,15 @@ def discretize_model_heterogeneous(data, options):
                                 iz           = locnan[0]
                                 temp[iz:]    = temp[iz-1]
                                 
-                        f    = interpolate.interp1d(options['z'], temp, kind='previous')
-                        temp_interm = f(z_interp_interm)/1000.
-                        f    = interpolate.interp1d(z_interp_interm, temp_interm, kind='previous')
+                        #f    = interpolate.interp1d(options['z'], temp, kind='previous')
+                        #temp_interm = f(z_interp_interm)/1000.
+                        #f    = interpolate.interp1d(z_interp_interm, temp_interm, kind='previous')
+                        #data_interp[imodel][iunknown] = f(z_interp)
                         
-                        data_interp[imodel][iunknown] = f(z_interp)
+                        f    = interpolate.interp1d(options['z'], temp, kind='previous')
+                        temp_interm = f(z_interp)/1000.
+                        
+                        data_interp[imodel][iunknown] = temp_interm
                         
         
         return z_interp, data_interp
@@ -1367,6 +1494,11 @@ def read_specfem_files(options):
                         temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
                         temp_add.loc[0, 'z'] = 0.
                         temp = pd.concat([temp_add, temp]).reset_index()
+                
+                temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
+                temp_add['z'].iloc[0] = 1.e7
+                
+                temp = pd.concat([temp, temp_add]).reset_index()
                 
                 zover0 = temp[ 'z' ].values
                 cpt_unknown = -1
@@ -1452,6 +1584,7 @@ def compute_trans_coefficients(options_in = {}):
         ## Options
         options['dimension']   = 2
         options['dimension_seismic'] = 2
+        options['PLOT_RW_time_series'] = False
         
         options['nb_modes']    = [0, 3] # min / max
         options['type_wave']   = 1 # Surface wave type.  (1 = Rayleigh; >1 = Love.)
@@ -1459,7 +1592,7 @@ def compute_trans_coefficients(options_in = {}):
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
         options['nb_layers']     = 500#2800
-        options['nb_freq']       = 128 # Number of frequencies
+        options['nb_freq']       = 256 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
@@ -1471,7 +1604,7 @@ def compute_trans_coefficients(options_in = {}):
         options['models']['specfem'] = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_test_Jennifer_1/Ridgecrest_seismic.txt'
         options['models']['specfem'] = '/home/quentin/Desktop/Ridgecrest_seismic.txt'
         options['chosen_model'] = 'specfem'
-        options['zmax'] = 50000.
+        options['zmax'] = 80000.
 
         ##############
         ## Auxiliaries
@@ -1486,7 +1619,7 @@ def compute_trans_coefficients(options_in = {}):
         options['source_depth']   = 6.8 # (km)
         options['receiver_depth'] = 0 # (km)
         options['coef_low_freq']  = 0.001
-        options['coef_high_freq'] = 0.3 # 1.85
+        options['coef_high_freq'] = 0.6 # 1.85
         options['Loop']           = 0 # This this point the program loops over another set of input lines starting with the surface wave type (1st line after model).  If this is set to zero, the program will terminate.
         
         ## Update each option based on user input
