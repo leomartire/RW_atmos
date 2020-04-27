@@ -659,7 +659,7 @@ class field_RW():
                         self.gamma = temp['gamma'].values
                                 
                                 
-        def compute_vertical_wavenumber(self, id_layer):    
+        def compute_vertical_wavenumber(self, id_layer, correct_wavenumber = True):    
         
                 ## Ignore division/invalid errors in KZ computation
                 np.seterr(divide='ignore', invalid='ignore')    
@@ -684,33 +684,34 @@ class field_RW():
                 
                 #KZ = np.zeros(Omega.shape, dtype=complex)
                 if(self.dimension > 2):
-                        KZ = np.lib.scimath.sqrt(  -self.KX**2 -self.KY**2 + (self.KX**2 + self.KY**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
+                        KZ = np.lib.scimath.sqrt(  -self.KX**2 -self.KY**2 + (self.KX**2 + self.KY**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) \
+                                + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
                 else:
-                        KZ = np.lib.scimath.sqrt( -self.KX**2 + (self.KX**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
+                        KZ = np.lib.scimath.sqrt( -self.KX**2              + (self.KX**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) \
+                                + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
                 
                 ## Remove infinite/nan numbers that correspond to zero frequencies
                 KZ   = np.nan_to_num(KZ, 0.)
                 
-                indimag     = np.where(np.imag(KZ)<0)
-                KZ[indimag] = np.conjugate(KZ[indimag])
-                # real(KZ) should be positive for positive frequencies and negative for
-                # negative frequencies in order to shift signal in positive times
-                # restore the sign of KZ depending on Omega-wi*KX
-                #     KZnew=real(KZ).*sign((Omega-wind_x*KX)).*sign(KX)+1i*imag(KZ);
-                # !!! Why KZ should have a sign opposite to Omega for GW NOT UNDERSTOOD !!!
-                # => because vg perpendicular to Vphi ?
-                
-                KZ = 0.0 - np.real(KZ)*np.sign(Omega_intrinsic) + 1j*np.imag(KZ)
-                #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(Omega_intrinsic)
-                #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(self.KX)
-                #KZ(:,NFFT2/2:-1:2)=0.0-real(KZ(:,NFFT2/2+2:NFFT2))+1i*imag(KZ(:,NFFT2/2+2:NFFT2));
-                
-                #bp()
-                
-                
-                #ind_m0 = np.where(Omega<0.)
-                #ind_p0 = np.where(self.Omega>=0.)
-                #KZ[ ind_p0 ] = np.real(KZ[ ind_p0 ]) - 1j*np.imag(KZ[ ind_p0 ])
+                if(correct_wavenumber):
+                        indimag     = np.where(np.imag(KZ)<0)
+                        KZ[indimag] = np.conjugate(KZ[indimag])
+                        
+                        # real(KZ) should be positive for positive frequencies and negative for
+                        # negative frequencies in order to shift signal in positive times
+                        # restore the sign of KZ depending on Omega-wi*KX
+                        #     KZnew=real(KZ).*sign((Omega-wind_x*KX)).*sign(KX)+1i*imag(KZ);
+                        # !!! Why KZ should have a sign opposite to Omega for GW NOT UNDERSTOOD !!!
+                        # => because vg perpendicular to Vphi ?
+                        
+                        KZ = 0.0 - np.real(KZ)*np.sign(Omega_intrinsic) + 1j*np.imag(KZ)
+                        #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(Omega_intrinsic)
+                        #KZ = 0.0 + np.real(KZ) + 1j*np.imag(KZ)*np.sign(self.KX)
+                        #KZ(:,NFFT2/2:-1:2)=0.0-real(KZ(:,NFFT2/2+2:NFFT2))+1i*imag(KZ(:,NFFT2/2+2:NFFT2));
+                        
+                        #ind_m0 = np.where(Omega<0.)
+                        #ind_p0 = np.where(self.Omega>=0.)
+                        #KZ[ ind_p0 ] = np.real(KZ[ ind_p0 ]) - 1j*np.imag(KZ[ ind_p0 ])
                 
                 return KZ
         
@@ -763,8 +764,10 @@ class field_RW():
                                 ## Compute the vertical response from the ground forcing
                                 if(not KZ):
                                         KZ = self.compute_vertical_wavenumber(0)       
-                                field_at_it = np.exp(coef_amplitude*z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * self.TFMo)
-                        
+                                field_at_it = np.exp(coef_amplitude*z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * TFMo)
+                                #if(z0 == 0. and z1 > 10000.):
+                                #        bp()
+                                        
                         ## If layered model
                         else:
                         
@@ -794,7 +797,7 @@ class field_RW():
                 ## Ignore division/invalid errors in P computation
                 np.seterr(divide='ignore', invalid='ignore')   
         
-                KZ = self.compute_vertical_wavenumber(0)
+                KZ = self.compute_vertical_wavenumber(0, correct_wavenumber = True)
                 indnot0 = np.where(abs(self.Omega) > 0)
                 P = np.zeros(self.Omega.shape, dtype=complex)
                 P[indnot0] = self.rho[0]*(self.cpa[0]**2)*KZ[indnot0]*self.TFMo[indnot0]/(self.Omega[indnot0]) 
@@ -834,7 +837,7 @@ class field_RW():
                 if(comp == 'vz'):
                         TFMo    = self.TFMo.copy()
                 else:
-                        TFMo    = self.convert_TFMo_to_pressure()
+                        TFMo    = self.convert_TFMo_to_pressure().copy()
                         
                 iz_prev = 0.
                 last_layer_prev = -1
@@ -885,9 +888,9 @@ class field_RW():
         def compute_field_timeseries(self, x, y, z, comp):
         
                 if(comp == 'vz'):
-                        TFMo = self.TFMo
+                        TFMo = self.TFMo.copy()
                 else:
-                        TFMo = self.convert_TFMo_to_pressure()
+                        TFMo = self.convert_TFMo_to_pressure().copy()
                 
                 field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z(z, 0., TFMo, comp)
                 
@@ -954,10 +957,10 @@ def get_default_domain():
 def get_default_station():
 
         station = {}
-        station.update( {'xs': 22398., 'ys': 0., 'zs': 0.*24419.} )
+        station.update( {'xs': 22398., 'ys': 0., 'zs': 24419.} )
         station.update( {'t_chosen': 40.} )
         station.update( {'type_slice': 'xz'} )
-        station.update( {'comp': 'vz'} )
+        station.update( {'comp': 'p'} )
         
         return station
 
@@ -1174,10 +1177,10 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/BA.S0001.BXZ.semv'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/AA.S0009.BXZ.semv'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXZ.semv'
-                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXP.semp'
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXP.semp'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X9.BXZ.semv'
-                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXP.semp'
-                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXZ.semv'
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X7.BXP.semp'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXP.semp'
                 data_simu = pd.read_csv( dir, delim_whitespace=True, header=None )
                 data_simu.columns = ['t', 'amp']
                 
@@ -1613,7 +1616,7 @@ def compute_trans_coefficients(options_in = {}):
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
         options['nb_layers']     = 800#2800
-        options['nb_freq']       = 256 # Number of frequencies
+        options['nb_freq']       = 128 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
