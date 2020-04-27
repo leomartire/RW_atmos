@@ -908,7 +908,7 @@ class field_RW():
 def generate_default_atmos():
         
         param_atmos = {}
-        param_atmos['isothermal'] = True       
+        param_atmos['isothermal'] = False       
         param_atmos['subsampling'] = True
         param_atmos['subsampling_layers'] = 80
         param_atmos['file'] = './atmospheric_model.dat'
@@ -932,13 +932,14 @@ def generate_default_mechanism():
         mechanism = {}
         mechanism['stf']     = 'erf' # gaussian or erf
         mechanism['zsource'] = 6800. # m
-        mechanism['f0'] = 0.2
+        mechanism['f0'] = 0.8
         #mechanism['f0'] = 1./((1.05*(1e-8)*(mechanism['M0']*1e7)**(1./3.))) # From Ekstrom, 2012
         
         mechanism['M0'] = 1e0
         #mechanism['M'] = np.array([ -1.44790502e+13,  -1.13715534e+12,   1.56162055e+13, -4.31542275e+12,   9.36646867e+12,   4.58899052e+12]) # Mw 2.47
-        mechanism['M'] = np.array([ -1.12117778e+10, 1.82743497e+13, -1.82631379e+13, 2.73046441e+10, 4.53334337e+11, -2.21151605e+12])
-        #mechanism['M'] = np.array([ -1.12117778e+10,   1.56600912e+13,  -1.56488795e+13,-1.24122814e+11,   4.36865073e+11,   9.67341164e+12]) #2.5 Hare2
+        #mechanism['M'] = np.array([ -1.12117778e+10, 1.82743497e+13, -1.82631379e+13, 2.73046441e+10, 4.53334337e+11, -2.21151605e+12])
+        mechanism['M'] = np.array([ -1.12117778e+10,   1.56600912e+13,  -1.56488795e+13,-1.24122814e+11,   4.36865073e+11,   9.67341164e+12]) #2.5 Hare2
+        
         mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
         mechanism['phi']   = 0.
         
@@ -957,8 +958,9 @@ def get_default_domain():
 def get_default_station():
 
         station = {}
-        station.update( {'xs': 22398., 'ys': 0., 'zs': 24419.} )
-        station.update( {'t_chosen': 40.} )
+        #station.update( {'xs': 22398., 'ys': 0., 'zs': 24419.} ) # Crazy cat 2.5
+        station.update( {'xs': 108333., 'ys': 0., 'zs': 18864.} ) # Crazy cat 2.5
+        station.update( {'t_chosen': 100.} )
         station.update( {'type_slice': 'xz'} )
         station.update( {'comp': 'p'} )
         
@@ -1029,6 +1031,10 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         ## Display
         fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
         
+        unknown_label = 'Velocity (m/s)'
+        if(comp == 'p'):
+                unknown_label = 'Pressure (Pa)'
+        
         if(dimension > 2):
         
                 iax = 0
@@ -1037,7 +1043,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 axs[iax, iax_col].grid(True)
                 axs[iax, iax_col].set_xlim([field.t[0], field.t[-1]])
                 axs[iax, iax_col].set_xlabel('Time (s)')
-                axs[iax, iax_col].set_ylabel('Velocity (m/s)')
+                
+                axs[iax, iax_col].set_ylabel(unknown_label)
                 
                 iax_col += 1
                 
@@ -1136,7 +1143,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 axs[iax].grid(True)
                 axs[iax].set_xlim([field.t[0], field.t[-1]])
                 axs[iax].set_xlabel('Time (s)')
-                axs[iax].set_ylabel('Velocity (m/s)')
+                axs[iax].set_ylabel(unknown_label)
                 
                 if(options['PLOT_RW_time_series']):
                         ax2 = axs[iax].twinx()  # instantiate a second axes that shares the same x-axis
@@ -1180,7 +1187,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXP.semp'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X9.BXZ.semv'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X7.BXP.semp'
-                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXP.semp'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXZ.semv'
                 data_simu = pd.read_csv( dir, delim_whitespace=True, header=None )
                 data_simu.columns = ['t', 'amp']
                 
@@ -1190,7 +1197,19 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 #tr   = generate_trace(field.t, np.real(RW_Mz_t), freq_min, freq_max)
                 
                 #plt.figure(); plt.plot(tr_s.times()+1., 1.*tr_s.data/(abs(tr_s.data).max()*0.+1.)); plt.show()
-                plt.figure(); plt.plot(tr.times(), 1*tr.data/(abs(tr.data).max()*0.+1.), tr_s.times()+1., 1.*tr_s.data/(abs(tr_s.data).max()*0.+1.)); plt.show()
+                plt.figure(); 
+                plt.plot(tr.times(), 1.2*tr.data/(abs(tr.data).max()*0.+1.), label='analytic');
+                plt.plot(tr_s.times()+1., 1.*tr_s.data/(abs(tr_s.data).max()*0.+1.), label='3d simulation');
+                plt.title('E = '+str(round(ix/1000.,1))+' S = '+str(round(iy/1000.,1))+' U = '+str(round(iz/1000.,1)) +' km')
+                plt.legend() 
+                plt.grid()
+                plt.xlabel('Time (s)')
+                #plt.ylabel('Pressure (Pa)')
+                plt.ylabel('Velocity (m/s)')
+                plt.xlim([0., 132.])
+                plt.ylim([-abs(tr.data).max()*2., abs(tr.data).max()*2.])
+                #plt.savefig(options['global_folder'] +'validation_p.png')
+                plt.savefig(options['global_folder'] +'validation_vs.png')
                 
                 bp()
         
@@ -1616,7 +1635,7 @@ def compute_trans_coefficients(options_in = {}):
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
         options['nb_layers']     = 800#2800
-        options['nb_freq']       = 128 # Number of frequencies
+        options['nb_freq']       = 256 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
@@ -1643,7 +1662,7 @@ def compute_trans_coefficients(options_in = {}):
         options['source_depth']   = 6.8 # (km)
         options['receiver_depth'] = 0 # (km)
         options['coef_low_freq']  = 0.001
-        options['coef_high_freq'] = 0.6 # 1.85
+        options['coef_high_freq'] = 1. # 1.85
         options['Loop']           = 0 # This this point the program loops over another set of input lines starting with the surface wave type (1st line after model).  If this is set to zero, the program will terminate.
         
         ## Update each option based on user input
