@@ -70,8 +70,10 @@ class vertical_velocity():
                         return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth)
                 
                 ## 2d
-                else:
+                elif(dimension_seismic == 2):
                         return comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/2. ) )*self.directivity.compute_directivity(phi, M, depth)
+                else:
+                        sys.exit('Seismic dimension not recognized!')
                         
         def compute_acoustic_spectrum(self, r, phi, M, depth, cpa, unknown = 'd', dimension_seismic = 3):
         
@@ -365,7 +367,7 @@ class RW_forcing():
 class field_RW():
 
         default_loc = (30., 0.) # (km, degree)
-        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], H = 1e10, Nsq = 1e-10, winds = [0., 0.], mode_max = -1, dimension_seismic = 3):
+        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], mode_max = -1, dimension_seismic = 3):
 
                 def nextpow2(x):
                         return np.ceil(np.log2(abs(x)))
@@ -569,7 +571,7 @@ class field_RW():
                         axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
                 axs[iax_row, iax].set_ylim([z.min(), z.max()])
                 if(self.dimension > 2):
-                        axs[iax_row, iax].plot(wy/1000., self.z)
+                        axs[iax_row, iax].plot(wy/1000., z)
                         if(not self.isothermal):
                                 axs[iax_row, iax].set_xlim([min(unknown.min(), self.winds[1].min()), max(unknown.max(), self.winds[1].max())])
                 axs[iax_row, iax].grid()
@@ -900,7 +902,7 @@ class field_RW():
 def generate_default_atmos():
         
         param_atmos = {}
-        param_atmos['isothermal'] = False       
+        param_atmos['isothermal'] = True       
         param_atmos['subsampling'] = True
         param_atmos['subsampling_layers'] = 80
         param_atmos['file'] = './atmospheric_model.dat'
@@ -942,12 +944,22 @@ def generate_default_mechanism():
         
         mechanism['M0'] = 1e0
         #mechanism['M'] = np.array([ -1.44790502e+13,  -1.13715534e+12,   1.56162055e+13, -4.31542275e+12,   9.36646867e+12,   4.58899052e+12]) # Mw 2.47
-        #mechanism['M'] = np.array([ -1.12117778e+10, 1.82743497e+13, -1.82631379e+13, 2.73046441e+10, 4.53334337e+11, -2.21151605e+12])
-        mechanism['M'] = np.array([ -1.12117778e+10,   1.56600912e+13,  -1.56488795e+13,-1.24122814e+11,   4.36865073e+11,   9.67341164e+12]) #2.5 Hare2
+        mechanism['M'] = np.array([ -1.12117778e+10, 1.82743497e+13, -1.82631379e+13, 2.73046441e+10, 4.53334337e+11, -2.21151605e+12])
+        #mechanism['M'] = np.array([ -1.12117778e+10,   1.56600912e+13,  -1.56488795e+13,-1.24122814e+11,   4.36865073e+11,   9.67341164e+12]) #2.5 Hare2
         mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
         mechanism['phi']   = 0.
         
         return mechanism
+
+def get_default_domain():
+
+        domain = {}
+        domain.update( {'xmin':-110000., 'xmax': 110000.} )
+        domain.update( {'ymin':-110000., 'ymax': 110000.} )
+        domain.update( {'zmin':0., 'zmax': 30000.} )
+        domain.update( {'dx': 1200., 'dy': 2000., 'dz': 300.} )
+        
+        return domain
 
 def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
 
@@ -965,22 +977,20 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
 
         ## Class to generate field for given x/z t/z combinaison
         nb_freq  = options['nb_freq']
-        H     = 7000.
-        Nsq   = 1e-4
-        winds = [0., 0.]
+        #H     = 7000.
+        #Nsq   = 1e-4
+        #winds = [0., 0.]
         mode_max = -1
-        if(not domain):
-                xbounds    = [-110000., 110000.]
-                ybounds    = [-110000., 110000.]
-                dx, dy, dz = 150., 2000., 300.
-                z         = np.arange(0, 30000., dz)
-        else:
-                xbounds = [domain['xmin'], domain['xmax']]
-                ybounds = [domain['ymin'], domain['ymax']]
-                dx, dy, dz  = domain['dx'], domain['dy'], domain['dz']
-                z         = np.arange(domain['zmin'], domain['zmax'], dz)
         
-        field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, H, Nsq, winds, mode_max, dimension_seismic)
+        if(not domain):
+                domain = get_default_domain()
+
+        xbounds = [domain['xmin'], domain['xmax']]
+        ybounds = [domain['ymin'], domain['ymax']]
+        dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
+        z          = np.arange(domain['zmin'], domain['zmax'], dz)
+        
+        field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
         
         ## Create atmospheric profiles
         if(not param_atmos):
@@ -992,9 +1002,9 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         
         ## Compute solutions for a given range of altitudes (m) at a given instant (s)
         if(not station):
-                iz = 0
+                iz = 24419.
                 iy = 0.
-                ix = 22398
+                ix = 22398.
                 t_station = 40.
                 type_slice = 'xz'
                 comp = 'vz'
@@ -1150,37 +1160,36 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                 axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
                 
                 plt.colorbar(plotMxz, cax=axins)
+         
+        def generate_trace(t, data, freqmin, freqmax):
                 
-        if(False):
                 import obspy
                 tr = obspy.Trace()
-                tr.data = np.real(Mz_t)
-                tr.stats.delta     = abs( field.t[1] - field.t[0] )
-                tr.stats.station   = 'balloon'
-                tr.decimate(factor=1, strict_length=False)
-                tr.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                tr.data = data
+                tr.stats.delta     = abs( t[1] - t[0] )
+                tr.stats.station   = 'station'
+                #tr.decimate(factor=1, strict_length=False)
+                tr.filter("bandpass", freqmin=freqmin, freqmax=freqmax)
                 
-                tr_RW = obspy.Trace()
-                tr_RW.data = np.real(RW_Mz_t)
-                tr_RW.stats.delta     = abs( field.t[1] - field.t[0] )
-                tr_RW.stats.station   = 'balloon'
-                tr_RW.decimate(factor=1, strict_length=False)
-                tr_RW.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                return tr
                 
+        if(False):
+        
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_batch2_3/OUTPUT_FILES/AA.S0020.BXZ.semd'
-                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/BA.S0001.BXX.semv'
-                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/AA.S0021.BXZ.semv'
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/BA.S0001.BXZ.semv'
+                #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_9/OUTPUT_FILES/AA.S0009.BXZ.semv'
                 #dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXP.semp'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X2.BXZ.semv'
+                dir = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_3d_2/OUTPUT_FILES/DB.X1.BXZ.semv'
                 data_simu = pd.read_csv( dir, delim_whitespace=True, header=None )
                 data_simu.columns = ['t', 'amp']
-                tr_s = obspy.Trace()
-                tr_s.data = data_simu['amp'].values
-                tr_s.stats.delta     = abs( data_simu['t'].values[1] - data_simu['t'].values[0] )
-                tr_s.stats.station   = 'balloon'
-                tr_s.decimate(factor=1, strict_length=False)
-                tr_s.filter("bandpass", freqmin=0.1, freqmax=0.31)
+                
+                tr_s = generate_trace(data_simu['t'].values, data_simu['amp'].values, 0.01, 0.3)
+                tr   = generate_trace(field.t, np.real(Mz_t), 0.01, 0.3)
                 
                 plt.figure(); plt.plot(tr.times(), 1*tr.data/(abs(tr.data).max()*0.+1.), tr_s.times()+1., 1.*tr_s.data/(abs(tr_s.data).max()*0.+1.)); plt.show()
+                
+                bp()
         
         fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
         
@@ -1193,6 +1202,15 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         df['vz'] = np.real(Mz_t)
         df.to_csv(options['global_folder'] + 'waveform.csv', index=False)
         print('save waveform to: '+options['global_folder'] + 'waveform.csv')
+        
+        ## Create frequency/time plot
+        if(False):
+                freq_min, freq_max = 0.01, 0.3
+                tr   = generate_trace(field.t, np.real(Mz_t), freq_min, freq_max)
+                fig = plot_tfr(tr.data, dt=tr.stats.delta, fmin=freq_min, fmax=freq_max, w0=4., nf=64, fft_zero_pad_fac=4, show=False, t0=tshift0, left=0.17, w_2=0.55)
+                fig.axes[1].get_children()[0].set_norm(colors.LogNorm(vmin=0.001, vmax=0.05))
+                fig.axes[3].get_children()[0].set_norm(colors.LogNorm(vmin=0.001, vmax=0.05))
+                plt.savefig(options['global_folder'] + 'freq_time_vz.png')
         
         if(not options['GOOGLE_COLAB']):
                 bp()
@@ -1582,8 +1600,8 @@ def compute_trans_coefficients(options_in = {}):
         
         ##########
         ## Options
-        options['dimension']   = 2
-        options['dimension_seismic'] = 2
+        options['dimension']   = 3
+        options['dimension_seismic'] = 3
         options['PLOT_RW_time_series'] = False
         
         options['nb_modes']    = [0, 3] # min / max
@@ -1591,8 +1609,8 @@ def compute_trans_coefficients(options_in = {}):
         options['way_forward'] = 1
         options['LOAD_2D_MODEL'] = False
         options['type_model']    = 'specfem'
-        options['nb_layers']     = 500#2800
-        options['nb_freq']       = 256 # Number of frequencies
+        options['nb_layers']     = 800#2800
+        options['nb_freq']       = 128 # Number of frequencies
         options['chosen_header'] = 'coefs_earthsr_sol_'
         options['PLOT']          = 1# 0 = No plot; 1 = plot after computing coef.; 2 = plot without computing coef.
         options['PLOT_folder']   = 'coefs_python_1.2_vs0.5_poisson0.25_h1.0_running_dir_1'
@@ -1602,7 +1620,7 @@ def compute_trans_coefficients(options_in = {}):
         ## Hetergeneous structure
         options['models'] = {}
         options['models']['specfem'] = '/media/quentin/Samsung_T5/SSD_500GB/Documents/Ridgecrest/simulations/Ridgecrest_mesh_simu_fine_test_Jennifer_1/Ridgecrest_seismic.txt'
-        options['models']['specfem'] = '/home/quentin/Desktop/Ridgecrest_seismic.txt'
+        options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
         options['chosen_model'] = 'specfem'
         options['zmax'] = 80000.
 
