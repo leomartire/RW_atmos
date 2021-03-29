@@ -8,6 +8,8 @@ from pdb import set_trace as bp
 import sys 
 from multiprocessing import set_start_method, get_context
 
+from utils import earthsr_local_folder
+
 ## Local modules
 import velocity_models, utils, RW_atmos
 
@@ -224,8 +226,7 @@ def collect_dispersion_from_earthsr_and_save(nside, options):
         
         return current_struct
                
-def compute_trans_coefficients(options_in = {}):        
-        
+def compute_trans_coefficients(options_in = {}):
         options = {} 
         options['GOOGLE_COLAB'] = False      
         
@@ -262,7 +263,7 @@ def compute_trans_coefficients(options_in = {}):
         ## Auxiliaries
         A1D   = {}
         A1Dst = {}
-        options['dir_earthsr']   = '/staff/quentin/Documents/Codes/RW_atmos'
+        options['dir_earthsr'] = earthsr_local_folder()
         options['earth_flattening'] = 0 # Earth flattening control variable (0 = no correction; >0 applies correction)
         options['ref_period']  = 10. # Reference period for dispersion correction (0 => none) Generally you would just pick a period shorter than anything you are going to model
         options['output_file'] = 'dispers' # Filename of binary output of dispersion curves.

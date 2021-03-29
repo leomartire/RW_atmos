@@ -14,7 +14,11 @@ matplotlib.rc('font', **font)
 ## To make sure that there is no bug when saving and closing the figures
 ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
 matplotlib.use('Agg')
-		
+
+def earthsr_local_folder():
+    #return('/staff/quentin/Documents/Codes/RW_atmos')
+    return('/Users/lmartire/Documents/software/rw_atmos_leo/bin/')
+
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):

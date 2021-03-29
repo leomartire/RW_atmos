@@ -10,11 +10,12 @@ SRGRAMF  =  srgramf
 DSRGRAMF =  dsrgramf
 READ_EARTH = read_earth
 
-EXEC=  $(EARTHSR) $(SRGRAMF) $(READ_EARTH) $(DSRGRAMF)
+#EXEC   = $(EARTHSR) $(SRGRAMF) $(READ_EARTH) $(DSRGRAMF)
+EXEC   = $(EARTHSR)
 
-DEFINC=-Iinclude
+DEFINC = -Iinclude
 SACLIB = /usr/local/sac/lib/libsacio.a
-BINDIR = /home/ad605/code/Steve_wtmpi/bin
+BINDIR = ./bin
 
 # Use gcc compiler
 CC = gcc
@@ -93,6 +94,8 @@ clean:
 install:
 	@if [ ! -d ${BINDIR} ] ; then \
 	        mkdir ${BINDIR}; fi
+	@if [ ! -d ${ARCH} ] ; then \
+		mkdir ${ARCH}; fi
 	@for i in ${EXEC}; do \
 	        if [ -f $$i ] ; then \
 	                echo "Moving $$i to ${BINDIR}"; \
