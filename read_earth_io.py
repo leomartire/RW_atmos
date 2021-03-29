@@ -456,12 +456,9 @@ class read_egnfile_per:
                                 perto5th=round(float(line.split()[1]),5)
                                 perto7th=round(float(line.split()[1]),7)
                                 saveline = line
-                                #print('>>>>', perto5th, round(round(p_concerned,6),5), round(p_concerned,7), float(line.split()[1]))
-                                # 16.049 16.04899
                                 if perto5th==round(round(p_concerned,6),5) or perto5th==round(p_concerned,5) \
                                         or perto7th==round(p_concerned,7) or perto5th==truncate(p_concerned,5):
                                 
-                                #if perto5th==truncate(p_concerned,5):
                                         if __name__=='__main__':
                                                 print( "Extracting eigenfunction for mode %d and period %.6f" %(int(line.split()[0]),float(line.split()[1])))
                                         j=0
@@ -496,6 +493,211 @@ class read_egnfile_per:
                 else:
                         self.utmat=np.delete(self.utmat,extracols,1)
                         self.ttmat=np.delete(self.ttmat,extracols,1)
+   
+####################################################################################################################
+
+class read_egnfile_allper:
+
+        """ Class to read a single eigenfunction file and extract the eigenfunction FOR ALL MODES AT A SPECIFIED
+            PERIOD
+
+        NB: The difference between this class and the read_egnfile class in terms of operation is that this
+            class will find all EXACT periods """
+        
+        def __init__(self,infile, p_concerned_list, Nproc):
+                if infile.endswith('.gz'):
+                            egn_contents = gzip.GzipFile(infile,'r')
+                else:
+                            egn_contents = open(infile,'r')
+                ncol_ph=7
+                
+                # First line in the file is a string
+                egn_contents.readline()
+                # Second line contains number of layers
+                model_deps = int(egn_contents.readline().split()[0])
+                self.dep=np.arange(model_deps,dtype=float)
+                self.mu=np.arange(model_deps,dtype=float)
+                self.lamda=np.arange(model_deps,dtype=float)
+                self.rho=np.arange(model_deps,dtype=float)
+                alpha=[ii for ii in range(model_deps)]
+                beta=[ii for ii in range(model_deps)]
+                #self.rho=range(model_deps)
+                i=0
+                j=0
+                k=0
+                startreading=False
+                cptt=0
+                
+                # Build list of eigenfunctions
+                self.totm = []
+                self.wavnum = []
+                self.uzmat = []
+                self.urmat = []
+                self.tzmat = []
+                self.trmat = []
+                self.utmat = []
+                self.ttmat = []
+                
+                done_per_list = [] # List of periods already done
+                mode_no = np.zeros((len(p_concerned_list)), dtype=int)
+                for line in egn_contents:
+                
+                        cptt=cptt+1
+                        if i < model_deps:      
+                                values_line = line.split()
+                                self.dep[i]=float(values_line[0])
+                                
+                                alpha[i]=float(values_line[3])
+                                beta[i]=float(values_line[1])
+                                self.rho[i]=float(values_line[2])
+                                self.mu[i]=self.rho[i]*(beta[i]**2)
+                                self.lamda[i]=self.rho[i]*(alpha[i]**2)-(2*self.mu[i])
+                                i+=1
+                                
+                        if "modes listed" in line:
+                                self.totm = int(line.split()[0]) 
+                                for l in range(0, len(p_concerned_list)):
+                                        self.wavnum.append( np.zeros(self.totm) )
+                                        self.uzmat.append( np.zeros((model_deps,self.totm)) )
+                                        self.urmat.append( np.zeros((model_deps,self.totm)) )
+                                        self.tzmat.append( np.zeros((model_deps,self.totm)) )
+                                        self.trmat.append( np.zeros((model_deps,self.totm)) )
+                                        self.utmat.append( np.zeros((model_deps,self.totm)) )
+                                        self.ttmat.append( np.zeros((model_deps,self.totm)) )
+                                
+                                # setup toolbar
+                                cptbar        = 0
+                                toolbar_width = 40//Nproc
+                                total_length  = len(p_concerned_list) * self.totm
+                                #sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+                                #sys.stdout.flush()
+                                sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+                        
+                        if startreading:
+                        
+                                try:
+                                        if( len(line.split()[1].split('+')) > 1 and False):
+                                                exponent = int(line.split()[1].split('+')[-1])
+                                                if exponent > 10:
+                                                        values_line = [ np.nan for i in line.split() ]
+                                                        values_line[0] = float(line.split()[0])
+                                                else:
+                                                        values_line = [ float(i) for i in line.split() ]
+                                        else:
+                                                values_line = [ float(i) for i in line.split() ]
+                                except:
+                                        bp()
+                                         
+                                y1[j]=values_line[1]
+                                y2[j]=values_line[2]
+                                
+                                try:
+                                        y3[j]=values_line[3]
+                                        y4[j]=values_line[4]
+                                        isray=True
+                                        islov=False
+                                except IndexError:
+                                        islov=True
+                                        isray=False
+                                        
+                                j+=1
+                                if j==lyrsthism:
+                                        startreading=False
+                                        if isray:
+                                                self.uzmat[iper][:len(y1),k]=y1
+                                                self.urmat[iper][:len(y2),k]=y2
+                                                self.tzmat[iper][:len(y3),k]=y3
+                                                self.trmat[iper][:len(y4),k]=y4
+                                                
+                                                self.uzmat[iper][len(y1):len(self.uzmat[-1][:,k]),k]=y1[len(y1)-1]
+                                                self.urmat[iper][len(y2):len(self.urmat[-1][:,k]),k]=y2[len(y2)-1]
+                                                self.tzmat[iper][len(y3):len(self.tzmat[-1][:,k]),k]=y3[len(y3)-1]
+                                                self.trmat[iper][len(y4):len(self.trmat[-1][:,k]),k]=y4[len(y4)-1]
+                                                
+                                                self.utmat[iper]=None
+                                                self.ttmat[iper]=None
+                                        elif islov:
+                                                self.utmat[iper][:len(y1),k]=y1
+                                                self.ttmat[iper][:len(y2),k]=y2
+                                                self.uzmat[iper]=None
+                                                self.urmat[iper]=None
+                                                self.tzmat[iper]=None
+                                                self.trmat[iper]=None
+                                        #k+=1
+
+                        if (len(line.split())==ncol_ph) and (not line.split()[0].isalpha()):
+                        
+                                perto5th=round(float(line.split()[1]),5)
+                                perto7th=round(float(line.split()[1]),7)
+                                p_concerned_5th  = [round(p_temp,5) for p_temp in p_concerned_list]
+                                p_concerned_6th  = [round(round(p_temp,6),5) for p_temp in p_concerned_list]
+                                p_concerned_7th  = [round(p_temp,7) for p_temp in p_concerned_list]
+                                p_concerned_trunc = [truncate(p_temp,5) for p_temp in p_concerned_list]
+                                saveline = line
+                                
+                                if ( (perto5th in p_concerned_5th \
+                                        or perto5th in p_concerned_6th \
+                                        or perto5th in p_concerned_trunc \
+                                        or perto7th in p_concerned_7th) ):
+                                        
+                                        ## If the "done list" already contains a period that we already went through, we reset
+                                        if( perto7th in done_per_list ):
+                                                k += 1
+                                                done_per_list = []
+                                                
+                                        done_per_list.append( perto7th )
+                                                
+                                        iper = len(done_per_list) - 1
+                                        mode_no[iper] += 1
+                                        
+                                #if perto5th==round(round(p_concerned,6),5) or perto5th==round(p_concerned,5) \
+                                #        or perto7th==round(p_concerned,7) or perto5th==truncate(p_concerned,5):
+                                
+                                        if __name__=='__main__':
+                                                print( "Extracting eigenfunction for mode %d and period %.6f" %(int(line.split()[0]),float(line.split()[1])))
+                                        j=0
+                                        #self.wavnum[k]=2*np.pi/(p_concerned*float(line.split()[2]))
+                                        self.wavnum[iper][k]=2*np.pi/(perto7th*float(line.split()[2]))
+                                        lyrsthism=int(line.split()[5])
+                                        startreading=True
+                                        save_mode=int(line.split()[0])
+                                        y1=np.arange(lyrsthism,dtype=float)
+                                        y2=np.arange(lyrsthism,dtype=float)
+                                        y3=np.arange(lyrsthism,dtype=float)
+                                        y4=np.arange(lyrsthism,dtype=float)
+                                        
+                                        if(int(toolbar_width*(k* len(p_concerned_list) + iper + 1)/total_length) > cptbar):
+                                                cptbar = int(toolbar_width*(k* len(p_concerned_list) + iper + 1)/total_length)
+                                                sys.stdout.write("-")
+                                                sys.stdout.flush()
+                
+                # At this stage, i.e. after the entire file has been read, the value of k will be equal to the number
+                # of modes that exist (are present in the file) for the given period. The matrices containing the 
+                # eigenfunctions (each column of matrix = separate mode) should therefore be trimmed down to k
+                # columns. This is done by the function final_result
+                #sys.stdout.write("] Done\n")
+                try:
+                        mode_no = np.array(mode_no, dtype=int)
+                        self.final_result(mode_no,isray)
+                except:
+                        bp()
+                        
+        def final_result(self,relm,ray):
+                
+                for i in range(0, len(self.wavnum)):
+                
+                        extracols=np.arange(relm[i],self.totm)
+                
+                        self.wavnum[i]=np.delete(self.wavnum[i],extracols)
+                        if ray:
+                                self.uzmat[i]=np.delete(self.uzmat[i],extracols,1)
+                                self.urmat[i]=np.delete(self.urmat[i],extracols,1)
+                                self.tzmat[i]=np.delete(self.tzmat[i],extracols,1)
+                                self.trmat[i]=np.delete(self.trmat[i],extracols,1)
+                                
+                        else:
+                                self.utmat[i]=np.delete(self.utmat[i],extracols,1)
+                                self.ttmat[i]=np.delete(self.ttmat[i],extracols,1)
         
 ####################################################################################################################
 
