@@ -11,8 +11,12 @@ from pyrocko import moment_tensor as mtm
 
 ## Local modules
 import utils
-sys.path.append('/staff/quentin/Documents/Projects/Ridgecrest/')
-from extract_velocity_ucvm import get_velocity_ucvm
+try:
+    sys.path.append('/staff/quentin/Documents/Projects/Ridgecrest/')
+    from extract_velocity_ucvm import get_velocity_ucvm
+    UCVM_available = True
+except:
+    UCVM_available = False
 
 ## display parameters
 font = {'size': 14}
@@ -23,6 +27,10 @@ matplotlib.rc('font', **font)
 matplotlib.use('Agg')
 
 def create_velocity_model_(mt, options, add_Yang_layer, tomo_model='cvmsi'):
+
+        ## Exit message if no UCVM library found
+        if not UCVM_available:
+            sys.exit('No UCVM library found. Can not build velocity model')
 
         ## Options
         offset = 0.1
