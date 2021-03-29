@@ -148,6 +148,8 @@ def compute_coordinate_USE(distances):
 
 def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame()):
 
+    print('Loading source and stations for event ' + str(x['EVID']))
+
     x['stf']      = options_source['stf'] # gaussian or erf
     x['stf-data'] = options_source['stf-data'] # gaussian or erf
     x['zsource'] = x['DEPTH']*1000.
@@ -257,7 +259,7 @@ def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame())
     ## Determine domain boundaries   
     dchosen = options_source['nb_kxy']
     x['domain'] = get_domain(x['LAT'], x['LON'], lat_max, lat_min, lon_max, lon_min, dimension, dchosen = dchosen)
-    print('nbkxy: ', abs( x['domain']['xmax'] - x['domain']['xmin'] )/x['domain']['dx'])
+    #print('nbkxy: ', abs( x['domain']['xmax'] - x['domain']['xmin'] )/x['domain']['dx'])
     
     
     ## If domain too large we have to reduce the high frequency bound otherwise aliasing

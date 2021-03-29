@@ -1334,6 +1334,9 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     ## Deallocate
     del field, Mz_t_tab, RW_Mz_t_tab, station_updated
     
+    ## Successful exit messahe
+    print('Finished generating figures in folder: ' + options['global_folder'])
+    
     #if(not options['GOOGLE_COLAB']):
     #        bp()
    
