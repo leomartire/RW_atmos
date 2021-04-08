@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from pdb import set_trace as bp
 import pickle
+import sys
 
 ## display parameters
 font = {'size': 14}
@@ -14,6 +15,11 @@ matplotlib.rc('font', **font)
 ## To make sure that there is no bug when saving and closing the figures
 ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
 matplotlib.use('Agg')
+
+def sysErrHdl(cmd):
+  r = os.system(cmd)
+  if(r!=0):
+    sys.exit('os.system(\''+cmd+'\') failed with error code '+str(r)+'.')
 
 def earthsr_local_folder():
     #return('/staff/quentin/Documents/Codes/RW_atmos')
@@ -56,7 +62,7 @@ def read_specfem_files(options):
 ####################################
 ## Routine to read SPECFEM 2d models
 def read_specfem2d_files(options):
-
+        from velocity_models import read_csv_seismic
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
 
         data = {}
@@ -64,7 +70,7 @@ def read_specfem2d_files(options):
         for imodel in options['models']:
                 data[imodel] = {}
                 #for unknown in unknown_tab:
-                temp = read_csv_seismic(options['models'][imodel], 2, loc_source = 50000.)
+                temp = read_csv_seismic(options['models'][imodel], options['models_dimension'][imodel], loc_source = 50000.)
                 
                 ## TO REMOVE
                 #temp.loc[(temp['z'] < 2200) & (temp['z'] > 500), 'vs'] /= 1.5

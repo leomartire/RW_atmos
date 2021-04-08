@@ -74,13 +74,13 @@ FOBJB = $(FSRCB:%.f=$(ARCH)/%.o)
 FOBJC = $(FSRCC:%.f=$(ARCH)/%.o)
 
 $(EARTHSR):: $(FOBJA) 
-	$(FF) $(FOBJA) $(FFLAGS) $(DEFINC) -o $(EARTHSR) $(BITTYPE)
+	$(FF) $(FOBJA) $(FFLAGS) $(DEFINC) -o ${BINDIR}/$(EARTHSR) $(BITTYPE)
 
 $(SRGRAMF):: $(FOBJB)
-	$(FF) $(FOBJB) $(FFLAGS) $(SACLIB) $(DEFINC) -o $(SRGRAMF) $(BITTYPE)
+	$(FF) $(FOBJB) $(FFLAGS) $(SACLIB) $(DEFINC) -o ${BINDIR}/$(SRGRAMF) $(BITTYPE)
 
 $(DSRGRAMF):: $(FOBJC)
-	$(FF) $(FOBJC) $(FFLAGS) $(SACLIB) $(DEFINC) -o $(DSRGRAMF) $(BITTYPE)
+	$(FF) $(FOBJC) $(FFLAGS) $(SACLIB) $(DEFINC) -o ${BINDIR}/$(DSRGRAMF) $(BITTYPE)
 
 $(ARCH)/%.o: %.c
 	$(CC) $(CFLAGS) $(DEFINC) -c $(@F:.o=.c) -o $@ $(BITTYPE)
@@ -89,7 +89,7 @@ $(ARCH)/%.o: %.f
 	$(FF) $(FFLAGS) $(DEFINC) -c $(@F:.o=.f) -o $@  $(BITTYPE)
 
 clean:
-	@$(RM) $(ARCH)/*.o $(EXEC) *~ *.o
+	@$(RM) $(ARCH)/*.o ${BINDIR}/$(EXEC) *~ *.o
 
 install:
 	@if [ ! -d ${BINDIR} ] ; then \

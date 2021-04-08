@@ -8,7 +8,7 @@ from pdb import set_trace as bp
 import sys 
 from multiprocessing import set_start_method, get_context
 
-from utils import earthsr_local_folder
+from utils import earthsr_local_folder, sysErrHdl
 
 ## Local modules
 import velocity_models, utils, RW_atmos
@@ -23,7 +23,8 @@ matplotlib.use('Agg')
 
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
-
+        print('Generate velocity and option files to run earthsr.')
+        
         format_header = '%d %d %12.12f \n'
         format_string = '%12.12f %12.12f %12.12f %12.12f %12.12f %12.12f \n'
         format_phase  = '%12.12f %12.12f %d %d \n'
@@ -32,7 +33,7 @@ def generate_model_for_earthsr(side, options):
         ## Write input files - LEFT AND RIGHT
         #for nside in range(1,3):
             
-        side['name']   = options['global_folder'] + '/input_code_earthsr' 
+        side['name']   = options['global_folder'] + '/input_code_earthsr'
     
         ## Generate link for dispersion code
         os.system('rm ' + './input_code_earthsr')
@@ -174,7 +175,8 @@ def compute_dispersion_with_earthsr(no, side, options):
 
         ## Launch dispersion code
         print(' model: ' + side['name'])
-        os.system('./earthsr ' + 'input_code_earthsr')
+        # os.system('./bin/earthsr ' + 'input_code_earthsr')
+        sysErrHdl('./bin/earthsr '+'input_code_earthsr')
 
 def move_dispersion_files(no, options):
 
@@ -253,7 +255,10 @@ def compute_trans_coefficients(options_in = {}):
         ## Hetergeneous structure
         options['type_model']    = 'specfem2d'
         options['models'] = {}
-        options['models']['specfem'] = '/home/quentin/Documents/DATA/CODES/eclipse_workspace/GIT-DG/current/specfem-dg/EXAMPLES/Ridgecrest_test_38624623_Hare_notopo/Ridgecrest_seismic.txt'
+        options['models_dimension'] = {}
+        #options['models']['specfem'] = '/home/quentin/Documents/DATA/CODES/eclipse_workspace/GIT-DG/current/specfem-dg/EXAMPLES/Ridgecrest_test_38624623_Hare_notopo/Ridgecrest_seismic.txt'
+        options['models']['specfem'] = './Ridgecrest_seismic.txt'
+        options['models_dimension']['specfem'] = 1
         #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
         #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/Ridgecrest_SSD/simulations/Ridgecrest_mesh_simu_fine_batch2_3/Ridgecrest_seismic.txt'
         options['chosen_model'] = 'specfem'

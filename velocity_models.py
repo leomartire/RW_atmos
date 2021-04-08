@@ -248,6 +248,7 @@ def generate_default_atmos():
 def read_csv_seismic(model, dimension, loc_source = 50000.):
 
         temp   = pd.read_csv( model, delim_whitespace=True, header=None )
+        print(temp)
         if(dimension == 1):
                 temp.columns = ['z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
         else:
