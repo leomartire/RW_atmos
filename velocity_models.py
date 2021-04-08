@@ -113,7 +113,8 @@ def construct_local_seismic_model(mechanism_data, options):
 ###############################################################
 ## Create adapted velocity model on both sides of the interface 
 def create_velocity_model(options):
-
+        print('> ['+sys._getframe().f_code.co_name+'] Create adapted velocity model, with '+str(options['nb_layers'])+' layers.')
+        
         ## Definition
         side = {}
         unknown_tab  = ['rho', 'vs', 'vp', 'Qp', 'Qs']
@@ -246,7 +247,8 @@ def generate_default_atmos():
         return param_atmos
         
 def read_csv_seismic(model, dimension, loc_source = 50000.):
-
+        print('    > ['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
+        
         temp   = pd.read_csv( model, delim_whitespace=True, header=None )
         print(temp)
         if(dimension == 1):
@@ -262,7 +264,7 @@ def read_csv_seismic(model, dimension, loc_source = 50000.):
                 temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
                 temp_add.loc[0, 'z'] = 0.
                 temp = pd.concat([temp_add, temp]).reset_index()
-                
+        
         temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
         temp_add['z'].iloc[0] = 1.e7
         

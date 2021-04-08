@@ -2,6 +2,7 @@
 import numpy as np
 import os
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib
 import matplotlib.pyplot as plt
 from pdb import set_trace as bp
@@ -28,7 +29,8 @@ def earthsr_local_folder():
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):
-
+        print('  > ['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
+        
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
         id_tab      = [1, 3, 2]
 
@@ -62,6 +64,8 @@ def read_specfem_files(options):
 ####################################
 ## Routine to read SPECFEM 2d models
 def read_specfem2d_files(options):
+        print('  > ['+sys._getframe().f_code.co_name+'] Read SPECFEM 2D models: '+str(options['models']))
+        
         from velocity_models import read_csv_seismic
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
 
@@ -90,7 +94,8 @@ def read_specfem2d_files(options):
 ################################################################
 ## Choose the name of the temporary folder to store coefficients
 def determine_folders(options):
-
+        print('['+sys._getframe().f_code.co_name+'] Define working temporary folders for storing coefficients.')
+        
         options_loc = {}
 
         ## Check current folder

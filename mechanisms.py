@@ -505,6 +505,8 @@ def load_raw_mecha(options_source):
 def load_source_mechanism_IRIS(options_source, options_IRIS, dimension =3, add_SAC=False, 
                                add_perturbations=False, specific_events=[], options_balloon={}):
     
+    print('['+sys._getframe().f_code.co_name+'] Prepare source mechanism.')
+  
     ## Collect balloon information if any
     data_GPS = pd.DataFrame()
     if options_balloon:
