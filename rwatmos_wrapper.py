@@ -6,14 +6,17 @@ import matplotlib.pyplot as plt
 from pyrocko import moment_tensor as mtm
 from obspy.imaging.beachball import beach
 from utils import sysErrHdl
-
+import sys
+import shutil
 
 #--------------------------------------------------------------#
 # Setup options.                                               #
 #--------------------------------------------------------------#
 
 # Sample path name of the directory created to store data and figures
-name_sample               = './OUTPUTS/RUN_XXX/'
+output_root               = './OUTPUTS/'
+name_sample               = output_root+'RUN_XXX/'
+forceOverwrite            = True
 
 # RW-atmos integration options
 options = {}
@@ -76,6 +79,15 @@ options_balloon = {}
 #--------------------------------------------------------------#
 # Start script.                                                #
 #--------------------------------------------------------------#
+
+# Check output path is free, make it if necessary.
+if(os.path.isdir(output_root)):
+  if(forceOverwrite):
+    shutil.rmtree(output_root)
+    print('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_root+'\' existed and has been deleted, as required by script.')
+  else:
+    sys.exit('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_root+'\' exists, and script is not set to overwrite. Rename or delete it before running again.')
+os.makedirs(output_root)
 
 # Plot sources' beachballs.
 for source in options_source['sources']:
