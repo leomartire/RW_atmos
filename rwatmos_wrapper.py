@@ -7,6 +7,7 @@ from pyrocko import moment_tensor as mtm
 from obspy.imaging.beachball import beach
 from utils import sysErrHdl
 import sys
+import numpy as np
 import shutil
 
 #--------------------------------------------------------------#
@@ -65,13 +66,13 @@ list_of_events = [0] # list of event to compute, leave empty if you want all
 options_source['add_SAC'] = False # Wheter or not add real station locations downloaded from IRIS within the domain
                                   # boundaries defined in options_source['lat_min'], options_source['lat_max'], ...
 
-# Ground stations.
+# Options for ground stations.
 options_IRIS = {}
 options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY'
 options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ'
 options_IRIS['stations'] = {}
 i=0
-options_IRIS['stations'][i] = mod_mechanisms.create_one_station(100., 1000., 0., 'HHZ', 'test', i); i+=1;
+options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=100., y=1000., z=0., comp='HHZ', name='test', id=i, t_chosen=np.linspace(0,50,6)); i+=1;
 
 # Balloon stations.
 options_balloon = {}
@@ -122,8 +123,8 @@ keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'phi', 
 
 # Load mechanisms/stations data
 mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
-                                                                    add_SAC = options_source['add_SAC'], add_perturbations = False, 
-                                                                    specific_events=list_of_events, options_balloon=options_balloon)
+                                                            add_SAC = options_source['add_SAC'], add_perturbations = False, 
+                                                            specific_events=list_of_events, options_balloon=options_balloon)
 
 Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
 

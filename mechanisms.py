@@ -285,6 +285,7 @@ def compute_time(x, startdate):
     return x
 
 def compute_SAC(x, client, rotation, t_chosen, add_SAC, options_IRIS):
+    print('['+sys._getframe().f_code.co_name+'] Adding real station locations downloaded from IRIS within the domain boundaries defined in options_source.')
 
     start_day = x['startdate']
     
@@ -356,12 +357,11 @@ def compute_SAC(x, client, rotation, t_chosen, add_SAC, options_IRIS):
     return x
 
 def compute_non_SAC(x, options_IRIS):
-
-    ## Add custom stations
-    if options_IRIS['stations']:
-        x['station_tab'].update( options_IRIS['stations'] )
-        
-    return x
+  print('['+sys._getframe().f_code.co_name+'] Adding custom stations, defined in options_IRIS.')
+  ## Add custom stations
+  if options_IRIS['stations']:
+    x['station_tab'].update( options_IRIS['stations'] )
+  return x
 
 def modify_dip(dip, d_rake):
     
@@ -709,76 +709,72 @@ def display_map_stations(ID, station_tab, domain, new_folder):
     fig.savefig( new_folder + '/distribution_station.pdf' )
    
 def create_one_station(x, y, z, comp, name, id, data = None, file = None, t_chosen = [50.]):
-
-    station = {
-        'id': id,
-        'name': name,
-        'xs': x, 'ys': y, 'zs': z,
-        't_chosen': t_chosen,
-        'type_slice': 'xz',
-        'comp': comp,
-        'data': data,
-        'file': file
-        } 
-    
-    return station
+  station = {
+      'id': id,
+      'name': name,
+      'xs': x, 'ys': y, 'zs': z,
+      't_chosen': t_chosen,
+      'type_slice': 'xz',
+      'comp': comp,
+      'data': data,
+      'file': file
+      }
+  return station
    
 def create_stations(x_in, y_in, z_in, name_in, id_in, t_chosen = [50.], balloon=False, data=[], only_data=False, this_is_specfem_3d=True):
+  print('['+sys._getframe().f_code.co_name+'] Create stations to go with current mechanism.')
                 
-        ## If data provided store in dict
-        data_, file_ = {}, {}
-        if data:
-                found_data = False
-                for  subdir, dirs, files in os.walk(data[0]):
-                        for file in files:
-                                filepath = subdir + os.sep + file
-                                
-                                if( data[1] in file ):
-                                
-                                        
-                                
-                                        comp  = file.split('.')[-1][-1]
-                                        if not this_is_specfem_3d:
-                                                if(z_in > 0.):
-                                                        comp  = 'p' if comp == 'v' else 'v'
+  ## If data provided store in dict
+  data_, file_ = {}, {}
+  if data:
+    found_data = False
+    for  subdir, dirs, files in os.walk(data[0]):
+      for file in files:
+        filepath = subdir + os.sep + file
+        
+        if( data[1] in file ):
+          comp  = file.split('.')[-1][-1]
+          if not this_is_specfem_3d:
+                  if(z_in > 0.):
+                          comp  = 'p' if comp == 'v' else 'v'
 
-                                        comp_ = file.split('.')[-2][-1]
-                                        if(comp == 'v'):
-                                                comp = 'v' + comp_.lower()
-                                
-                                        found_data = True
-                                        data_simu = pd.read_csv( filepath, delim_whitespace=True, header=None )
-                                        
-                                        data_simu.columns = ['t', 'amp']
-                                        data_[comp] = data_simu.copy()
-                                        file_[comp] = file
-                
-        station_tab = {}
-        
-        z_list    = [z_in, 0.]
-        comp_list = ['vz']
-        if(balloon):
-                comp_list += ['p']
-                #z_list    += [0.]
-        
-        x, y = x_in, y_in
-        name = name_in
-        id   = id_in
-        for comp in comp_list:
-                for z in z_list:
-                        data_loc = np.array([])
-                        file_loc = ''
-                        if data_ and abs(z - z_list[0]) < 1e-5:
-                                data_loc = data_[comp].values
-                                file_loc = file_[comp]
-                                
-                        if only_data and data_loc.size == 0:
-                                continue
-                                
-                        station_tab[id] = create_one_station(x, y, z, comp, name, id, data_loc, file_loc, t_chosen)
-                        id += 1
-        
-        return station_tab, id
+          comp_ = file.split('.')[-2][-1]
+          if(comp == 'v'):
+                  comp = 'v' + comp_.lower()
+  
+          found_data = True
+          data_simu = pd.read_csv( filepath, delim_whitespace=True, header=None )
+          
+          data_simu.columns = ['t', 'amp']
+          data_[comp] = data_simu.copy()
+          file_[comp] = file
+          
+  station_tab = {}
+  
+  z_list    = [z_in, 0.]
+  comp_list = ['vz']
+  if(balloon):
+    comp_list += ['p']
+    #z_list    += [0.]
+  
+  x, y = x_in, y_in
+  name = name_in
+  id   = id_in
+  for comp in comp_list:
+    for z in z_list:
+      data_loc = np.array([])
+      file_loc = ''
+      if data_ and abs(z - z_list[0]) < 1e-5:
+        data_loc = data_[comp].values
+        file_loc = file_[comp]
+              
+      if only_data and data_loc.size == 0:
+        continue
+              
+      station_tab[id] = create_one_station(x, y, z, comp, name, id, data_loc, file_loc, t_chosen)
+      id += 1
+  
+  return station_tab, id
         
 def save_mt(mt, new_folder):
   print('['+sys._getframe().f_code.co_name+'] Save source mechanisms to text file \''+new_folder + '/mechanism.txt\'.')
