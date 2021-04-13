@@ -7,10 +7,15 @@ from pyrocko import moment_tensor as mtm
 from obspy.imaging.beachball import beach
 from utils import sysErrHdl
 
-## Sample path name of the directory created to store data and figures
+
+#--------------------------------------------------------------#
+# Setup options.                                               #
+#--------------------------------------------------------------#
+
+# Sample path name of the directory created to store data and figures
 name_sample               = './OUTPUTS/RUN_XXX/'
 
-## RW-atmos integration options
+# RW-atmos integration options
 options = {}
 options['dimension']         = 3 # atmospheric dimension
 options['dimension_seismic'] = 3 # seismic dimension
@@ -28,7 +33,7 @@ options['models'] = {}
 options['models']['specfem'] = './models/Ridgecrest_seismic.txt'
 options['type_model']        = 'specfem' # specfem or specfem2d
 
-## Source parameters
+# Source parameters
 options_source = {}
 options_source['stf-data'] = [] # file where stf is located
 options_source['stf']      = 'gaussian' # gaussian or erf
@@ -38,7 +43,7 @@ options_source['lat_max']  = 36.
 options_source['lon_min']  = -118.
 options_source['lon_max']  = -117.
 
-## Load sources from Earthquake catalog or build custom source
+# Load sources from Earthquake catalog or build custom source
 options_source['DIRECTORY_MECHANISMS'] = []
 options_source['sources'] = []
 source_characteristics = { # example of custom source
@@ -57,18 +62,22 @@ list_of_events = [0] # list of event to compute, leave empty if you want all
 options_source['add_SAC'] = False # Wheter or not add real station locations downloaded from IRIS within the domain
                                   # boundaries defined in options_source['lat_min'], options_source['lat_max'], ...
 
-## Stations
+# Ground stations.
 options_IRIS = {}
 options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY'
 options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ'
 options_IRIS['stations'] = {}
-x, y, z, comp, name, id = 100., 1000., 0., 'HHZ', 'test', 0
-options_IRIS['stations'][id] = mod_mechanisms.create_one_station(x, y, z, comp, name, id)
+i=0
+options_IRIS['stations'][i] = mod_mechanisms.create_one_station(100., 1000., 0., 'HHZ', 'test', i); i+=1;
 
-## Load balloon data
+# Balloon stations.
 options_balloon = {}
 
-## Plot sources' beachballs.
+#--------------------------------------------------------------#
+# Start script.                                                #
+#--------------------------------------------------------------#
+
+# Plot sources' beachballs.
 for source in options_source['sources']:
   mw = source['mag']
   m0 = mtm.magnitude_to_moment(mw)  # convert the mag to moment
@@ -87,7 +96,7 @@ for source in options_source['sources']:
   plt.xlim([-0.5, 0.5])
   plt.ylim([-0.5, 0.5])
   
-## ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
+# ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
 options_source['coef_high_freq'] = options['coef_high_freq']
 options_source['nb_kxy']   = options['nb_kxy']
 options_source['t_chosen'] = options['t_chosen']
@@ -99,7 +108,7 @@ options['force_f0_source'] = False
 mechanism, station, domain = {}, {}, {}
 keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'phi', 'station_tab', 'mt']
 
-## Load mechanisms/stations data
+# Load mechanisms/stations data
 mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
                                                                     add_SAC = options_source['add_SAC'], add_perturbations = False, 
                                                                     specific_events=list_of_events, options_balloon=options_balloon)
@@ -109,13 +118,13 @@ Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
 tmpFolderForCopy = name_sample.replace('XXX', 'tocopy')
 os.makedirs(tmpFolderForCopy)
 
-## Move temporary folder in new folder
+# Move temporary folder in new folder
 sysErrHdl('mv ' + options_out['global_folder'][:-1]+' '+tmpFolderForCopy)
 # os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
 
-## Save all mechanisms to current folder
+# Save all mechanisms to current folder
 mod_mechanisms.save_mt(mechanisms_data, tmpFolderForCopy)
-## Loop over each mechanism to generate the atmospheric wavefield
+# Loop over each mechanism to generate the atmospheric wavefield
 for imecha, mechanism_ in mechanisms_data.iterrows():
 
     options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
@@ -127,12 +136,12 @@ for imecha, mechanism_ in mechanisms_data.iterrows():
     for key in keys_mechanism:
             mechanism[key] = mechanism_[key]
 
-    ## Station distribution
+    # Station distribution
     mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
     
-# ## Save all mechanisms to current folder
+# # Save all mechanisms to current folder
 # mod_mechanisms.save_mt(mechanisms_data, name_sample.replace('XXX', 'tocopy'))
-# ## Loop over each mechanism to generate the atmospheric wavefield
+# # Loop over each mechanism to generate the atmospheric wavefield
 # for imecha, mechanism_ in mechanisms_data.iterrows():
     
 #     options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
@@ -143,15 +152,15 @@ for imecha, mechanism_ in mechanisms_data.iterrows():
 #     for key in keys_mechanism:
 #             mechanism[key] = mechanism_[key]
 
-#     ## Station distribution
+#     # Station distribution
 #     mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
     
-    ## Generate atmospheric model
+    # Generate atmospheric model
     station = mechanism_['station_tab']
     domain  = mechanism_['domain']
     param_atmos = velocity_models.generate_default_atmos()
 
-    ## Solve dispersion equations
+    # Solve dispersion equations
     RW_atmos.compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
 
 
