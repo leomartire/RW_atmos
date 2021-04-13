@@ -21,7 +21,7 @@ matplotlib.use('Agg')
 
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
-        print('> ['+sys._getframe().f_code.co_name+'] Generate velocity and option files to run earthsr.')
+        print('['+sys._getframe().f_code.co_name+'] Generate velocity and option files to run earthsr.')
         
         format_header = '%d %d %12.12f \n'
         format_string = '%12.12f %12.12f %12.12f %12.12f %12.12f %12.12f \n'
@@ -67,6 +67,7 @@ def local_collect(title, N, periods):
 
 ## Collect eigenfunctions and derivatives from earthsr
 def get_eigenfunctions(current_struct, options):
+        print('['+sys._getframe().f_code.co_name+'] Collect eigenfunctions and derivatives from earthsr.')
 
         import multiprocessing as mp
         from functools import partial
@@ -88,7 +89,8 @@ def get_eigenfunctions(current_struct, options):
         ## Setup progress bar
         toolbar_width = 40
         total_length  = len(periods) * (options['nb_modes'][1]+1)
-        sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+        # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+        sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
         sys.stdout.flush()
         #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
         
@@ -107,7 +109,7 @@ def get_eigenfunctions(current_struct, options):
         ## Setup progress bar
         toolbar_width = 40
         total_length  = len(periods) * N
-        sys.stdout.write("Store eigenfunctions: [%s]" % (" " * toolbar_width))
+        sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
         sys.stdout.flush()
         id_stat = 0
         cptbar = 0
@@ -164,11 +166,12 @@ def get_eigenfunctions(current_struct, options):
         del results
         
         sys.stdout.write("] Done\n")
+        print('['+sys._getframe().f_code.co_name+'] Finished collecting eigenfunctions and derivatives from earthsr.')
             
         return Green_RW
                 
 def compute_dispersion_with_earthsr(no, side, options):
-        print('> ['+sys._getframe().f_code.co_name+'] Run earthsr.')
+        print('['+sys._getframe().f_code.co_name+'] Run earthsr.')
         
         print('****************************************************************')
         ## Launch dispersion code
@@ -178,7 +181,7 @@ def compute_dispersion_with_earthsr(no, side, options):
         print('****************************************************************')
 
 def move_dispersion_files(no, options):
-        print('> ['+sys._getframe().f_code.co_name+'] Move earthsr files (disp*, eigen*) to \''+options['global_folder']+'\'.')
+        print('['+sys._getframe().f_code.co_name+'] Move earthsr files (disp*, eigen*) to \''+options['global_folder']+'\'.')
         os.system('mv ' + 'disp* ' + options['global_folder'])
         os.system('mv ' + 'eigen* ' + options['global_folder'])
         if(no > 0):
@@ -187,7 +190,7 @@ def move_dispersion_files(no, options):
 ################################################################################################
 ## Before finishing building coefficients, this routine saves dispersion characteristics to file
 def collect_dispersion_from_earthsr_and_save(nside, options):
-  print('> ['+sys._getframe().f_code.co_name+'] Read earthsr output files.')
+  print('['+sys._getframe().f_code.co_name+'] Read earthsr output files.')
   
   data_dispersion_file_fund   = utils.load(options['global_folder'] + 'disp_vconly.input_code_earthsr')
 

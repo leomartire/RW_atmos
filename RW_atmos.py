@@ -1156,6 +1156,7 @@ def plot_surface_forcing(field, t_station, ix, iy, options):
         plt.savefig(options['global_folder'] + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
 
 def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
+    print('['+sys._getframe().f_code.co_name+'] Generate analytical acoustic wavefield from previously computed RW wavefield.')
 
     ## Exit messages
     if(not mechanism):
@@ -1335,7 +1336,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     del field, Mz_t_tab, RW_Mz_t_tab, station_updated
     
     ## Successful exit messahe
-    print('Finished generating figures in folder: ' + options['global_folder'])
+    print('['+sys._getframe().f_code.co_name+'] Finished generating figures in folder \''+options['global_folder']+'\'.')
     
     #if(not options['GOOGLE_COLAB']):
     #        bp()

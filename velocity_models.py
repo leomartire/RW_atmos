@@ -113,7 +113,7 @@ def construct_local_seismic_model(mechanism_data, options):
 ###############################################################
 ## Create adapted velocity model on both sides of the interface 
 def create_velocity_model(options):
-        print('> ['+sys._getframe().f_code.co_name+'] Create adapted velocity model, with '+str(options['nb_layers'])+' layers.')
+        print('['+sys._getframe().f_code.co_name+'] Create adapted velocity model, with '+str(options['nb_layers'])+' layers.')
         
         ## Definition
         side = {}
@@ -225,12 +225,11 @@ def discretize_model_heterogeneous(data, options):
         return z_interp, data_interp
         
 def generate_default_atmos():
-        
         param_atmos = {}
         param_atmos['isothermal'] = False       
         param_atmos['subsampling'] = True
         param_atmos['subsampling_layers'] = 120
-        param_atmos['file'] = './atmospheric_model.dat'
+        param_atmos['file'] = './models/default_atmospheric_model.dat'
         param_atmos['cpa']    = 3.2e2 # m/s
         param_atmos['H']      = np.inf # m
         param_atmos['Nsq']    = 1e-10
@@ -244,13 +243,18 @@ def generate_default_atmos():
         param_atmos['rho']    = 1.2
         param_atmos['cp']     = 3000.
         
+        print('['+sys._getframe().f_code.co_name+'] Generate default atmospheric model from \''+param_atmos['file']+'\'.')
+        
         return param_atmos
         
 def read_csv_seismic(model, dimension, loc_source = 50000.):
-        print('    > ['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
+        print('['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
         
         temp   = pd.read_csv( model, delim_whitespace=True, header=None )
+        
+        print('['+sys._getframe().f_code.co_name+'] Model:')
         print(temp)
+        
         if(dimension == 1):
                 temp.columns = ['z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
         else:

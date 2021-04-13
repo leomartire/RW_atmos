@@ -5,9 +5,10 @@ from obspy.core.utcdatetime import UTCDateTime
 import matplotlib.pyplot as plt
 from pyrocko import moment_tensor as mtm
 from obspy.imaging.beachball import beach
+from utils import sysErrHdl
 
 ## Sample path name of the directory created to store data and figures
-name_sample               = './RUN_XXX/'
+name_sample               = './OUTPUTS/RUN_XXX/'
 
 ## RW-atmos integration options
 options = {}
@@ -24,7 +25,7 @@ options['zmax']           = 60000. # maximum depth (m)
 options['nb_modes']       = [0, 50] # min, max number of modes
 options['t_chosen']       = [0., 90.] # time (s) to display wavefield
 options['models'] = {}
-options['models']['specfem'] = './Ridgecrest_seismic.txt'
+options['models']['specfem'] = './models/Ridgecrest_seismic.txt'
 options['type_model']        = 'specfem' # specfem or specfem2d
 
 ## Source parameters
@@ -85,7 +86,7 @@ for source in options_source['sources']:
   plt.title('$M_w$ ' + str(round(mw, 2)) + ' - $f_0 = ' +str(round(options_source['f0'],3))+ '$ Hz'+ ' - depth $ = ' +str(round(source['depth'],3))+ '$ km')
   plt.xlim([-0.5, 0.5])
   plt.ylim([-0.5, 0.5])
-	
+  
 ## ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
 options_source['coef_high_freq'] = options['coef_high_freq']
 options_source['nb_kxy']   = options['nb_kxy']
@@ -105,16 +106,21 @@ mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, opti
 
 Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
 
+tmpFolderForCopy = name_sample.replace('XXX', 'tocopy')
+os.makedirs(tmpFolderForCopy)
+
 ## Move temporary folder in new folder
-os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
+sysErrHdl('mv ' + options_out['global_folder'][:-1]+' '+tmpFolderForCopy)
+# os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
 
 ## Save all mechanisms to current folder
-mod_mechanisms.save_mt(mechanisms_data, name_sample.replace('XXX', 'tocopy'))
+mod_mechanisms.save_mt(mechanisms_data, tmpFolderForCopy)
 ## Loop over each mechanism to generate the atmospheric wavefield
 for imecha, mechanism_ in mechanisms_data.iterrows():
 
     options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
-    os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
+    sysErrHdl('cp -R ' + tmpFolderForCopy[:-1] + ' ' + options_out['global_folder'])
+    # os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
     Green_RW.set_global_folder(options_out['global_folder'])
 
     mechanism = {}
@@ -124,21 +130,21 @@ for imecha, mechanism_ in mechanisms_data.iterrows():
     ## Station distribution
     mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
     
-## Save all mechanisms to current folder
-mod_mechanisms.save_mt(mechanisms_data, name_sample.replace('XXX', 'tocopy'))
-## Loop over each mechanism to generate the atmospheric wavefield
-for imecha, mechanism_ in mechanisms_data.iterrows():
+# ## Save all mechanisms to current folder
+# mod_mechanisms.save_mt(mechanisms_data, name_sample.replace('XXX', 'tocopy'))
+# ## Loop over each mechanism to generate the atmospheric wavefield
+# for imecha, mechanism_ in mechanisms_data.iterrows():
     
-    options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
-    os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
-    Green_RW.set_global_folder(options_out['global_folder'])
+#     options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
+#     os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
+#     Green_RW.set_global_folder(options_out['global_folder'])
 
-    mechanism = {}
-    for key in keys_mechanism:
-            mechanism[key] = mechanism_[key]
+#     mechanism = {}
+#     for key in keys_mechanism:
+#             mechanism[key] = mechanism_[key]
 
-    ## Station distribution
-    mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
+#     ## Station distribution
+#     mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
     
     ## Generate atmospheric model
     station = mechanism_['station_tab']
@@ -147,3 +153,5 @@ for imecha, mechanism_ in mechanisms_data.iterrows():
 
     ## Solve dispersion equations
     RW_atmos.compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
+
+

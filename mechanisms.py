@@ -148,7 +148,7 @@ def compute_coordinate_USE(distances):
 
 def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame()):
 
-    print('Loading source and stations for event ' + str(x['EVID']))
+    print('['+sys._getframe().f_code.co_name+'] Loading source and stations for event '+str(x['EVID'])+'.')
 
     x['stf']      = options_source['stf'] # gaussian or erf
     x['stf-data'] = options_source['stf-data'] # gaussian or erf
@@ -781,7 +781,10 @@ def create_stations(x_in, y_in, z_in, name_in, id_in, t_chosen = [50.], balloon=
         return station_tab, id
         
 def save_mt(mt, new_folder):
-        
-        f = open(new_folder + '/mechanism.txt','w')
-        f.write( str(mt) )
-        f.close()
+  print('['+sys._getframe().f_code.co_name+'] Save source mechanisms to text file \''+new_folder + '/mechanism.txt\'.')
+  f = open(new_folder + '/mechanism.txt','w')
+  f.write( str(mt) )
+  f.close()
+
+
+

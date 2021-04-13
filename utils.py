@@ -29,7 +29,7 @@ def earthsr_local_folder():
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):
-        print('  > ['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
+        print('['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
         
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
         id_tab      = [1, 3, 2]
@@ -64,7 +64,7 @@ def read_specfem_files(options):
 ####################################
 ## Routine to read SPECFEM 2d models
 def read_specfem2d_files(options):
-        print('  > ['+sys._getframe().f_code.co_name+'] Read SPECFEM 2D models: '+str(options['models']))
+        print('['+sys._getframe().f_code.co_name+'] Read SPECFEM 2D models: '+str(options['models']))
         
         from velocity_models import read_csv_seismic
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
@@ -108,8 +108,11 @@ def determine_folders(options):
                 
         name_simu_folder = './coefs_batch_' + str(nbdirs+1) + '/'
         
-        if(options['PLOT'] < 2):
-                os.makedirs(name_simu_folder)
+        if(os.path.isdir(name_simu_folder)):
+          print('['+sys._getframe().f_code.co_name+', WARNING] Folder \''+name_simu_folder+'\' already exists, contents may be overwritten.')
+        else:
+          if(options['PLOT'] < 2):
+            os.makedirs(name_simu_folder)
                 
         options_loc['name_simu_subfolder'] = ''
         options_loc['global_folder']       = name_simu_folder + options_loc['name_simu_subfolder']
@@ -117,7 +120,8 @@ def determine_folders(options):
         return options_loc
         
 def load(file_name, delimiter = ' '):
-
+    print('['+sys._getframe().f_code.co_name+'] Load \''+file_name+'\'.')
+    
     file_r = open(file_name, 'r') 
     data   = file_r.readlines() 
     
