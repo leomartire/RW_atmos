@@ -24,13 +24,13 @@ options = {}
 options['dimension']         = 3 # atmospheric dimension
 options['dimension_seismic'] = 3 # seismic dimension
 options['ATTENUATION']    = True # using Graves, Broadband ground-motion simulation using a hybrid approach, 2014
-options['COMPUTE_MAPS']   = False # Compute and plot x,y,z wavefield
+options['COMPUTE_MAPS']   = False # Compute and plot x,y,z wavefield. Computationally heavy.
 options['nb_freq']        = 2**9
-options['nb_kxy']         = 2**7
+options['nb_kxy']         = 2**8
 options['coef_low_freq']  = 0.001 # minimum frequency (Hz)
 options['coef_high_freq'] = 5. # maximum frequency (Hz)
 options['nb_layers']      = 100 # Number of seismic layers for discretization
-options['zmax']           = 60000. # maximum depth (m)
+options['zmax']           = 10.0e3 # maximum depth (m)
 options['nb_modes']       = [0, 50] # min, max number of modes
 options['t_chosen']       = [0., 90.] # time (s) to display wavefield
 options['models'] = {}
@@ -41,7 +41,7 @@ options['type_model']        = 'specfem' # specfem or specfem2d
 options_source = {}
 options_source['stf-data'] = [] # file where stf is located
 options_source['stf']      = 'gaussian' # gaussian or erf
-options_source['f0']       = 5. # dominant freuqency (Hz)
+options_source['f0']       = 2. # dominant freuqency (Hz)
 options_source['lat_min']  = 35. 
 options_source['lat_max']  = 36.
 options_source['lon_min']  = -118.
@@ -68,11 +68,11 @@ options_source['add_SAC'] = False # Wheter or not add real station locations dow
 
 # Options for ground stations.
 options_IRIS = {}
-options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY'
-options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ'
+# options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY' # Only if need to download stations.
+# options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ' # Only if need to download stations.
 options_IRIS['stations'] = {}
-i=0
-options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=100., y=1000., z=0., comp='HHZ', name='test', id=i, t_chosen=np.linspace(0,50,6)); i+=1;
+# i=0
+# options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=0., y=0., z=20000., comp='p', name='strato', id=i, t_chosen=np.linspace(0,25,6)); i+=1;
 
 # Balloon stations.
 options_balloon = {}

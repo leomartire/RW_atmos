@@ -286,7 +286,7 @@ def get_default_options():
   return(options)
 
 def compute_trans_coefficients(options_in = {}):
-  print('['+sys._getframe().f_code.co_name+'] ???')
+  print('['+sys._getframe().f_code.co_name+'] Compute Rayleigh waves\' Green functions using the dispersion relations from earthsr.')
   
   options = get_default_options() # Get default options.
   options.update(options_in) # Update each option based on user input.

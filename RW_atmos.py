@@ -20,16 +20,16 @@ from sympy.utilities.lambdify import lambdify
 
 from multiprocessing import set_start_method, get_context
 
-## Local modules
+# Local modules
 import mechanisms as mod_mechanisms
 import utils, velocity_models, RW_dispersion
 
-## display parameters
+# display parameters
 font = {'size': 14}
 matplotlib.rc('font', **font)
 
-## To make sure that there is no bug when saving and closing the figures
-## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
+# To make sure that there is no bug when saving and closing the figures
+# https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
 matplotlib.use('Agg')
 
 class vertical_velocity():
@@ -54,11 +54,11 @@ class vertical_velocity():
                 comp_deriv = -np.pi*2.*1j/self.period if unknown == 'v' else 1.
                 comp_deriv = (-np.pi*2.*1j/self.period)*comp_deriv if unknown == 'a' else comp_deriv
                 
-                ## 3d
+                # 3d
                 if(dimension_seismic == 3):
                         return comp_deriv*(self.r2/(8*self.cphi*self.cg*self.I1))*np.sqrt(2./(np.pi*self.kn*r))*np.exp( 1j*( self.kn*r + np.pi/4. ) )*self.directivity.compute_directivity(phi, M, depth) * self.add_attenuation(r)
                 
-                ## 2d
+                # 2d
                 elif(dimension_seismic == 2):
                         return 1e3*comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/2. ) )*self.directivity.compute_directivity(phi, M, depth) * self.add_attenuation(r)
                 else:
@@ -94,23 +94,23 @@ class RW_forcing():
 
         def __init__(self, options):
         
-                ## Inputs
+                # Inputs
                 self.f_tab = options['f_tab']
                 self.nb_modes = options['nb_modes'][1]
                 
                 self.set_global_folder(options['global_folder'])
                 
-                ## Attributes containing seismic/acoustic spectra
+                # Attributes containing seismic/acoustic spectra
                 self.directivity = [ [ [] for aa in range(0, len(self.f_tab)) ] for bb in range(0, options['nb_modes'][1]) ]
                 self.uz          = [ [ [] for aa in range(0, len(self.f_tab)) ] for bb in range(0, options['nb_modes'][1]) ]
                 
-                ## Extract seismic model for later plots
+                # Extract seismic model for later plots
                 self.extract_seismic_parameters(options)
                 
-                ## Add source characteristics
+                # Add source characteristics
                 #self.update_mechanism(mechanism)
                 
-                ## MPI parameter
+                # MPI parameter
                 self.use_spawn = options['USE_SPAWN_MPI']
                 
                 self.google_colab = options['GOOGLE_COLAB']
@@ -159,9 +159,9 @@ class RW_forcing():
         
                 if(self.stf == 'gaussian'):
                         return self.M*np.sqrt(np.pi/self.alpha)*np.exp(-((np.pi/period)**2)/self.alpha)*np.exp(2*np.pi*1j*(4./self.f0)/period)
-                        ##       ^^       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                        ##      moment                   source fourier transform                                        time shift
-                        ##       mag
+                        #       ^^       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        #      moment                   source fourier transform                                        time shift
+                        #       mag
                 
                 elif(self.stf == 'gaussian_'):
                         return self.M*np.exp(-((np.pi/period)**2)/(self.f0**2))*np.exp(2*np.pi*1j*(4./self.f0)/period)
@@ -201,18 +201,18 @@ class RW_forcing():
                         r2 = r2[0]
                         r1 = r1[0]
                         
-                        ## Compute quality factor
+                        # Compute quality factor
                         #QR  = spi.simps( (2./Qp[:])*(lamda[:] + 2*mu[:])*( kn*r1 + d_r2_dz )**2, dep[:])
                         #QR += spi.simps( (2.*mu[:]/Qs[:])*(( kn*r2 + d_r1_dz )**2 - 4*kn*r1*d_r2_dz ), dep[:])
                         #QR *= 1./(4.*(kn**2)*cg*cphi*I1)
                         QR = current_struct[imode]['QR'][iperiod]
                         
-                        ## Store Green's functions for an arbitrary moment tensor
+                        # Store Green's functions for an arbitrary moment tensor
                         self.uz[imode][iperiod]        = vertical_velocity(period, r2, cphi, cg, I1, kn, QR, self.directivity[imode][iperiod])
                         
         def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd', dimension_seismic = 3):
         
-                ## Source depth
+                # Source depth
                 depth = self.zsource
         
                 uz_tab = []
@@ -261,8 +261,8 @@ class RW_forcing():
                             response_RW = response_RW_temp.copy()
                     else:
 
-                            ## Concatenate dataframes with same freq.
-                            ## we can not use pd.concat since it is too slow for complex numbers
+                            # Concatenate dataframes with same freq.
+                            # we can not use pd.concat since it is too slow for complex numbers
                             response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
                     
             return response_RW
@@ -286,8 +286,8 @@ class RW_forcing():
                                     response_RW = response_RW_temp.copy()
                             else:
 
-                                    ## Concatenate dataframes with same freq.
-                                    ## we can not use pd.concat since it is too slow for complex numbers
+                                    # Concatenate dataframes with same freq.
+                                    # we can not use pd.concat since it is too slow for complex numbers
                                     response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
             
             else:          
@@ -312,10 +312,10 @@ class RW_forcing():
                 
         def response_perturbed_solution(self, x, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3, type_opti='min'):
         
-            ## dip, strike and rake perturbations
+            # dip, strike and rake perturbations
             p_strike, p_dip, p_rake = x[0], x[1], x[2]
             
-            ## Create source from perturbations
+            # Create source from perturbations
             mechanism = self.get_mechanism()
             mt = mechanism['mt']
             strike0, dip0, rake0 = mt.both_strike_dip_rake()[0]
@@ -335,8 +335,8 @@ class RW_forcing():
                             response_RW = response_RW_temp.copy()
                     else:
 
-                            ## Concatenate dataframes with same freq.
-                            ## we can not use pd.concat since it is too slow for complex numbers
+                            # Concatenate dataframes with same freq.
+                            # we can not use pd.concat since it is too slow for complex numbers
                             response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
                             
             self.update_mechanism(mechanism_save)
@@ -346,17 +346,17 @@ class RW_forcing():
 
         def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1, dimension_seismic = 3):
         
-            ## Collect the positive-frequency response of each RW mode
+            # Collect the positive-frequency response of each RW mode
             RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max, dimension_seismic)
             RW     = RW.sort_values(by=['f'], ascending=True)
             
-            ## Positive frequencies
+            # Positive frequencies
             RW_first = RW.iloc[0:1].copy()
             temp     = pd.DataFrame(RW_first.values*0.)
             temp.columns = RW_first.columns
             RW_first     = temp.copy()
             
-            ## Negative frequencies
+            # Negative frequencies
             RW_neg = RW.iloc[:].copy()
             RW_neg.loc[:,'f']  = -RW_neg.loc[:,'f']
             RW = RW_first.append(RW.iloc[:-1])
@@ -372,15 +372,15 @@ class RW_forcing():
             temp['f'] = RW['f'].values
             RW        = temp.copy()
             
-            ## Concatenate negative and positive frequencies
+            # Concatenate negative and positive frequencies
             RW_tot = pd.concat([RW_neg,RW], ignore_index=True)
             
-            ## Compute inverse Fourier transform
+            # Compute inverse Fourier transform
             ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.values[:,:-1], axes=0), axis=0)
             nb_fft  = ifft_RW.shape[0]//2
             ifft_RW = ifft_RW[:nb_fft]
             
-            ## Compute corresponding time array
+            # Compute corresponding time array
             dt = 1./(2.*abs(RW_neg['f']).max())
             t  = np.arange(0, dt*nb_fft, dt)    
             
@@ -388,7 +388,7 @@ class RW_forcing():
 
 def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
 
-    ## Save waveforms     
+    # Save waveforms     
     df = pd.DataFrame()
     df['t']  = t
     df['vz'] = np.real(Mz_t)
@@ -396,7 +396,7 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     df.to_csv(options['global_folder'] + name_file, index=False)
     print('save waveform to: '+options['global_folder'] + name_file)
     
-    ## Deallocate
+    # Deallocate
     df = None
     
     df = pd.DataFrame()
@@ -406,10 +406,10 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     df.to_csv(options['global_folder'] + name_file, index=False)
     print('save waveform to: '+options['global_folder'] + name_file)
     
-    ## Deallocate
+    # Deallocate
     df = None
     
-    ## Create frequency/time plot
+    # Create frequency/time plot
     #freq_min, freq_max = Green_RW.f0/10., Green_RW.f0*2.
     freq_min, freq_max = options['coef_low_freq'], options['coef_high_freq']
     tr   = utils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
@@ -440,29 +440,29 @@ class field_RW():
                 self.coef_low_freq = [Green_RW.f_tab[0], Green_RW.f_tab[-1]]
                 self.type_output = 'a'
         
-                ##################################################
-                ## Initial call to Green_RW to get the time vector
+                #########################
+                # Initial call to Green_RW to get the time vector
                 output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[1]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic)
                 t      = output[0]
                 
-                ## Store seismic model
+                # Store seismic model
                 self.seismic = Green_RW.seismic
                 self.google_colab = Green_RW.google_colab
                 
-                ## Define time/spatial domain boundaries
+                # Define time/spatial domain boundaries
                 mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
                 dt_anal, dx_anal, dy_anal = abs(t[1] - t[0]), dx_in, dy_in
                 xmin, xmax = xbounds[0], xbounds[1]
                 if(dimension > 2):
                         ymin, ymax = ybounds[0], ybounds[1]
                 
-                ## Define frequency/wavenumber boundaries
+                # Define frequency/wavenumber boundaries
                 NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
                 NFFT2 = len(t)
                 if(dimension > 2):
                         NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 
-                ## Define corresponding time and spatial arrays
+                # Define corresponding time and spatial arrays
                 x = np.linspace(xmin, xmax, NFFT1)
                 t = dt_anal * np.arange(0,NFFT2)
                 if(dimension > 2):
@@ -470,7 +470,7 @@ class field_RW():
                 else:
                         y = np.array([Green_RW.phi])   
                            
-                ## Define corresponding Frequency Wavenumber arrays 
+                # Define corresponding Frequency Wavenumber arrays 
                 omega = 2.0*np.pi*(1.0/(dt_anal*NFFT2))*np.concatenate((np.arange(0,NFFT2/2), -np.arange(NFFT2/2,0,-1)))
                 kx =    2.0*np.pi*(1.0/(dx_anal*NFFT1))*np.concatenate((np.arange(0,NFFT1/2), -np.arange(NFFT1/2,0,-1)))
                 if(dimension > 2):
@@ -480,10 +480,10 @@ class field_RW():
                 else:
                         KX, Omega = np.meshgrid(kx, omega)
                 
-                ## Initialize bottom RW forcing
+                # Initialize bottom RW forcing
                 Mo  = np.zeros(Omega.shape, dtype=complex)
                 
-                ## Conversion of cartesian coordinates into cylindrical coordinates for 3d
+                # Conversion of cartesian coordinates into cylindrical coordinates for 3d
                 if(dimension > 2):
                         Y, X = np.meshgrid(y, x)
                         R    = np.sqrt( X**2 + Y**2 )
@@ -499,14 +499,14 @@ class field_RW():
                         PHI[:len(x)//2] = np.pi
                 PHI += np.pi/2.
                 
-                ## Compute bottom RW forcing                
+                # Compute bottom RW forcing                
                 temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown=self.type_output, mode_max = mode_max, dimension_seismic = dimension_seismic)
                 if(dimension > 2):
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.size) )
                 
-                ## Store forcing parameters
+                # Store forcing parameters
                 self.Mo = Mo
                 self.TFMo  = fftpack.fftn(self.Mo)
                 self.Omega = Omega
@@ -514,11 +514,11 @@ class field_RW():
                 if(dimension > 2):
                         self.KY = -KY
 
-                ## Compute vertical wavenumber
+                # Compute vertical wavenumber
                 #self.compute_vertical_wavenumber(TFMo, H, Nsq, winds)
                 self.dimension = dimension
 
-                ## Store mesh parameters                
+                # Store mesh parameters                
                 self.x    = x
                 self.y    = y
                 self.t    = t
@@ -527,7 +527,7 @@ class field_RW():
         
                 self.atmospheric_model_is_generated = True
                 
-                ## Remove errors 
+                # Remove errors 
                 np.seterr(divide='ignore', invalid='ignore')  
         
                 self.isothermal = param_atmos['isothermal']
@@ -601,10 +601,10 @@ class field_RW():
                                 
         def compute_vertical_wavenumber(self, id_layer, correct_wavenumber = True, exact_computation = False):    
         
-                ## Ignore division/invalid errors in KZ computation
+                # Ignore division/invalid errors in KZ computation
                 np.seterr(divide='ignore', invalid='ignore')    
                                 
-                ## Get corresponding atmospheric parameters
+                # Get corresponding atmospheric parameters
                 H      = self.H[id_layer]
                 Nsq    = self.Nsq[id_layer]
                 wind_x = self.winds[0][id_layer]
@@ -617,12 +617,12 @@ class field_RW():
                 rho    = self.rho[id_layer]
                 cp     = self.cp[id_layer]
                 
-                ## Compute intrinsic frequencies
+                # Compute intrinsic frequencies
                 Omega_intrinsic = self.Omega - wind_x*self.KX
                 if(self.dimension > 2):
                         Omega_intrinsic -= wind_y*self.KY
                      
-                ## 
+                # 
                 if(not exact_computation):
                 
                         if(self.dimension > 2):
@@ -633,15 +633,15 @@ class field_RW():
                                 KZ = np.lib.scimath.sqrt( -self.KX**2              + (self.KX**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) \
                                         + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
                 
-                ## Exact dispersion equation from Godin, Dissipation of acoustic-gravity waves:An asymptotic approach, 2014
+                # Exact dispersion equation from Godin, Dissipation of acoustic-gravity waves:An asymptotic approach, 2014
                 else:
                          
                         if(self.dimension > 2):
                                 kx, ky, kz, Omega = symbols('kx, ky, kz, Omega')
                                 H_, Nsq_, cpa_, rho_, shear_ = symbols('H, gz, c0, rho0, eta0')
                                 
-                                ## From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
-                                ## eq. (9)
+                                # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
+                                # eq. (9)
                                 KZ_exact = solve( \
                                         (Omega/cpa_)**2 + (kx**2 + ky**2)*Nsq_/Omega**2 \
                                         + (1j/( Omega*rho_ )) * ( \
@@ -661,8 +661,8 @@ class field_RW():
                         else:
                                 kx, kz, Omega = symbols('kx, kz, Omega')
                                 
-                                ## From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
-                                ## eq. (9)
+                                # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
+                                # eq. (9)
                                 KZ_exact = solve( \
                                         (Omega/cpa)**2 + (kx**2)*Nsq/Omega**2 \
                                         + (1j/( Omega*rho )) * ( \
@@ -678,21 +678,21 @@ class field_RW():
                                    0j+Omega_intrinsic.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2])).reshape(\
                                         Omega_intrinsic.shape[0],Omega_intrinsic.shape[1],Omega_intrinsic.shape[2])
                 
-                ## Remove infinite/nan numbers that correspond to zero frequencies
+                # Remove infinite/nan numbers that correspond to zero frequencies
                 KZ   = np.nan_to_num(KZ, 0.)
                 
-                ## Correct wavenumbers to remove non-physical solutions
+                # Correct wavenumbers to remove non-physical solutions
                 if(correct_wavenumber):
                         indimag     = np.where(np.imag(KZ)<0)
                         KZ[indimag] = np.conjugate(KZ[indimag])
                         KZ = 0.0 - np.real(KZ)*np.sign(Omega_intrinsic) + 1j*np.imag(KZ)
                 
-                ## Deallocate
+                # Deallocate
                 Omega_intrinsic = None
                 
                 return KZ
         
-        ## Find all layers for which we have to compute the wavenumbers 
+        # Find all layers for which we have to compute the wavenumbers 
         def _find_id_layers_and_heights(self, z0, z1, zlayer):
         
                 id_layers = []
@@ -714,7 +714,7 @@ class field_RW():
                                 id_layers.append( current_id )
                         zprev = zlayer[current_id+1]
                 
-                ## Last element    
+                # Last element    
                 if not id_first_layer == id_last_layer:
                         h = z1-zlayer[id_last_layer] 
                 else:
@@ -732,7 +732,7 @@ class field_RW():
                 If return_only_KZ == True, compute_response_at_given_z returns 1j * sum_i KZ_i * h_i in TFMo
                 '''
                 
-                ## Exit messages
+                # Exit messages
                 if(only_TFMo_integration and return_only_KZ):
                     sys.exit('In "compute_response_at_given_z": Can not only integrate TFMo and only return KZ simultaneously!')
                 
@@ -742,10 +742,10 @@ class field_RW():
                 except:
                     pass
                         
-                ## If pressure amplitude decreases with altitude
+                # If pressure amplitude decreases with altitude
                 coef_amplitude = 1. if comp == 'vz' else -1.
                 
-                ## If we return only KZ, TFMo will contain sum 1j*KZ*z1
+                # If we return only KZ, TFMo will contain sum 1j*KZ*z1
                 if(not return_only_KZ):
                         TFMo = TFMo_in.copy()
                 else:
@@ -765,19 +765,19 @@ class field_RW():
                         else:
                                 KZ = KZ_in.copy()
                                          
-                        ## We only compute the solution if we are not at the surface or below 
+                        # We only compute the solution if we are not at the surface or below 
                         if(z1 > 0):
                                 
-                                ## If isothermal model
+                                # If isothermal model
                                 if(self.isothermal):
-                                        ## Compute the vertical response from the ground forcing
+                                        # Compute the vertical response from the ground forcing
                                         if(not KZ):
                                                 KZ = self.compute_vertical_wavenumber(0)       
                                         
                                         if(not return_only_KZ):
                                                 field_at_it = np.exp(coef_amplitude*z1/(2*self.H[0])) * fftpack.ifftn( np.exp(1j*(KZ*z1)) * TFMo)
                                           
-                                ## If layered model
+                                # If layered model
                                 else:
                                 
                                         #local_inner_loop = partial(self.inner_loop, TFMo, there_is_vz, TFMo_p, there_is_p, x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in)
@@ -790,7 +790,7 @@ class field_RW():
                                         h_layers, id_layers = self._find_id_layers_and_heights(z0, z1, self.z)
                                         for idx, id_layer in enumerate(id_layers):
                                 
-                                                ## Compute the vertical response from the forcing of the layer beneath (idz-1)
+                                                # Compute the vertical response from the forcing of the layer beneath (idz-1)
                                                 if(not last_layer == id_layer):
                                                         KZ = self.compute_vertical_wavenumber(id_layer)       
                                                 
@@ -830,7 +830,7 @@ class field_RW():
                 
         def convert_TFMo_to_pressure(self):
         
-                ## Ignore division/invalid errors in P computation
+                # Ignore division/invalid errors in P computation
                 np.seterr(divide='ignore', invalid='ignore')   
         
                 KZ = self.compute_vertical_wavenumber(0, correct_wavenumber = True)
@@ -847,10 +847,10 @@ class field_RW():
                 
         def get_index_tabs(self, t, x, y):
                 
-                ## Get required time index        
+                # Get required time index        
                 it = np.argmin( abs(self.t - t) )
                 
-                ## Get required location index
+                # Get required location index
                 ix = np.argmin( abs(self.x - x) )
                 iy = -1
                 if(self.dimension > 2):
@@ -858,10 +858,11 @@ class field_RW():
                         
                 return it, ix, iy
                         
-        ## Compute wavefield for a given physical domain
+        # Compute wavefield for a given physical domain
         def compute_field_for_xz(self, t, x, y, z, zvect, type_slice, comp):
+                print('['+sys._getframe().f_code.co_name+'] Compute a '+comp+' wavefield, along '+type_slice+', at t='+str(t)+', x='+str(x)+', y='+str(y)+', z='+str(z)+'.')
                 
-                ## Build a response matrix based on required slice dimensions
+                # Build a response matrix based on required slice dimensions
                 if(type_slice == 'z'):
                         d1, d2 = len(zvect), len(self.x)
                         Mz_xz = np.zeros((d1, d2), dtype=complex)
@@ -874,13 +875,14 @@ class field_RW():
                         zvect  = [z]
                 else:
                         sys.exit('Slice "'+str(type_slice)+'" not recognized!')
+                print('['+sys._getframe().f_code.co_name+'] > Will perform atmopheric computation at '+str(len(zvect))+' altitudes between z='+str(min(zvect))+' and z='+str(max(zvect))+'.')
                         
-                ## Get required time index        
+                # Get required time index        
                 # modif 5/1/2020
                 #it = np.argmin( abs(self.t - t) )
                 it, ix, iy = self.get_index_tabs(t, x, y)
                 
-                ## setup progress bar
+                # setup progress bar
                 if(len(zvect) > 1):
                         cptbar        = 0
                         toolbar_width = 40
@@ -889,71 +891,68 @@ class field_RW():
                         sys.stdout.flush()
                         sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
                 
-                ## Load initial surface forcing
+                # Load initial surface forcing
                 if(comp == 'vz'):
                         TFMo    = self.TFMo.copy()
                 else:
                         TFMo    = self.convert_TFMo_to_pressure().copy()
                         
-                ## Find location of balloon to extract time series
+                # Find location of balloon to extract time series
                 zloc = np.argmin( abs(z - np.array(zvect)) )
                         
                 iz_prev = 0.
                 last_layer_prev = -1
                 KZ_prev = []
-                ## Loop over all layers
+                # Loop over all layers
                 for idz, iz in enumerate(zvect):
-                        
-                        field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z([iz], iz_prev, TFMo, comp, KZ_prev, last_layer_prev)
-                        
-                        ## Store wavenumber if a new wavenumber has been computed
-                        if(last_layer > -1):
-                                last_layer_prev = last_layer
-                                KZ_prev = KZ.copy()
-                        iz_prev = iz
-                        
-                        ## 3d
-                        if(self.dimension > 2):
-                        
-                                if(type_slice == 'z'):
-                                
-                                        # modif 5/1/2020
-                                        #iy = np.argmin( abs(self.y - y) )
-                                        Mz_xz[idz, :] = field_at_it[it,:,iy]
-                                        
-                                        #ix = np.argmin( abs(self.x - x) )
-                                        Mz_yz[idz, :] = field_at_it[it,ix,:]
-                                        
-                                        ## Save time serie
-                                        if(idz == zloc):
-                                                timeseries = field_at_it[:,ix,iy]
-                                        
-                                elif(type_slice == 'xy'):
-                                        Mz_xy[:, :] = field_at_it[it,:,:]
-                                        
-                                        ## Save time serie
-                                        if(idz == zloc):
-                                                # modif 5/1/2020
-                                                #iy = np.argmin( abs(self.y - y) )
-                                                #ix = np.argmin( abs(self.x - x) )
-                                                timeseries = field_at_it[:,ix,iy]
-                                                
-                        ## 2d
-                        else:
-                                Mz_xz[idz, :] = field_at_it[it,:]
-                                
-                                ## Save time series
-                                if(idz == zloc):
-                                        # modif 5/1/2020
-                                        #ix = np.argmin( abs(self.x - x) )
-                                        timeseries = field_at_it[:,ix]
+                  field_at_it, last_layer, KZ, TFMo = self.compute_response_at_given_z([iz], iz_prev, TFMo, comp, KZ_prev, last_layer_prev)
+                  
+                  # Store wavenumber if a new wavenumber has been computed
+                  if(last_layer > -1):
+                    last_layer_prev = last_layer
+                    KZ_prev = KZ.copy()
+                  iz_prev = iz
+                  
+                  # 3d
+                  if(self.dimension > 2):
+                    if(type_slice == 'z'):
+                      # modif 5/1/2020
+                      #iy = np.argmin( abs(self.y - y) )
+                      Mz_xz[idz, :] = field_at_it[it,:,iy]
+                      
+                      #ix = np.argmin( abs(self.x - x) )
+                      Mz_yz[idz, :] = field_at_it[it,ix,:]
+                      
+                      # Save time series
+                      if(idz == zloc):
+                        timeseries = field_at_it[:,ix,iy]
+                            
+                    elif(type_slice == 'xy'):
+                      Mz_xy[:, :] = field_at_it[it,:,:]
+                      
+                      # Save time serie
+                      if(idz == zloc):
+                        # modif 5/1/2020
+                        #iy = np.argmin( abs(self.y - y) )
+                        #ix = np.argmin( abs(self.x - x) )
+                        timeseries = field_at_it[:,ix,iy]
+                                          
+                  # 2d
+                  else:
+                    Mz_xz[idz, :] = field_at_it[it,:]
+                    
+                    # Save time series
+                    if(idz == zloc):
+                      # modif 5/1/2020
+                      #ix = np.argmin( abs(self.x - x) )
+                      timeseries = field_at_it[:,ix]
 
-                        ## update the bar
-                        if(len(zvect) > 1):
-                                if(int(toolbar_width*idz/total_length) > cptbar):
-                                        cptbar = int(toolbar_width*idz/total_length)
-                                        sys.stdout.write("-")
-                                        sys.stdout.flush()
+                  # update the bar
+                  if(len(zvect) > 1):
+                    if(int(toolbar_width*idz/total_length) > cptbar):
+                      cptbar = int(toolbar_width*idz/total_length)
+                      sys.stdout.write("-")
+                      sys.stdout.flush()
                 
                 if(len(zvect) > 1):
                         sys.stdout.write("] Done\n")
@@ -967,7 +966,7 @@ class field_RW():
                                 
         def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True):
                 
-                ## Extract location and component from station dict
+                # Extract location and component from station dict
                 x_in, y_in, z_in = [station_in[stat]['xs'] for stat in station_in], \
                         [station_in[stat]['ys'] for stat in station_in], \
                         [station_in[stat]['zs'] for stat in station_in]
@@ -976,7 +975,7 @@ class field_RW():
                 t_chosen_in = [station_in[stat]['t_chosen'] for stat in station_in]
                 id_in   = [station_in[stat]['id'] for stat in station_in]
                 
-                ## Setup progress bar
+                # Setup progress bar
                 cptbar        = 0
                 toolbar_width = 40
                 total_length  = len(x_in)
@@ -1025,7 +1024,7 @@ class field_RW():
                                         else:
                                                 sys.exit('Unit ' + comp + ' not recognized!')  
                                          
-                                ## Stores fields
+                                # Stores fields
                                 if(not merged_computation and create_timeseries_here):
                                         field_at_it_loc      = []
                                         link_field_at_it_loc = []
@@ -1038,10 +1037,10 @@ class field_RW():
                                          
                                         del field_at_it_
                                          
-                                ## Loop over all required station locations
+                                # Loop over all required station locations
                                 for x, y, z_aux, comp_aux, name, t_chosen, id in zip(x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in):
                                         
-                                        ## Skip all stations that do not match z / comp
+                                        # Skip all stations that do not match z / comp
                                         if(not z == z_aux or not comp == comp_aux):
                                                 continue
                                                
@@ -1089,7 +1088,7 @@ class field_RW():
                                                         
                                                         Mo.append( self.Mo[:, ix] )
                                                         
-                                        ## Create list of station with the right entries
+                                        # Create list of station with the right entries
                                         station = {}
                                         station.update( {'id': id} )
                                         station.update( {'id_field': id_stat} )
@@ -1103,7 +1102,7 @@ class field_RW():
                                         station.update( {'comp': comp_aux} )
                                         station_tab[id] = station                            
                                                 
-                                        ## Create waveform within this routine if requested
+                                        # Create waveform within this routine if requested
                                         if create_timeseries_here:
         
                                                 options_in = {}
@@ -1113,10 +1112,10 @@ class field_RW():
                                                 options_in['global_folder']  = self.global_folder
                                                 generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)  
                                                 
-                                                ## Delete working arrays to save memory space
+                                                # Delete working arrays to save memory space
                                                 del Mz, Mo, link_field_at_it_loc, ifield
                                                 
-                                        ## Update progress bar
+                                        # Update progress bar
                                         id_stat += 1
                                         if(int(toolbar_width*id_stat/total_length) > cptbar):
                                                 cptbar = int(toolbar_width*id_stat/total_length)
@@ -1134,6 +1133,7 @@ class field_RW():
                 return Mz, Mo, station_tab
 
 def plot_surface_forcing(field, t_station, ix, iy, options):
+    print('['+sys._getframe().f_code.co_name+'] Plot the surface forcing at t='+str(t_station)+'.')
         
     it_, ix_, iy_ = field.get_index_tabs(t_station, ix, iy)
     
@@ -1156,29 +1156,33 @@ def plot_surface_forcing(field, t_station, ix, iy, options):
         plt.savefig(options['global_folder'] + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
 
 def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
-    print('['+sys._getframe().f_code.co_name+'] Generate analytical acoustic wavefield from previously computed RW wavefield.')
+    print('['+sys._getframe().f_code.co_name+'] Generate analytical Rayleigh wave time series and acoustic time series.')
+    print('['+sys._getframe().f_code.co_name+'] > Uses the chosen source mechanism and previously computed Green functions.')
 
-    ## Exit messages
+    # Exit messages
     if(not mechanism):
-            sys.exit('Mechanism has to be provided to build analytical solution')
+      sys.exit('Mechanism has to be provided to build analytical solution')
     
     if(not domain):
-            sys.exit('Domain has to be provided to build analytical solution')
+      sys.exit('Domain has to be provided to build analytical solution')
 
     if(not station):
-            sys.exit('Stations have to be provided to build analytical solution')
+      sys.exit('Stations have to be provided to build analytical solution')
     
-    ## Wavefield dimensions
+    # Wavefield dimensions
     dimension         = options['dimension']
     dimension_seismic = options['dimension_seismic']
     
-    ## Update mechanism if needed
+    # Update mechanism if needed
     Green_RW.update_mechanism(mechanism)
 
-    ## Class to generate field for given x/z t/z combinaison
+    # Class to generate field for given x/z t/z combinaison
     nb_freq  = options['nb_freq']
     mode_max = -1
     
+    print('['+sys._getframe().f_code.co_name+'] Generate Rayleigh wave field on a domain, given a source mechanism and Green functions.')
+    print('['+sys._getframe().f_code.co_name+'] > Domain is XxYxZ = ['+str(domain['xmin'])+', '+str(domain['xmax'])+']x['+str(domain['ymin'])+', '+str(domain['ymax'])+']x['+str(domain['zmin'])+', '+str(domain['zmax'])+'].')
+    print('['+sys._getframe().f_code.co_name+'] > (Dx, Dy, Dz) = ('+str(domain['dx'])+', '+str(domain['dy'])+', '+str(domain['dz'])+')')
     xbounds = [domain['xmin'], domain['xmax']]
     ybounds = [domain['ymin'], domain['ymax']]
     dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
@@ -1186,47 +1190,50 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     
     field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
     
-    ## Create atmospheric profiles
+    # Create atmospheric profiles
     if(not param_atmos):
             param_atmos = velocity_models.generate_default_atmos()
     field.generate_atmospheric_model(param_atmos)
     
-    ## Plot profiles
+    # Plot profiles
     velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
                                       field.rho, field.cpa, field.winds, field.H, 
                                       field.isothermal, field.dimension, field.google_colab)
     
-    ## Compute solutions for a given range of altitudes (m) at a given instant (s)
-    ## Use parameters of first station to build 2d/3d wavefields
+    
+    # Compute solutions for a given range of altitudes (m) at a given instant (s).
+    # Use parameters of first station to build 2d/3d wavefields.
     id_wavefield = 0
     for t_station in station[id_wavefield]['t_chosen']:
     
-            comp      = station[id_wavefield]['comp']
-            iz = station[id_wavefield]['zs']
-            iy = station[id_wavefield]['ys']
-            ix = station[id_wavefield]['xs']
+            comp       = station[id_wavefield]['comp']
+            iz         = station[id_wavefield]['zs']
+            iy         = station[id_wavefield]['ys']
+            ix         = station[id_wavefield]['xs']
             type_slice = station[id_wavefield]['type_slice']
             
-            ## Compute solutions for a given range of altitudes (m) at a given instant (s)
+            # Compute solutions for a given range of altitudes (m) at a given instant (s)
             if(dimension > 2):
-                    if(options['COMPUTE_MAPS']):
-                            Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp)
-                            Mxy, Mz_t_tab      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy', comp)
-                    nb_cols  = 2
+              if(options['COMPUTE_MAPS']):
+                print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slices along xz, yz, and xy.')
+                Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp)
+                Mxy, Mz_t_tab      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy', comp)
+              nb_cols  = 2
             else:
-                    if(options['COMPUTE_MAPS']):
-                            Mxz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp) 
-                    nb_cols = 1
-                   
-            ## Compute time series at a given location
+              if(options['COMPUTE_MAPS']):
+                print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slice along xz only.')
+                Mxz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp) 
+              nb_cols = 1
+            
+            # Compute time series at a given location
             plot_surface_forcing(field, t_station, ix, iy, options)
             
-            ## Display
+            # Display
             fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
             
             unknown_label = 'Velocity (m/s)'
             if(comp == 'p'):
-                    unknown_label = 'Pressure (Pa)'
+              unknown_label = 'Pressure (Pa)'
             
             if(options['COMPUTE_MAPS']):
                if(dimension > 2):
@@ -1310,7 +1317,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
                     plt.savefig(options['global_folder'] + 'map_wavefield_vz_t'+str(round(t_station, 2))+'.pdf')
                     plt.close('all')
             
-    ## Compute time series for each station
+    # Compute time series for each station
     create_timeseries_here = False
     Mz_t_tab, RW_Mz_t_tab, station_updated = field.compute_field_timeseries(station, create_timeseries_here = create_timeseries_here)
     id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
@@ -1319,11 +1326,11 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             
             for id_wavefield in station_updated:
             
-                    ## Current field
+                    # Current field
                     id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
                     Mz_t = Mz_t_tab[id_wavefield_timeseries]
             
-                    ## Current station parameters
+                    # Current station parameters
                     comp = station[id_wavefield]['comp']
                     iz = station[id_wavefield]['zs']
                     iy = station[id_wavefield]['ys']
@@ -1332,202 +1339,202 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             
                     generate_one_timeseries(field.t, Mz_t, RW_Mz_t_tab[id_wavefield_timeseries], comp, iz, iy, ix, stat, options)        
     
-    ## Deallocate
+    # Deallocate
     del field, Mz_t_tab, RW_Mz_t_tab, station_updated
     
-    ## Successful exit messahe
+    # Successful exit messahe
     print('['+sys._getframe().f_code.co_name+'] Finished generating figures in folder \''+options['global_folder']+'\'.')
     
     #if(not options['GOOGLE_COLAB']):
     #        bp()
    
 
-############################
-############################    
-if __name__ == '__main__': 
+##############
+##############    
+# if __name__ == '__main__': 
 
-        from obspy.core.utcdatetime import UTCDateTime
+#         from obspy.core.utcdatetime import UTCDateTime
 
-        use_individual_SCEC_models = False # Expensive
-        use_individual_SCEC_models_each_iter = True
-        add_perturbations         = False # Very expensive
-        only_perturbations        = True
-        get_normal_reverse_strike = True # Instead of minimizing energy for a focal mecha perturbations, just get extreme cases
-                                         # of strike-slip, reverse and normal faults. Only available for add_perturbations = True
-        add_Yang_layer            = False
-        list_of_events            = [0, 38624623]
+#         use_individual_SCEC_models = False # Expensive
+#         use_individual_SCEC_models_each_iter = True
+#         add_perturbations         = False # Very expensive
+#         only_perturbations        = True
+#         get_normal_reverse_strike = True # Instead of minimizing energy for a focal mecha perturbations, just get extreme cases
+#                                          # of strike-slip, reverse and normal faults. Only available for add_perturbations = True
+#         add_Yang_layer            = False
+#         list_of_events            = [0, 38624623]
         
-        name_sample               = './RIDGECREST_XXX/'
+#         name_sample               = './RIDGECREST_XXX/'
         
-        options_source = {}
-        options_source['stf-data'] = []
-        options_source['stf']      = 'gaussian' # gaussian or erf
-        options_source['f0']      = 5.
-        options_source['rotation'] = False
-        options_source['rotation-towards'] = 'CrazyCat' # name balloon or empty -> will take first balloon
-        #options_source['rotation-towards'] = 'Tortoise' # name balloon or empty -> will take first balloon
-        options_source['lat_min'] = 33.56600971952403 
-        options_source['lat_max'] = 34.40549099227338
-        options_source['lon_min'] = -116.25228005560061
-        options_source['lon_max'] = -115.2953768987713
-        options_source['activate_LA'] = False
+#         options_source = {}
+#         options_source['stf-data'] = []
+#         options_source['stf']      = 'gaussian' # gaussian or erf
+#         options_source['f0']      = 5.
+#         options_source['rotation'] = False
+#         options_source['rotation-towards'] = 'CrazyCat' # name balloon or empty -> will take first balloon
+#         #options_source['rotation-towards'] = 'Tortoise' # name balloon or empty -> will take first balloon
+#         options_source['lat_min'] = 33.56600971952403 
+#         options_source['lat_max'] = 34.40549099227338
+#         options_source['lon_min'] = -116.25228005560061
+#         options_source['lon_max'] = -115.2953768987713
+#         options_source['activate_LA'] = False
         
-        options_IRIS = {}
-        options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY'
-        options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ'
-        options_IRIS['stations'] = {}
-        x, y, z, comp, name, id = 100., 1000., 0., 'HHZ', 'test', 1
-        options_IRIS['stations'][id] = mod_mechanisms.create_one_station(x, y, z, comp, name, id)
+#         options_IRIS = {}
+#         options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY'
+#         options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ'
+#         options_IRIS['stations'] = {}
+#         x, y, z, comp, name, id = 100., 1000., 0., 'HHZ', 'test', 1
+#         options_IRIS['stations'][id] = mod_mechanisms.create_one_station(x, y, z, comp, name, id)
         
-        options = {}
-        options['dimension']   = 3
-        options['dimension_seismic'] = 3
-        options['ATTENUATION']    = True
-        options['COMPUTE_MAPS']   = False
-        options['nb_freq']        = 2**9
-        options['nb_kxy']         = 2**7
-        options['coef_low_freq']  = 0.001
-        options['coef_high_freq'] = 5.
-        options['nb_layers']      = 100
-        options['zmax'] = 60000.
-        options['models'] = {}
-        options['nb_modes']    = [0, 50]
-        options['force_dimension'] = False # Only when add_specfem_simu = True
-        options['force_f0_source'] = False
-        options['t_chosen']        = [40., 90.] # to display wavefield
-        options['USE_SPAWN_MPI'] = False
-        options['models']['specfem'] = '/staff/quentin/Documents/Projects/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
-        options['type_model']    = 'specfem' # specfem or specfem2d
+#         options = {}
+#         options['dimension']   = 3
+#         options['dimension_seismic'] = 3
+#         options['ATTENUATION']    = True
+#         options['COMPUTE_MAPS']   = False
+#         options['nb_freq']        = 2**9
+#         options['nb_kxy']         = 2**7
+#         options['coef_low_freq']  = 0.001
+#         options['coef_high_freq'] = 5.
+#         options['nb_layers']      = 100
+#         options['zmax'] = 60000.
+#         options['models'] = {}
+#         options['nb_modes']    = [0, 50]
+#         options['force_dimension'] = False # Only when add_specfem_simu = True
+#         options['force_f0_source'] = False
+#         options['t_chosen']        = [40., 90.] # to display wavefield
+#         options['USE_SPAWN_MPI'] = False
+#         options['models']['specfem'] = '/staff/quentin/Documents/Projects/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
+#         options['type_model']    = 'specfem' # specfem or specfem2d
         
-        if options['USE_SPAWN_MPI']:
-                set_start_method("spawn") 
+#         if options['USE_SPAWN_MPI']:
+#                 set_start_method("spawn") 
         
-        ## Load sources from Earthquake catalog
-        options_source['coef_high_freq'] = options['coef_high_freq']
-        options_source['nb_kxy']   = options['nb_kxy']
-        options_source['t_chosen'] = options['t_chosen']
+#         # Load sources from Earthquake catalog
+#         options_source['coef_high_freq'] = options['coef_high_freq']
+#         options_source['nb_kxy']   = options['nb_kxy']
+#         options_source['t_chosen'] = options['t_chosen']
         
-        options_source['sources'] = []
-        source_characteristics = {
-            'id': 0,
-            'time': UTCDateTime(2019, 8, 9, 0, 9, 57),
-            'mag': 2.98,
-            'lat': 35.895,
-            'lon': -117.679,
-            'depth': 4.1, #km
-            'strike': 159,
-            'dip': 89,
-            'rake': -156,
-        }
-        options_source['sources'].append( source_characteristics )
+#         options_source['sources'] = []
+#         source_characteristics = {
+#             'id': 0,
+#             'time': UTCDateTime(2019, 8, 9, 0, 9, 57),
+#             'mag': 2.98,
+#             'lat': 35.895,
+#             'lon': -117.679,
+#             'depth': 4.1, #km
+#             'strike': 159,
+#             'dip': 89,
+#             'rake': -156,
+#         }
+#         options_source['sources'].append( source_characteristics )
         
-        options_source['DIRECTORY_MECHANISMS'] = []
-        options_source['DIRECTORY_MECHANISMS'].append( '/staff/quentin/Documents/Projects/Ridgecrest/YHS_catalog_August9_new.csv' ) 
-        options_source['DIRECTORY_MECHANISMS'].append( '/staff/quentin/Documents/Projects/Ridgecrest/YHS_catalog_July22_new.csv' )
+#         options_source['DIRECTORY_MECHANISMS'] = []
+#         options_source['DIRECTORY_MECHANISMS'].append( '/staff/quentin/Documents/Projects/Ridgecrest/YHS_catalog_August9_new.csv' ) 
+#         options_source['DIRECTORY_MECHANISMS'].append( '/staff/quentin/Documents/Projects/Ridgecrest/YHS_catalog_July22_new.csv' )
     
-        options_balloon = {}
-        main_dir_balloon = '/staff/quentin/Documents/Projects/Ridgecrest/data_balloons/Siddharth_balloon/'
-        options_balloon['DIR_BALLOON_GPS'] = []
-        options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Hare_GPS.csv', datetime(2019, 7, 22, 0, 0, 0)] )
-        options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Tortoise_GPS.csv', datetime(2019, 7, 22, 0, 0, 0)] )
-        options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'CrazyCat_GPS.csv', datetime(2019, 8, 9, 0, 0, 0)] )
-        options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Hare2_GPS.csv', datetime(2019, 8, 9, 0, 0, 0)] )
-        options_balloon = {}
-        mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
-                                                                    add_SAC = True, add_perturbations = False, specific_events=list_of_events,
-                                                                    options_balloon=options_balloon)
+#         options_balloon = {}
+#         main_dir_balloon = '/staff/quentin/Documents/Projects/Ridgecrest/data_balloons/Siddharth_balloon/'
+#         options_balloon['DIR_BALLOON_GPS'] = []
+#         options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Hare_GPS.csv', datetime(2019, 7, 22, 0, 0, 0)] )
+#         options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Tortoise_GPS.csv', datetime(2019, 7, 22, 0, 0, 0)] )
+#         options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'CrazyCat_GPS.csv', datetime(2019, 8, 9, 0, 0, 0)] )
+#         options_balloon['DIR_BALLOON_GPS'].append( [main_dir_balloon+'Hare2_GPS.csv', datetime(2019, 8, 9, 0, 0, 0)] )
+#         options_balloon = {}
+#         mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
+#                                                                     add_SAC = True, add_perturbations = False, specific_events=list_of_events,
+#                                                                     options_balloon=options_balloon)
         
-        ## Use same seismic model for all simulations        
-        if(not use_individual_SCEC_models):
-            Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
+#         # Use same seismic model for all simulations        
+#         if(not use_individual_SCEC_models):
+#             Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
         
-        ## Add perturbations to mechanisms to account for uncertainties
-        if(add_perturbations): 
-                if get_normal_reverse_strike:
-                        mechanisms_data = mod_mechanisms.find_extreme_cases(mechanisms_data, get_normal_reverse_strike)
-                elif not use_individual_SCEC_models:
-                        mechanisms_data = mod_mechanisms.find_extreme_cases(mechanisms_data, get_normal_reverse_strike, Green_RW=Green_RW)
-                else:
-                        sys.exit('Perturbations in focal mechanism can not be added')
+#         # Add perturbations to mechanisms to account for uncertainties
+#         if(add_perturbations): 
+#                 if get_normal_reverse_strike:
+#                         mechanisms_data = mod_mechanisms.find_extreme_cases(mechanisms_data, get_normal_reverse_strike)
+#                 elif not use_individual_SCEC_models:
+#                         mechanisms_data = mod_mechanisms.find_extreme_cases(mechanisms_data, get_normal_reverse_strike, Green_RW=Green_RW)
+#                 else:
+#                         sys.exit('Perturbations in focal mechanism can not be added')
                         
-        ## If different seismic models for each simulation, load all seismic models
-        if(use_individual_SCEC_models and not use_individual_SCEC_models_each_iter):
-                mechanisms_data = mechanisms_data.apply(velocity_models.create_velocity_model_, args=[options, add_Yang_layer], axis=1)
+#         # If different seismic models for each simulation, load all seismic models
+#         if(use_individual_SCEC_models and not use_individual_SCEC_models_each_iter):
+#                 mechanisms_data = mechanisms_data.apply(velocity_models.create_velocity_model_, args=[options, add_Yang_layer], axis=1)
         
-        ## Save list of events
-        mechanisms_data.to_pickle("./mechanisms_data.pkl")
+#         # Save list of events
+#         mechanisms_data.to_pickle("./mechanisms_data.pkl")
         
-        mechanism, station, domain = {}, {}, {}
-        if(not use_individual_SCEC_models):
-                os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
+#         mechanism, station, domain = {}, {}, {}
+#         if(not use_individual_SCEC_models):
+#                 os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
         
-        keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'phi', 'station_tab', 'mt']
+#         keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'phi', 'station_tab', 'mt']
         
-        ## Reset indexes for directory creation
-        mechanisms_data = mechanisms_data.reset_index(drop=True)
+#         # Reset indexes for directory creation
+#         mechanisms_data = mechanisms_data.reset_index(drop=True)
         
-        ## Only loop over unperturbed focal mechanisms since perturbed ones will have the same seismic profile
-        mechanisms_data_noperturb = mechanisms_data.loc[~mechanisms_data['perturbation'], :].copy()
-        for imecha_, mechanism_data in mechanisms_data_noperturb.iterrows():
+#         # Only loop over unperturbed focal mechanisms since perturbed ones will have the same seismic profile
+#         mechanisms_data_noperturb = mechanisms_data.loc[~mechanisms_data['perturbation'], :].copy()
+#         for imecha_, mechanism_data in mechanisms_data_noperturb.iterrows():
                 
-                ## If different seismic models for each simulation, create eigenfunctions
-                if use_individual_SCEC_models:
+#                 # If different seismic models for each simulation, create eigenfunctions
+#                 if use_individual_SCEC_models:
                 
-                        if use_individual_SCEC_models_each_iter:
-                                mechanisms_data_ = pd.DataFrame([mechanism_data])
-                                mechanisms_data_ = mechanisms_data_.apply(velocity_models.create_velocity_model_, args=[options, add_Yang_layer], axis=1)
-                                mechanisms_data_ = mechanisms_data_.iloc[0]
-                                seismic = velocity_models.construct_local_seismic_model(mechanisms_data_, options)
-                                del mechanisms_data_
-                        else:
-                                seismic = velocity_models.construct_local_seismic_model(mechanism_data, options)
+#                         if use_individual_SCEC_models_each_iter:
+#                                 mechanisms_data_ = pd.DataFrame([mechanism_data])
+#                                 mechanisms_data_ = mechanisms_data_.apply(velocity_models.create_velocity_model_, args=[options, add_Yang_layer], axis=1)
+#                                 mechanisms_data_ = mechanisms_data_.iloc[0]
+#                                 seismic = velocity_models.construct_local_seismic_model(mechanisms_data_, options)
+#                                 del mechanisms_data_
+#                         else:
+#                                 seismic = velocity_models.construct_local_seismic_model(mechanism_data, options)
                             
-                        options['models']['specfem'] = seismic[0]
-                        options['type_model']        = seismic[1] # specfem or specfem2d
+#                         options['models']['specfem'] = seismic[0]
+#                         options['type_model']        = seismic[1] # specfem or specfem2d
                         
-                        if 'coef_high_freq' in mechanism_data.keys(): 
-                                options['coef_high_freq'] = mechanism_data['coef_high_freq']
+#                         if 'coef_high_freq' in mechanism_data.keys(): 
+#                                 options['coef_high_freq'] = mechanism_data['coef_high_freq']
                         
-                        Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
+#                         Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
                         
-                        os.system('rm -rf ' + name_sample.replace('XXX', 'tocopy'))
-                        os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
+#                         os.system('rm -rf ' + name_sample.replace('XXX', 'tocopy'))
+#                         os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
                         
-                        del seismic, options['models']['specfem'], options['type_model'] # Clear variables
+#                         del seismic, options['models']['specfem'], options['type_model'] # Clear variables
                         
-                mechanisms_data_perturb_loc = mechanisms_data.loc[mechanisms_data['EVID'] == mechanism_data['EVID'], :]
-                if only_perturbations and add_perturbations:
-                        mechanisms_data_perturb_loc = mechanisms_data_perturb_loc.loc[mechanisms_data_perturb_loc['perturbation'], :]
-                for imecha, mecha_perturb in mechanisms_data_perturb_loc.iterrows():
+#                 mechanisms_data_perturb_loc = mechanisms_data.loc[mechanisms_data['EVID'] == mechanism_data['EVID'], :]
+#                 if only_perturbations and add_perturbations:
+#                         mechanisms_data_perturb_loc = mechanisms_data_perturb_loc.loc[mechanisms_data_perturb_loc['perturbation'], :]
+#                 for imecha, mecha_perturb in mechanisms_data_perturb_loc.iterrows():
                         
-                        options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
-                        os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
-                        Green_RW.set_global_folder(options_out['global_folder'])
+#                         options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
+#                         os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
+#                         Green_RW.set_global_folder(options_out['global_folder'])
                 
-                        mechanism = {}
-                        for key in keys_mechanism:
-                                mechanism[key] = mecha_perturb[key]
+#                         mechanism = {}
+#                         for key in keys_mechanism:
+#                                 mechanism[key] = mecha_perturb[key]
                                 
-                        ## Station distribution
-                        mod_mechanisms.display_map_stations(mecha_perturb['EVID'], mecha_perturb['station_tab'], mecha_perturb['domain'], options_out['global_folder'])
+#                         # Station distribution
+#                         mod_mechanisms.display_map_stations(mecha_perturb['EVID'], mecha_perturb['station_tab'], mecha_perturb['domain'], options_out['global_folder'])
                                 
-                        # Save current moment tensor
-                        mod_mechanisms.save_mt(mechanism, options_out['global_folder'])
+#                         # Save current moment tensor
+#                         mod_mechanisms.save_mt(mechanism, options_out['global_folder'])
                         
-                        if 'station_tab' in mecha_perturb.keys(): 
-                                station = mecha_perturb['station_tab']
+#                         if 'station_tab' in mecha_perturb.keys(): 
+#                                 station = mecha_perturb['station_tab']
                         
-                        if 'domain' in mecha_perturb.keys(): 
-                                domain = mecha_perturb['domain']
+#                         if 'domain' in mecha_perturb.keys(): 
+#                                 domain = mecha_perturb['domain']
                         
-                        param_atmos = velocity_models.generate_default_atmos()
+#                         param_atmos = velocity_models.generate_default_atmos()
                         
-                        compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
+#                         compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
                         
-                        os.system('rm -f ' + options_out['global_folder'] + 'eigen.input_code_earthsr')
+#                         os.system('rm -f ' + options_out['global_folder'] + 'eigen.input_code_earthsr')
                         
-                del station, domain, param_atmos, mechanism
-                if use_individual_SCEC_models:
-                        del Green_RW # Clear variables
+#                 del station, domain, param_atmos, mechanism
+#                 if use_individual_SCEC_models:
+#                         del Green_RW # Clear variables
                 
                 
