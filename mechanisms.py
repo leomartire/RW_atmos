@@ -708,12 +708,12 @@ def display_map_stations(ID, station_tab, domain, new_folder):
     
     fig.savefig( new_folder + '/distribution_station.pdf' )
    
-def create_one_station(x, y, z, comp, name, id, data = None, file = None, t_chosen = [50.]):
+def create_one_station(x, y, z, comp, name, id, data = None, file = None):
   station = {
       'id': id,
       'name': name,
       'xs': x, 'ys': y, 'zs': z,
-      't_chosen': t_chosen,
+      # 't_chosen': t_chosen,
       'type_slice': 'xz',
       'comp': comp,
       'data': data,
