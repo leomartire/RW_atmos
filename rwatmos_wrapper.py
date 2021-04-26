@@ -25,14 +25,16 @@ options['dimension']         = 3 # atmospheric dimension
 options['dimension_seismic'] = 3 # seismic dimension
 options['ATTENUATION']    = True # using Graves, Broadband ground-motion simulation using a hybrid approach, 2014
 options['COMPUTE_MAPS']   = False # Compute and plot x,y,z wavefield. Computationally heavy.
+options['COMPUTE_XY_PRE'] = 20.0e3 # Compute xy wavefield above source and at given altitude. Computationally heavy.
 options['nb_freq']        = 2**9
-options['nb_kxy']         = 2**8
+options['nb_kxy']         = 2**7
 options['coef_low_freq']  = 0.001 # minimum frequency (Hz)
 options['coef_high_freq'] = 5. # maximum frequency (Hz)
 options['nb_layers']      = 100 # Number of seismic layers for discretization
 options['zmax']           = 10.0e3 # maximum depth (m)
 options['nb_modes']       = [0, 50] # min, max number of modes
-options['t_chosen']       = [0., 90.] # time (s) to display wavefield
+# options['t_chosen']       = [0., 90.] # time (s) to display wavefield
+options['t_chosen']       = np.linspace(0,25,4)
 options['models'] = {}
 options['models']['specfem'] = './models/Ridgecrest_seismic.txt'
 options['type_model']        = 'specfem' # specfem or specfem2d
@@ -71,8 +73,8 @@ options_IRIS = {}
 # options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY' # Only if need to download stations.
 # options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ' # Only if need to download stations.
 options_IRIS['stations'] = {}
-# i=0
-# options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=0., y=0., z=20000., comp='p', name='strato', id=i, t_chosen=np.linspace(0,25,6)); i+=1;
+i=0
+options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=0., y=-50.0e3, z=0., comp='p', name='station', id=i); i+=1;
 
 # Balloon stations.
 options_balloon = {}
@@ -126,13 +128,14 @@ mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, opti
                                                             add_SAC = options_source['add_SAC'], add_perturbations = False, 
                                                             specific_events=list_of_events, options_balloon=options_balloon)
 
-Green_RW, options_out = RW_dispersion.compute_trans_coefficients(options)
+Green_RW, options_outrw = RW_dispersion.compute_trans_coefficients(options)
+options.update(options_outrw)
 
 tmpFolderForCopy = name_sample.replace('XXX', 'tocopy')
 os.makedirs(tmpFolderForCopy)
 
 # Move temporary folder in new folder
-sysErrHdl('mv ' + options_out['global_folder'][:-1]+' '+tmpFolderForCopy)
+sysErrHdl('mv ' + options['global_folder'][:-1]+' '+tmpFolderForCopy)
 # os.system('mv ' + options_out['global_folder'] + ' ' + name_sample.replace('XXX', 'tocopy'))
 
 # Save all mechanisms to current folder
@@ -140,17 +143,17 @@ mod_mechanisms.save_mt(mechanisms_data, tmpFolderForCopy)
 # Loop over each mechanism to generate the atmospheric wavefield
 for imecha, mechanism_ in mechanisms_data.iterrows():
 
-    options_out['global_folder'] = name_sample.replace('XXX', str(imecha+1))
-    sysErrHdl('cp -R ' + tmpFolderForCopy[:-1] + ' ' + options_out['global_folder'])
+    options['global_folder'] = name_sample.replace('XXX', str(imecha+1))
+    sysErrHdl('cp -R ' + tmpFolderForCopy[:-1] + ' ' + options['global_folder'])
     # os.system('cp -R ' + name_sample.replace('XXX', 'tocopy')[:-1] + ' ' + options_out['global_folder'])
-    Green_RW.set_global_folder(options_out['global_folder'])
+    Green_RW.set_global_folder(options['global_folder'])
 
     mechanism = {}
     for key in keys_mechanism:
             mechanism[key] = mechanism_[key]
 
     # Station distribution
-    mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
+    mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options['global_folder'])
     
 # # Save all mechanisms to current folder
 # mod_mechanisms.save_mt(mechanisms_data, name_sample.replace('XXX', 'tocopy'))
@@ -174,6 +177,6 @@ for imecha, mechanism_ in mechanisms_data.iterrows():
     param_atmos = velocity_models.generate_default_atmos()
 
     # Solve dispersion equations
-    RW_atmos.compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options_out)
+    RW_atmos.compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options)
 
 
