@@ -394,7 +394,7 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     df['vz'] = np.real(Mz_t)
     name_file = 'waveform_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
     df.to_csv(options['global_folder'] + name_file, index=False)
-    print('save waveform to: '+options['global_folder'] + name_file)
+    print('['+sys._getframe().f_code.co_name+'] Save waveform to \''+options['global_folder']+name_file+'\'.')
     
     # Deallocate
     df = None
@@ -404,7 +404,7 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     df['vz'] = np.real(RW_Mz_t)
     name_file = 'RW_waveform_z0_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
     df.to_csv(options['global_folder'] + name_file, index=False)
-    print('save waveform to: '+options['global_folder'] + name_file)
+    print('['+sys._getframe().f_code.co_name+'] Save waveform to \''+options['global_folder']+name_file+'\'.')
     
     # Deallocate
     df = None
@@ -972,7 +972,7 @@ class field_RW():
                         [station_in[stat]['zs'] for stat in station_in]
                 comp_in = [station_in[stat]['comp'] for stat in station_in]
                 name_in = [station_in[stat]['name'] for stat in station_in]
-                t_chosen_in = [station_in[stat]['t_chosen'] for stat in station_in]
+                # t_chosen_in = [station_in[stat]['t_chosen'] for stat in station_in]
                 id_in   = [station_in[stat]['id'] for stat in station_in]
                 
                 # Setup progress bar
@@ -1038,7 +1038,8 @@ class field_RW():
                                         del field_at_it_
                                          
                                 # Loop over all required station locations
-                                for x, y, z_aux, comp_aux, name, t_chosen, id in zip(x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in):
+                                # for x, y, z_aux, comp_aux, name, t_chosen, id in zip(x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in):
+                                for x, y, z_aux, comp_aux, name, id in zip(x_in, y_in, z_in, comp_in, name_in, id_in):
                                         
                                         # Skip all stations that do not match z / comp
                                         if(not z == z_aux or not comp == comp_aux):
@@ -1097,7 +1098,7 @@ class field_RW():
                                                 station.update( {'xs': x, 'ys': y, 'zs': z_aux} ) 
                                         else:
                                                 station.update( {'xs': x, 'zs': z_aux} ) 
-                                        station.update( {'t_chosen': t_chosen} )
+                                        # station.update( {'t_chosen': t_chosen} )
                                         station.update( {'type_slice': 'xz'} )
                                         station.update( {'comp': comp_aux} )
                                         station_tab[id] = station                            
@@ -1133,7 +1134,7 @@ class field_RW():
                 return Mz, Mo, station_tab
 
 def plot_surface_forcing(field, t_station, ix, iy, options):
-    print('['+sys._getframe().f_code.co_name+'] Plot the surface forcing at t='+str(t_station)+'.')
+    print('['+sys._getframe().f_code.co_name+'] Plot the Rayleigh wave surface forcing at t='+str(t_station)+'.')
         
     it_, ix_, iy_ = field.get_index_tabs(t_station, ix, iy)
     
@@ -1162,187 +1163,198 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     # Exit messages
     if(not mechanism):
       sys.exit('Mechanism has to be provided to build analytical solution')
-    
     if(not domain):
       sys.exit('Domain has to be provided to build analytical solution')
-
-    if(not station):
-      sys.exit('Stations have to be provided to build analytical solution')
+    # if(not station):
+    #   sys.exit('Stations have to be provided to build analytical solution')
     
     # Wavefield dimensions
     dimension         = options['dimension']
     dimension_seismic = options['dimension_seismic']
     
     # Update mechanism if needed
+    print('['+sys._getframe().f_code.co_name+'] Update Green functions with chosen focal mechanism.')
     Green_RW.update_mechanism(mechanism)
 
     # Class to generate field for given x/z t/z combinaison
     nb_freq  = options['nb_freq']
     mode_max = -1
     
-    print('['+sys._getframe().f_code.co_name+'] Generate Rayleigh wave field on a domain, given a source mechanism and Green functions.')
-    print('['+sys._getframe().f_code.co_name+'] > Domain is XxYxZ = ['+str(domain['xmin'])+', '+str(domain['xmax'])+']x['+str(domain['ymin'])+', '+str(domain['ymax'])+']x['+str(domain['zmin'])+', '+str(domain['zmax'])+'].')
-    print('['+sys._getframe().f_code.co_name+'] > (Dx, Dy, Dz) = ('+str(domain['dx'])+', '+str(domain['dy'])+', '+str(domain['dz'])+')')
+    print('['+sys._getframe().f_code.co_name+'] Update domain for the Rayleigh wave field.')
+    print('[%s] > Domain is DX * DY * DZ = [%.3f, %.3f] * [%.3f, %.3f] * [%.3f, %.3f] km.'
+          % (sys._getframe().f_code.co_name, domain['xmin']/1e3, domain['xmax']/1e3, domain['ymin']/1e3, domain['ymax']/1e3, domain['zmin']/1e3, domain['zmax']/1e3))
+    print('['+sys._getframe().f_code.co_name+'] > (Dx, Dy, Dz) = (%.0f, %.0f, %.0f) m.'
+          % (domain['dx'], domain['dy'], domain['dz']))
     xbounds = [domain['xmin'], domain['xmax']]
     ybounds = [domain['ymin'], domain['ymax']]
     dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
     z          = np.arange(domain['zmin'], domain['zmax'], dz)
-    
     field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
     
-    # Create atmospheric profiles
+    # Create atmospheric profiles.
+    print('['+sys._getframe().f_code.co_name+'] Update field with atmospheric model.')
     if(not param_atmos):
-            param_atmos = velocity_models.generate_default_atmos()
+      param_atmos = velocity_models.generate_default_atmos()
     field.generate_atmospheric_model(param_atmos)
     
-    # Plot profiles
+    # Plot profiles.
     velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
-                                      field.rho, field.cpa, field.winds, field.H, 
-                                      field.isothermal, field.dimension, field.google_colab)
+                                                field.rho, field.cpa, field.winds, field.H, 
+                                                field.isothermal, field.dimension, field.google_colab)
     
-    
-    # Compute solutions for a given range of altitudes (m) at a given instant (s).
+    # Compute maps/slices at given instants.
     # Use parameters of first station to build 2d/3d wavefields.
+    print('['+sys._getframe().f_code.co_name+'] Compute maps/slices.')
     id_wavefield = 0
-    for t_station in station[id_wavefield]['t_chosen']:
+    for t_snap in options['t_chosen']:
+      
+      # Compute atmospheric XY pressure fields.
+      if(not options['COMPUTE_XY_PRE']==None):
+        print('['+sys._getframe().f_code.co_name+'] Compute atmospheric XY pressure fields.')
+        Mxy, Mz_t_tab = field.compute_field_for_xz(t_snap, 0., 0., options['COMPUTE_XY_PRE'], None, 'xy', 'p')
+        
+        fig = plt.figure()
+        hplt = plt.imshow(np.flip(np.real(Mxy), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto')
+        plt.xlabel('West-East [km]')
+        plt.ylabel('South-North [km]')
+        plt.title('Pressure Field at %.1f km' % (options['COMPUTE_XY_PRE']/1e3))
+        cbar = plt.colorbar(hplt)
+        plt.savefig(options['global_folder'] + 'map_XY_PRE_t'+str(round(25, 2))+'.pdf')
+      
+      if(station):
+        # Somehow stations are needed to compute maps/slices.
+        # TODO: parametrise maps/slices separately from stations. Only needs comp and type_slice, since the slice spans the whole domain.
+        comp       = station[id_wavefield]['comp']
+        iz         = station[id_wavefield]['zs']
+        iy         = station[id_wavefield]['ys']
+        ix         = station[id_wavefield]['xs']
+        type_slice = station[id_wavefield]['type_slice']
+        
+        # Compute Rayleigh wave surface forcing.
+        plot_surface_forcing(field, t_snap, ix, iy, options)
+        
+        # Compute maps/slices for a given range of altitudes (m) at a given instant (s)
+        if(dimension > 2):
+          if(options['COMPUTE_MAPS']):
+            print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slices along xz, yz, and xy.')
+            Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp)
+            Mxy, Mz_t_tab      = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'xy', comp)
+          nb_cols  = 2
+        else:
+          if(options['COMPUTE_MAPS']):
+            print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slice along xz only.')
+            Mxz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp) 
+          nb_cols = 1
+        
+        # Display those maps/slices.
+        fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
+        if(comp == 'p'):
+          unknown_label = 'Pressure (Pa)'
+        else:
+          unknown_label = 'Velocity (m/s)'
+        if(options['COMPUTE_MAPS']):
+          if(dimension > 2):
+            vmin, vmax = np.real(Mxy).min(), np.real(Mxy).max()
     
-            comp       = station[id_wavefield]['comp']
-            iz         = station[id_wavefield]['zs']
-            iy         = station[id_wavefield]['ys']
-            ix         = station[id_wavefield]['xs']
-            type_slice = station[id_wavefield]['type_slice']
+            iax = 0
+            iax_col = 0
+            axs[iax, iax_col].plot(field.t, np.real(Mz_t_tab), zorder=1)
+            axs[iax, iax_col].axvline(t_snap, color='red', zorder=0)
+            axs[iax, iax_col].grid(True)
+            axs[iax, iax_col].set_xlim([field.t[0], field.t[-1]])
+            axs[iax, iax_col].set_xlabel('Time (s)')
             
-            # Compute solutions for a given range of altitudes (m) at a given instant (s)
-            if(dimension > 2):
-              if(options['COMPUTE_MAPS']):
-                print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slices along xz, yz, and xy.')
-                Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp)
-                Mxy, Mz_t_tab      = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'xy', comp)
-              nb_cols  = 2
-            else:
-              if(options['COMPUTE_MAPS']):
-                print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slice along xz only.')
-                Mxz, Mz_t_tab = field.compute_field_for_xz(t_station, ix, iy, iz, z, 'z', comp) 
-              nb_cols = 1
+            axs[iax, iax_col].set_ylabel(unknown_label)
             
-            # Compute time series at a given location
-            plot_surface_forcing(field, t_station, ix, iy, options)
+            iax_col += 1
             
-            # Display
-            fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
+            plotMxy = axs[iax, iax_col].imshow(np.flip(np.real(Mxy), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            axs[iax, iax_col].scatter(iy/1000., ix/1000., color='red', zorder=2)
+            axs[iax, iax_col].set_ylabel('West - East (km)')
+            axs[iax, iax_col].yaxis.set_label_position("right")
+            axs[iax, iax_col].yaxis.tick_right()
             
-            unknown_label = 'Velocity (m/s)'
-            if(comp == 'p'):
-              unknown_label = 'Pressure (Pa)'
+            iax += 1
+            iax_col = 0
             
-            if(options['COMPUTE_MAPS']):
-               if(dimension > 2):
+            plotMxz = axs[iax, iax_col].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            axs[iax, iax_col].scatter(ix/1000., iz/1000., color='red', zorder=2)
+            axs[iax, iax_col].set_xlabel('West - East (km)')
+            axs[iax, iax_col].set_ylabel('Altitude (km)')
             
-                    vmin, vmax = np.real(Mxy).min(), np.real(Mxy).max()
+            iax_col += 1
             
-                    iax = 0
-                    iax_col = 0
-                    axs[iax, iax_col].plot(field.t, np.real(Mz_t_tab), zorder=1)
-                    axs[iax, iax_col].axvline(t_station, color='red', zorder=0)
-                    axs[iax, iax_col].grid(True)
-                    axs[iax, iax_col].set_xlim([field.t[0], field.t[-1]])
-                    axs[iax, iax_col].set_xlabel('Time (s)')
-                    
-                    axs[iax, iax_col].set_ylabel(unknown_label)
-                    
-                    iax_col += 1
-                    
-                    plotMxy = axs[iax, iax_col].imshow(np.flip(np.real(Mxy), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
-                    axs[iax, iax_col].scatter(iy/1000., ix/1000., color='red', zorder=2)
-                    axs[iax, iax_col].set_ylabel('West - East (km)')
-                    axs[iax, iax_col].yaxis.set_label_position("right")
-                    axs[iax, iax_col].yaxis.tick_right()
-                    
-                    iax += 1
-                    iax_col = 0
-                    
-                    plotMxz = axs[iax, iax_col].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
-                    axs[iax, iax_col].scatter(ix/1000., iz/1000., color='red', zorder=2)
-                    axs[iax, iax_col].set_xlabel('West - East (km)')
-                    axs[iax, iax_col].set_ylabel('Altitude (km)')
-                    
-                    iax_col += 1
-                    
-                    plotMyz = axs[iax, iax_col].imshow(np.flip(np.real(Myz), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
-                    axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
-                    axs[iax, iax_col].set_xlabel('South - North (km)')
-                    axs[iax, iax_col].text(0.5, 0.1, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
-                    axs[iax, iax_col].yaxis.set_label_position("right")
-                    
-                    axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
-                    axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
-                    
-                    cbar = plt.colorbar(plotMyz, cax=axins)
-                    
-               else:
+            plotMyz = axs[iax, iax_col].imshow(np.flip(np.real(Myz), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
+            axs[iax, iax_col].set_xlabel('South - North (km)')
+            axs[iax, iax_col].text(0.5, 0.1, 't = ' + str(t_snap) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
+            axs[iax, iax_col].yaxis.set_label_position("right")
             
-                    iax = 0
-                    axs[iax].plot(field.t, np.real(Mz_t_tab), zorder=2)
-                    
-                    axs[iax].grid(True)
-                    axs[iax].set_xlim([field.t[0], field.t[-1]])
-                    axs[iax].set_xlabel('Time (s)')
-                    axs[iax].set_ylabel(unknown_label)
-                    
-                    if(options['PLOT_RW_time_series']):
-                            ax2 = axs[iax].twinx()  # instantiate a second axes that shares the same x-axis
-                            color = 'tab:red'
-                            ax2.set_ylabel('RW', color=color)  # we already handled the x-label with ax1
-                            ax2.plot(field.t, np.real(RW_Mz_t_tab[id_wavefield_timeseries]), color=color, zorder=1, linestyle='--')
-                            ax2.tick_params(axis='y', labelcolor=color)
-                            
-                            utils.align_yaxis_np([axs[iax],ax2])
-                    
-                    iax += 1
-                    plotMxz = axs[iax].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
-                    axs[iax].scatter(ix/1000., iz/1000., color='red', zorder=2)
-                    axs[iax].set_xlabel('Distance from source (km)')
-                    axs[iax].set_ylabel('Altitude (km)')
-                    axs[iax].text(0.15, 0.9, 't = ' + str(t_station) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax].transAxes)
-                    
-                    axins = inset_axes(axs[iax], width="2.5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax].transAxes, borderpad=0)
-                    axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
-                    
-                    cbar = plt.colorbar(plotMxz, cax=axins)
-             
-               fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
+            axins = inset_axes(axs[iax, iax_col], width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax, iax_col].transAxes, borderpad=0)
+            axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
             
-               if(not options['GOOGLE_COLAB']):
-                    cbar.ax.set_ylabel(unknown_label, rotation=90) 
-                    plt.savefig(options['global_folder'] + 'map_wavefield_vz_t'+str(round(t_station, 2))+'.pdf')
-                    plt.close('all')
+            cbar = plt.colorbar(plotMyz, cax=axins)
+               
+          else:
+            iax = 0
+            axs[iax].plot(field.t, np.real(Mz_t_tab), zorder=2)
             
-    # Compute time series for each station
-    create_timeseries_here = False
-    Mz_t_tab, RW_Mz_t_tab, station_updated = field.compute_field_timeseries(station, create_timeseries_here = create_timeseries_here)
-    id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
+            axs[iax].grid(True)
+            axs[iax].set_xlim([field.t[0], field.t[-1]])
+            axs[iax].set_xlabel('Time (s)')
+            axs[iax].set_ylabel(unknown_label)
             
-    if(not create_timeseries_here):
+            if(options['PLOT_RW_time_series']):
+              ax2 = axs[iax].twinx()  # instantiate a second axes that shares the same x-axis
+              color = 'tab:red'
+              ax2.set_ylabel('RW', color=color)  # we already handled the x-label with ax1
+              ax2.plot(field.t, np.real(RW_Mz_t_tab[id_wavefield_timeseries]), color=color, zorder=1, linestyle='--')
+              ax2.tick_params(axis='y', labelcolor=color)
+              
+              utils.align_yaxis_np([axs[iax],ax2])
             
-            for id_wavefield in station_updated:
+            iax += 1
+            plotMxz = axs[iax].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            axs[iax].scatter(ix/1000., iz/1000., color='red', zorder=2)
+            axs[iax].set_xlabel('Distance from source (km)')
+            axs[iax].set_ylabel('Altitude (km)')
+            axs[iax].text(0.15, 0.9, 't = ' + str(t_snap) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax].transAxes)
             
-                    # Current field
-                    id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
-                    Mz_t = Mz_t_tab[id_wavefield_timeseries]
+            axins = inset_axes(axs[iax], width="2.5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs[iax].transAxes, borderpad=0)
+            axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
             
-                    # Current station parameters
-                    comp = station[id_wavefield]['comp']
-                    iz = station[id_wavefield]['zs']
-                    iy = station[id_wavefield]['ys']
-                    ix = station[id_wavefield]['xs']
-                    stat = station[id_wavefield]['name']
-            
-                    generate_one_timeseries(field.t, Mz_t, RW_Mz_t_tab[id_wavefield_timeseries], comp, iz, iy, ix, stat, options)        
+            cbar = plt.colorbar(plotMxz, cax=axins)
+         
+          fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
+        
+          if(not options['GOOGLE_COLAB']):
+            cbar.ax.set_ylabel(unknown_label, rotation=90) 
+            plt.savefig(options['global_folder'] + 'map_wavefield_vz_t'+str(round(t_snap, 2))+'.pdf')
+            plt.close('all')
+    
+    if(station):
+      # Compute time series for each station.
+      print('['+sys._getframe().f_code.co_name+'] Compute time series at each stations.')
+      create_timeseries_here = False
+      Mz_t_tab, RW_Mz_t_tab, station_updated = field.compute_field_timeseries(station, create_timeseries_here = create_timeseries_here)
+      id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
+      if(not create_timeseries_here):
+        for id_wavefield in station_updated:
+          # Current field
+          id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
+          Mz_t = Mz_t_tab[id_wavefield_timeseries]
+          # Current station parameters
+          comp = station[id_wavefield]['comp']
+          iz = station[id_wavefield]['zs']
+          iy = station[id_wavefield]['ys']
+          ix = station[id_wavefield]['xs']
+          stat = station[id_wavefield]['name']
+          generate_one_timeseries(field.t, Mz_t, RW_Mz_t_tab[id_wavefield_timeseries], comp, iz, iy, ix, stat, options)        
     
     # Deallocate
     del field, Mz_t_tab, RW_Mz_t_tab, station_updated
     
-    # Successful exit messahe
+    # Successful exit message.
     print('['+sys._getframe().f_code.co_name+'] Finished generating figures in folder \''+options['global_folder']+'\'.')
     
     #if(not options['GOOGLE_COLAB']):
