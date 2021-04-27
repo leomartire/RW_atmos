@@ -708,7 +708,9 @@ def display_map_stations(ID, station_tab, domain, new_folder):
     axs.set_xlabel('West - East (km from source)')
     axs.set_ylabel('North - South (km from source)')
     
-    fig.savefig( new_folder + '/distribution_station.pdf' )
+    fname = new_folder+'/distribution_station.pdf'
+    fig.savefig(fname)
+    print('['+sys._getframe().f_code.co_name+'] Saved stations\' plot to \''+fname+'\'.')
    
 def create_one_station(x, y, z, comp, name, id, data = None, file = None):
   station = {

@@ -98,7 +98,7 @@ def read_specfem2d_files(options):
 ################################################################
 ## Choose the name of the temporary folder to store coefficients
 def determine_folders(options):
-        print('['+sys._getframe().f_code.co_name+'] Define working temporary folders for storing coefficients.')
+        # print('['+sys._getframe().f_code.co_name+'] Define working temporary folders for storing coefficients.')
         
         options_loc = {}
 

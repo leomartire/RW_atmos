@@ -389,6 +389,6 @@ def plot_atmosphere_and_seismic(global_folder, seismic, z_atmos, rho, cpa, winds
   
   if(not google_colab):
     fname = global_folder+'seismic_and_atmos_profiles.pdf'
-    print('['+sys._getframe().f_code.co_name+'] Saved plot to \''+fname+'\'.')
+    print('['+sys._getframe().f_code.co_name+'] Saved seismic and atmospheric models\' plot to \''+fname+'\'.')
     plt.savefig(fname)
     plt.close('all')

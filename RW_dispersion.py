@@ -288,8 +288,9 @@ def get_default_options():
   
   return(options)
 
-def compute_trans_coefficients(options_in = {}):
-  print('['+sys._getframe().f_code.co_name+'] Compute Rayleigh waves\' Green functions using the dispersion relations from earthsr.')
+def compute_Green_functions(options_in = {}):
+  print('['+sys._getframe().f_code.co_name+'] Compute Rayleigh waves\' Green functions.')
+  print('['+sys._getframe().f_code.co_name+'] > Will run earthsr to obtain the dispersion relations.')
   
   options = get_default_options() # Get default options.
   options.update(options_in) # Update each option based on user input.
@@ -341,8 +342,10 @@ def compute_trans_coefficients(options_in = {}):
     ## Class containing routine to construct RW/acoustic spectrum at a given location
     Green_RW = get_eigenfunctions(current_struct, options)
     
-    ## Compute sensitivity maps
-    if(False):
-      generate_sensitivity_maps(current_struct, Green_RW, options)
+    # ## Compute sensitivity maps
+    # if(False):
+    #   generate_sensitivity_maps(current_struct, Green_RW, options)
+      
+  print('['+sys._getframe().f_code.co_name+'] Finished computing Rayleigh waves\' Green functions.')
           
-  return Green_RW, options
+  return(Green_RW, options)

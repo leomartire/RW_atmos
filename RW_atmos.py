@@ -91,24 +91,55 @@ class directivity():
                                 + dr2dz_source*M[0]
 
 class RW_forcing():
+        
+        def __str__(self):
+          out = ''
+          out = out + '+-------------------------------+\n'
+          out = out + '|     Rayleigh Wave Forcing     |\n'
+          out = out + '|       (Green Functions)       |\n'
+          
+          out = out + ('| %d modes, %d frequencies each\n' % (self.nb_modes, self.nb_freqs))
+          
+          if(self.has_mechanism):
+            out = out + ('| Chosen mechanism:            |\n')
+            out = out + ('|   M0:     %.3f\n' % (self.M0))
+            out = out + ('|   depth:  %.3f\n' % (self.zsource))
+            out = out + ('|   strike: %.0f\n' % (self.strike))
+            out = out + ('|   dip:    %.0f\n' % (self.dip))
+            out = out + ('|   rake:   %.0f\n' % (self.rake))
+            out = out + ('| Source time function:         |\n')
+            out = out + ('|   %s\n' % (self.stf))
+            out = out + ('|   %d points\n' % (self.len(self.stf_data)))
+            out = out + ('|   f0 = %f\n' % (self.f0))
+          else:
+            out = out + ('| No associated mechanism yet.  |\n')
+          
+          out = out + '+-------------------------------+\n'
+        
+          return(out)
+        def __repr__(self):
+          # Technically wrong, because repr should contain everything needed to build the instance again, but enough for what we want.
+          return(self.__str__())
 
         def __init__(self, options):
         
                 # Inputs
                 self.f_tab = options['f_tab']
+                self.nb_freqs = len(self.f_tab)
                 self.nb_modes = options['nb_modes'][1]
                 
                 self.set_global_folder(options['global_folder'])
                 
                 # Attributes containing seismic/acoustic spectra
-                self.directivity = [ [ [] for aa in range(0, len(self.f_tab)) ] for bb in range(0, options['nb_modes'][1]) ]
-                self.uz          = [ [ [] for aa in range(0, len(self.f_tab)) ] for bb in range(0, options['nb_modes'][1]) ]
+                self.directivity = [ [ [] for aa in range(0, self.nb_freqs) ] for bb in range(0, self.nb_modes) ]
+                self.uz          = [ [ [] for aa in range(0, self.nb_freqs) ] for bb in range(0, self.nb_modes) ]
                 
                 # Extract seismic model for later plots
                 self.extract_seismic_parameters(options)
                 
                 # Add source characteristics
                 #self.update_mechanism(mechanism)
+                self.has_mechanism = False
                 
                 # MPI parameter
                 self.use_spawn = options['USE_SPAWN_MPI']
@@ -120,39 +151,44 @@ class RW_forcing():
                 self.global_folder = folder # Save folder path from Green's class
 
         def update_mechanism(self, mechanism):
-        
+                self.has_mechanism = True
                 self.stf = mechanism['stf']
                 self.stf_data = mechanism['stf-data']
                 self.zsource = mechanism['zsource'] # m
                 if(self.stf == 'gaussian'):
-                        self.f0    = mechanism['f0']
+                  self.f0    = mechanism['f0']
                 else:
-                        self.f0    = mechanism['f0']*1.628
+                  self.f0    = mechanism['f0']*1.628
                 self.alpha = (np.pi*self.f0)**2
                 self.M0    = mechanism['M0']
                 self.M     = mechanism['M']*self.M0
                 self.phi   = mechanism['phi']
                 
+                self.strike = mechanism['STRIKE']
+                self.dip = mechanism['DIP']
+                self.rake = mechanism['RAKE']
+                
                 self.mt    = []
                 if 'mt' in mechanism:
-                        self.mt = mechanism['mt']
+                  self.mt = mechanism['mt']
 
         def get_mechanism(self):
-        
                 mechanism = {}
                 mechanism['stf']      = self.stf
                 mechanism['stf-data'] = self.stf_data
                 mechanism['zsource'] = self.zsource# m
                 mechanism['f0']      = self.f0        
                 if(self.stf == 'gaussian'):
-                        mechanism['f0'] = self.f0
+                  mechanism['f0'] = self.f0
                 else:
-                        mechanism['f0'] = self.f0*1.628
+                  mechanism['f0'] = self.f0/1.628
                 mechanism['M0']  = self.M0
                 mechanism['M']   = self.M/self.M0
                 mechanism['phi'] = self.phi
+                mechanism['STRIKE'] = self.strike
+                mechanism['DIP'] = self.dip
+                mechanism['RAKE'] = self.rake
                 mechanism['mt']  = self.mt
-                
                 return mechanism
 
         def source_spectrum(self, period):
@@ -457,6 +493,9 @@ class field_RW():
           out = out + '+-------------------------------+\n'
         
           return(out)
+        def __repr__(self):
+          # Technically wrong, because repr should contain everything needed to build the instance again, but enough for what we want.
+          return(self.__str__())
         
         
         default_loc = (30., 0.) # (km, degree)
