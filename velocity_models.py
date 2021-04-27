@@ -243,7 +243,7 @@ def generate_default_atmos():
         param_atmos['rho']    = 1.2
         param_atmos['cp']     = 3000.
         
-        print('['+sys._getframe().f_code.co_name+'] Generate default atmospheric model from \''+param_atmos['file']+'\'.')
+        print('['+sys._getframe().f_code.co_name+'] Generated default atmospheric model from \''+param_atmos['file']+'\'.')
         
         return param_atmos
         
@@ -278,113 +278,117 @@ def read_csv_seismic(model, dimension, loc_source = 50000.):
         
 def plot_atmosphere_and_seismic(global_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab):
         
-    import matplotlib.colors as mcolors
-    
-    nb_cols = 3
-    fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
-    
-    colors = [icolor for icolor in mcolors.TABLEAU_COLORS]
-    
-    iax     = 0
-    iax_row = 1
-    
-    z  = seismic['z'].values/1000.
-    zi = np.linspace(z[0], z[-1], 10000)
-    
-    f = interpolate.interp1d(z, seismic['rho'].values/1000., kind='previous')
-    unknown = f(zi)
-    axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
-    axs[iax_row, iax].grid()
-    axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].set_yscale('log')
-    axs[iax_row, iax].set_ylabel('Depth (km)')
-    axs[iax_row, iax].set_xlabel('Density (g/cm$^3$)')
-    axs[iax_row, iax].text(-0.8, 0.5, 'Seismic', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
-    axs[iax_row, iax].invert_yaxis()
-    
-    iax += 1
-    f = interpolate.interp1d(z, seismic['vp'].values/1000., kind='previous')
-    unknown = f(zi)
-    axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
-    axs[iax_row, iax].grid()
-    axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
-    axs[iax_row, iax].set_yscale('log')
-    axs[iax_row, iax].invert_yaxis()
-    axs[iax_row, iax].set_xlabel('$v_p$ (km/s)')
-    
-    iax += 1
-    f = interpolate.interp1d(z, seismic['vs'].values/1000., kind='previous')
-    unknown = f(zi)
-    axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
-    axs[iax_row, iax].grid()
-    axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
-    axs[iax_row, iax].set_yscale('log')
-    axs[iax_row, iax].invert_yaxis()
-    axs[iax_row, iax].set_xlabel('$v_s$ (km/s)')
-    
-    axs[iax_row, iax].get_shared_y_axes().join(axs[iax_row, 0], axs[iax_row, 1], axs[iax_row, 2])
-    
-    ## Create a profile from a few altitude points if isothermal model
-    rho = rho
-    cpa = cpa
-    wx  = winds[0]
-    wy  = winds[1]
-    z   = z_atmos
-    if(isothermal):
-            z = np.linspace(0, 50, 100)
-            rho = rho[0]*np.exp(-z/(H[0]/1000.))+z*0
-            cpa = cpa[0]+z*0
-            wx  = winds[0][0]+z*0
-            wy  = winds[1][0]+z*0
-    else:
-            z = z/1000.
-            
-    iax     = 0
-    iax_row = 0
-    unknown = rho/1000.
-    try:
-     axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
-    except:
-     bp()
-    axs[iax_row, iax].grid()
-    if(unknown.min() < 0.5*unknown.max()):
-            axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].set_ylim([z.min(), z.max()])
-    axs[iax_row, iax].set_ylabel('Altitude (km)')
-    axs[iax_row, iax].text(-0.8, 0.5, 'Atmosphere', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
-    axs[iax_row, iax].set_title('Density (g/cm$^3$)')
-    axs[iax_row, iax].set_xscale('log')
-    
-    iax += 1
-    unknown = cpa/1000.
-    axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
-    axs[iax_row, iax].grid()
-    if(not isothermal):
-            axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].set_ylim([z.min(), z.max()])
-    axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
-    axs[iax_row, iax].set_title('$c_p$ (km/s)')
-    
-    
-    iax += 1
-    unknown = wx/1000.
-    axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
-    if(not isothermal):
-            axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
-    axs[iax_row, iax].set_ylim([z.min(), z.max()])
-    if(dimension > 2):
-            unknown_ = wy/1000.
-            axs[iax_row, iax].plot(unknown_, z)
-            if(not isothermal):
-                    axs[iax_row, iax].set_xlim([min(unknown.min(), unknown_.min()), max(unknown.max(), unknown_.max())])
-    axs[iax_row, iax].grid()
-    axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
-    axs[iax_row, iax].set_title('winds (km/s)')
-    
-    fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
-    
-    if(not google_colab):
-            plt.savefig(global_folder + 'seismic_and_atmos_profiles.png')
-            plt.close('all')
+  import matplotlib.colors as mcolors
+  
+  print('['+sys._getframe().f_code.co_name+'] Plot seismic and atmospheric models.')
+  
+  nb_cols = 3
+  fig, axs = plt.subplots(nrows=2, ncols=nb_cols)
+  
+  colors = [icolor for icolor in mcolors.TABLEAU_COLORS]
+  
+  iax     = 0
+  iax_row = 1
+  
+  z  = seismic['z'].values/1000.
+  zi = np.linspace(z[0], z[-1], 10000)
+  
+  f = interpolate.interp1d(z, seismic['rho'].values/1000., kind='previous')
+  unknown = f(zi)
+  axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+  axs[iax_row, iax].grid()
+  axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].set_yscale('log')
+  axs[iax_row, iax].set_ylabel('Depth (km)')
+  axs[iax_row, iax].set_xlabel('Density (g/cm$^3$)')
+  axs[iax_row, iax].text(-0.8, 0.5, 'Seismic', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
+  axs[iax_row, iax].invert_yaxis()
+  
+  iax += 1
+  f = interpolate.interp1d(z, seismic['vp'].values/1000., kind='previous')
+  unknown = f(zi)
+  axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+  axs[iax_row, iax].grid()
+  axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+  axs[iax_row, iax].set_yscale('log')
+  axs[iax_row, iax].invert_yaxis()
+  axs[iax_row, iax].set_xlabel('$v_p$ (km/s)')
+  
+  iax += 1
+  f = interpolate.interp1d(z, seismic['vs'].values/1000., kind='previous')
+  unknown = f(zi)
+  axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
+  axs[iax_row, iax].grid()
+  axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+  axs[iax_row, iax].set_yscale('log')
+  axs[iax_row, iax].invert_yaxis()
+  axs[iax_row, iax].set_xlabel('$v_s$ (km/s)')
+  
+  axs[iax_row, iax].get_shared_y_axes().join(axs[iax_row, 0], axs[iax_row, 1], axs[iax_row, 2])
+  
+  ## Create a profile from a few altitude points if isothermal model
+  rho = rho
+  cpa = cpa
+  wx  = winds[0]
+  wy  = winds[1]
+  z   = z_atmos
+  if(isothermal):
+          z = np.linspace(0, 50, 100)
+          rho = rho[0]*np.exp(-z/(H[0]/1000.))+z*0
+          cpa = cpa[0]+z*0
+          wx  = winds[0][0]+z*0
+          wy  = winds[1][0]+z*0
+  else:
+          z = z/1000.
+          
+  iax     = 0
+  iax_row = 0
+  unknown = rho/1000.
+  try:
+   axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+  except:
+   bp()
+  axs[iax_row, iax].grid()
+  if(unknown.min() < 0.5*unknown.max()):
+          axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].set_ylim([z.min(), z.max()])
+  axs[iax_row, iax].set_ylabel('Altitude (km)')
+  axs[iax_row, iax].text(-0.8, 0.5, 'Atmosphere', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax_row, iax].transAxes, rotation=90)
+  axs[iax_row, iax].set_title('Density (g/cm$^3$)')
+  axs[iax_row, iax].set_xscale('log')
+  
+  iax += 1
+  unknown = cpa/1000.
+  axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+  axs[iax_row, iax].grid()
+  if(not isothermal):
+          axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].set_ylim([z.min(), z.max()])
+  axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+  axs[iax_row, iax].set_title('$c_p$ (km/s)')
+  
+  
+  iax += 1
+  unknown = wx/1000.
+  axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+  if(not isothermal):
+          axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
+  axs[iax_row, iax].set_ylim([z.min(), z.max()])
+  if(dimension > 2):
+          unknown_ = wy/1000.
+          axs[iax_row, iax].plot(unknown_, z)
+          if(not isothermal):
+                  axs[iax_row, iax].set_xlim([min(unknown.min(), unknown_.min()), max(unknown.max(), unknown_.max())])
+  axs[iax_row, iax].grid()
+  axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
+  axs[iax_row, iax].set_title('winds (km/s)')
+  
+  fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
+  
+  if(not google_colab):
+    fname = global_folder+'seismic_and_atmos_profiles.pdf'
+    print('['+sys._getframe().f_code.co_name+'] Saved plot to \''+fname+'\'.')
+    plt.savefig(fname)
+    plt.close('all')
