@@ -91,7 +91,7 @@ def get_eigenfunctions(current_struct, options):
         # toolbar_width = 40
         # total_length  = len(periods) * (options['nb_modes'][1]+1)
         # # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
-        print('['+sys._getframe().f_code.co_name+'] Building eigenfunctions.')
+        print('['+sys._getframe().f_code.co_name+'] > Building eigenfunctions from earthsr output.')
         # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
         # sys.stdout.flush()
         # #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
@@ -112,7 +112,7 @@ def get_eigenfunctions(current_struct, options):
         # toolbar_width = 40
         # total_length  = len(periods) * N
         # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
-        print('['+sys._getframe().f_code.co_name+'] Store eigenfunctions.')
+        print('['+sys._getframe().f_code.co_name+'] > Store eigenfunctions in the local RW spectrum object.')
         # sys.stdout.flush()
         # id_stat = 0
         # cptbar = 0
@@ -169,7 +169,7 @@ def get_eigenfunctions(current_struct, options):
         del results
         
         # sys.stdout.write("] Done\n")
-        print('['+sys._getframe().f_code.co_name+'] Finished collecting eigenfunctions and derivatives from earthsr.')
+        print('['+sys._getframe().f_code.co_name+'] > Finished.')
             
         return Green_RW
                 
