@@ -17,6 +17,10 @@ matplotlib.rc('font', **font)
 ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
 matplotlib.use('Agg')
 
+def autoAdjustCLim(h):
+  (vmin, vmax) = h.get_clim()
+  h.set_clim(np.array([-1,1])*np.max(np.abs([vmin, vmax])))
+
 def sysErrHdl(cmd):
   r = os.system(cmd)
   if(r!=0):
