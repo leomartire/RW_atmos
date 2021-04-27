@@ -428,7 +428,37 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     tr, fig = None, None
 
 class field_RW():
-
+        
+        def __str__(self):
+          out = ''
+          out = out + '+-------------------------------+\n'
+          out = out + '|      Rayleigh Wave Field      |\n'
+          
+          out = out + '| Seismic model:                |\n'
+          out = out + str(self.seismic)+'\n'
+          
+          out = out + ('| X-Y domain:                   |\n')
+          out = out + ('|   x: [%.3f, %.3f], %d elements, dx = %.3f\n'
+                       % (np.min(self.x), np.max(self.x), self.x.size, np.mean(np.diff(self.x))))
+          out = out + ('|   y: [%.3f, %.3f], %d elements, dy = %.3f\n'
+                       % (np.min(self.y), np.max(self.y), self.y.size, np.mean(np.diff(self.y))))
+          
+          out = out + ('| Z domain / atmospheric model: |\n')
+          if(not self.atmospheric_model_is_generated):
+            out = out + ('|   none (atmospheric model is not defined yet).\n')
+          else:
+            out = out + ('|   [%.3f, %.3f] m.\n' % (np.min(self.z), np.max(self.z)))
+            out = out + ('|   z: %d elements, dz = %.3f\n' % (self.z.size, np.mean(np.diff(self.z))))
+            if(self.isothermal):
+              out = out + ('|   Isothermal model.           |\n')
+            else:
+              out = out + ('|   User-defined model:         |\n')
+              out = out + ('|     rho: %d elements\n' % (self.rho.size))
+          out = out + '+-------------------------------+\n'
+        
+          return(out)
+        
+        
         default_loc = (30., 0.) # (km, degree)
         def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], mode_max = -1, dimension_seismic = 3):
 
@@ -1140,21 +1170,58 @@ def plot_surface_forcing(field, t_station, ix, iy, options):
     
     fig, axs = plt.subplots(nrows=1, ncols=1)
     
-    plotMo = axs.imshow(np.flip(np.real(field.Mo[it_, :, :]), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., field.y[0]/1000., field.y[-1]/1000.], aspect='auto')
+    plotMo = axs.imshow(np.flipud(np.real(field.Mo[it_, :, :]).T), extent=[field.x[0]/1000., field.x[-1]/1000., field.y[0]/1000., field.y[-1]/1000.], aspect='auto')
     axs.scatter(ix/1000., iy/1000., color='red', zorder=2)
-    axs.set_xlabel('West - East (km)')
-    axs.set_ylabel('South - North (km)')
+    axs.set_xlabel('West - East [km]')
+    axs.set_ylabel('South - North [km]')
     
     axins = inset_axes(axs, width="5%", height="100%", loc='lower left', bbox_to_anchor=(1.02, 0., 1, 1.), bbox_transform=axs.transAxes, borderpad=0)
     axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
-            
+    
     cbar = plt.colorbar(plotMo, cax=axins)
+    plt.set_cmap('seismic')
+    utils.autoAdjustCLim(plotMo)
     
     fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
     
     if(not options['GOOGLE_COLAB']):
-        cbar.ax.set_ylabel('Amplitude', rotation=90) 
+        cbar.ax.set_ylabel('$v_z$ [m/s]', rotation=90) 
         plt.savefig(options['global_folder'] + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
+
+def create_RW_field(Green_RW, domain, param_atmos, options):
+    print('['+sys._getframe().f_code.co_name+'] Create Rayleigh wave field from Green functions.')
+    
+    # Extract parameters.
+    dimension         = options['dimension']
+    dimension_seismic = options['dimension_seismic']
+    nb_freq           = options['nb_freq']
+    mode_max          = -1
+    
+    # Define domain.
+    print('['+sys._getframe().f_code.co_name+'] > Start by defining domain.')
+    # print('[%s] >> Domain is DX * DY * DZ = [%.3f, %.3f] * [%.3f, %.3f] * [%.3f, %.3f] km.'
+    #       % (sys._getframe().f_code.co_name, domain['xmin']/1e3, domain['xmax']/1e3, domain['ymin']/1e3, domain['ymax']/1e3, domain['zmin']/1e3, domain['zmax']/1e3))
+    # print('['+sys._getframe().f_code.co_name+'] >> Steps are (Dx, Dy, Dz) = (%.0f, %.0f, %.0f) m.'
+    #       % (domain['dx'], domain['dy'], domain['dz']))
+    xbounds = [domain['xmin'], domain['xmax']]
+    ybounds = [domain['ymin'], domain['ymax']]
+    # dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
+    dx, dy = domain['dx'], domain['dy']
+    # z          = np.arange(domain['zmin'], domain['zmax'], dz)
+    field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
+    
+    # Create atmospheric profiles.
+    print('['+sys._getframe().f_code.co_name+'] > Update field with atmospheric model.')
+    if(not param_atmos):
+      param_atmos = velocity_models.generate_default_atmos()
+    field.generate_atmospheric_model(param_atmos)
+    
+    # Plot profiles.
+    velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
+                                                field.rho, field.cpa, field.winds, field.H, 
+                                                field.isothermal, field.dimension, field.google_colab)
+    print(field)
+    return(field)
 
 def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
     print('['+sys._getframe().f_code.co_name+'] Generate analytical Rayleigh wave time series and acoustic time series.')
@@ -1168,39 +1235,12 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     # if(not station):
     #   sys.exit('Stations have to be provided to build analytical solution')
     
-    # Wavefield dimensions
-    dimension         = options['dimension']
-    dimension_seismic = options['dimension_seismic']
-    
-    # Update mechanism if needed
+    # Update mechanism.
     print('['+sys._getframe().f_code.co_name+'] Update Green functions with chosen focal mechanism.')
     Green_RW.update_mechanism(mechanism)
-
-    # Class to generate field for given x/z t/z combinaison
-    nb_freq  = options['nb_freq']
-    mode_max = -1
     
-    print('['+sys._getframe().f_code.co_name+'] Update domain for the Rayleigh wave field.')
-    print('[%s] > Domain is DX * DY * DZ = [%.3f, %.3f] * [%.3f, %.3f] * [%.3f, %.3f] km.'
-          % (sys._getframe().f_code.co_name, domain['xmin']/1e3, domain['xmax']/1e3, domain['ymin']/1e3, domain['ymax']/1e3, domain['zmin']/1e3, domain['zmax']/1e3))
-    print('['+sys._getframe().f_code.co_name+'] > (Dx, Dy, Dz) = (%.0f, %.0f, %.0f) m.'
-          % (domain['dx'], domain['dy'], domain['dz']))
-    xbounds = [domain['xmin'], domain['xmax']]
-    ybounds = [domain['ymin'], domain['ymax']]
-    dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
-    z          = np.arange(domain['zmin'], domain['zmax'], dz)
-    field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
-    
-    # Create atmospheric profiles.
-    print('['+sys._getframe().f_code.co_name+'] Update field with atmospheric model.')
-    if(not param_atmos):
-      param_atmos = velocity_models.generate_default_atmos()
-    field.generate_atmospheric_model(param_atmos)
-    
-    # Plot profiles.
-    velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
-                                                field.rho, field.cpa, field.winds, field.H, 
-                                                field.isothermal, field.dimension, field.google_colab)
+    # Create the Rayleigh wave field.
+    field = create_RW_field(Green_RW, domain, param_atmos, options)
     
     # Compute maps/slices at given instants.
     # Use parameters of first station to build 2d/3d wavefields.
@@ -1214,12 +1254,19 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         Mxy, Mz_t_tab = field.compute_field_for_xz(t_snap, 0., 0., options['COMPUTE_XY_PRE'], None, 'xy', 'p')
         
         fig = plt.figure()
-        hplt = plt.imshow(np.flip(np.real(Mxy), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto')
+        hplt = plt.imshow(np.flipud(np.real(Mxy).T), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto')
         plt.xlabel('West-East [km]')
         plt.ylabel('South-North [km]')
         plt.title('Pressure Field at %.1f km' % (options['COMPUTE_XY_PRE']/1e3))
         cbar = plt.colorbar(hplt)
-        plt.savefig(options['global_folder'] + 'map_XY_PRE_t'+str(round(25, 2))+'.pdf')
+        plt.savefig(options['global_folder']+'map_XY_PRE_t%07.2f.pdf' % (t_snap))
+        
+        np.real(Mxy).tofile(options['global_folder']+'map_XY_PRE_z%07.2f_t%07.2f_%dx%d.bin'
+                            % (options['COMPUTE_XY_PRE']/1e3, t_snap, Mxy.shape[0], Mxy.shape[1]))
+        if(t_snap == options['t_chosen'][0]):
+          np.array([field.x[0], field.x[-1], field.y[0], field.y[-1]]).tofile(options['global_folder']+'map_XY_PRE_XYminmax.bin')
+        # Reading is done using A=np.fromfile(filename) in Python, or
+        #                       fid=fopen(filename,'r'); A=fread(fid,'real*8'); fclose(fid); in Matlab.
       
       if(station):
         # Somehow stations are needed to compute maps/slices.
@@ -1234,15 +1281,15 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         plot_surface_forcing(field, t_snap, ix, iy, options)
         
         # Compute maps/slices for a given range of altitudes (m) at a given instant (s)
-        if(dimension > 2):
+        if(field.dimension > 2):
           if(options['COMPUTE_MAPS']):
-            print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slices along xz, yz, and xy.')
+            print('['+sys._getframe().f_code.co_name+'] '+str(field.dimension)+'D. Compute slices along xz, yz, and xy.')
             Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp)
             Mxy, Mz_t_tab      = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'xy', comp)
           nb_cols  = 2
         else:
           if(options['COMPUTE_MAPS']):
-            print('['+sys._getframe().f_code.co_name+'] '+str(dimension)+'D. Compute slice along xz only.')
+            print('['+sys._getframe().f_code.co_name+'] '+str(field.dimension)+'D. Compute slice along xz only.')
             Mxz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp) 
           nb_cols = 1
         
@@ -1253,7 +1300,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         else:
           unknown_label = 'Velocity (m/s)'
         if(options['COMPUTE_MAPS']):
-          if(dimension > 2):
+          if(field.dimension > 2):
             vmin, vmax = np.real(Mxy).min(), np.real(Mxy).max()
     
             iax = 0
@@ -1268,7 +1315,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             
             iax_col += 1
             
-            plotMxy = axs[iax, iax_col].imshow(np.flip(np.real(Mxy), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            plotMxy = axs[iax, iax_col].imshow(np.flipud(np.real(Mxy).T), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
             axs[iax, iax_col].scatter(iy/1000., ix/1000., color='red', zorder=2)
             axs[iax, iax_col].set_ylabel('West - East (km)')
             axs[iax, iax_col].yaxis.set_label_position("right")
@@ -1277,14 +1324,14 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             iax += 1
             iax_col = 0
             
-            plotMxz = axs[iax, iax_col].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            plotMxz = axs[iax, iax_col].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
             axs[iax, iax_col].scatter(ix/1000., iz/1000., color='red', zorder=2)
             axs[iax, iax_col].set_xlabel('West - East (km)')
             axs[iax, iax_col].set_ylabel('Altitude (km)')
             
             iax_col += 1
             
-            plotMyz = axs[iax, iax_col].imshow(np.flip(np.real(Myz), axis=0), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            plotMyz = axs[iax, iax_col].imshow(np.flipud(np.real(Myz).T), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
             axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
             axs[iax, iax_col].set_xlabel('South - North (km)')
             axs[iax, iax_col].text(0.5, 0.1, 't = ' + str(t_snap) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
@@ -1314,7 +1361,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
               utils.align_yaxis_np([axs[iax],ax2])
             
             iax += 1
-            plotMxz = axs[iax].imshow(np.flip(np.real(Mxz), axis=0), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            plotMxz = axs[iax].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
             axs[iax].scatter(ix/1000., iz/1000., color='red', zorder=2)
             axs[iax].set_xlabel('Distance from source (km)')
             axs[iax].set_ylabel('Altitude (km)')
@@ -1329,7 +1376,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         
           if(not options['GOOGLE_COLAB']):
             cbar.ax.set_ylabel(unknown_label, rotation=90) 
-            plt.savefig(options['global_folder'] + 'map_wavefield_vz_t'+str(round(t_snap, 2))+'.pdf')
+            plt.savefig(options['global_folder'] + 'map_wavefield_vz_t%07.2f.pdf' % (t_snap))
             plt.close('all')
     
     if(station):
