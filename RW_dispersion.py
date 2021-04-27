@@ -77,22 +77,24 @@ def get_eigenfunctions(current_struct, options):
 
         periods = 1./np.linspace(options['f_tab'][-1], options['f_tab'][0], len(options['f_tab']))
         
-        uz_tab = []
-        freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
-        freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
+        # UNUSED.
+        # uz_tab = []
+        # freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
+        # freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
         
         N = 16
         list_of_lists = np.array_split(periods, N)
         
         local_collect_partial = partial(local_collect, options['global_folder'] + 'eigen.input_code_earthsr', N)
         
-        ## Setup progress bar
-        toolbar_width = 40
-        total_length  = len(periods) * (options['nb_modes'][1]+1)
-        # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
-        sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
-        sys.stdout.flush()
-        #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+        # ## Setup progress bar
+        # toolbar_width = 40
+        # total_length  = len(periods) * (options['nb_modes'][1]+1)
+        # # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+        print('['+sys._getframe().f_code.co_name+'] Building eigenfunctions.')
+        # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
+        # sys.stdout.flush()
+        # #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
         
         if N == 1:
                 results = [local_collect_partial(periods)]
@@ -104,15 +106,16 @@ def get_eigenfunctions(current_struct, options):
                         with mp.Pool(processes = N) as p:
                                 results = p.map(local_collect_partial, list_of_lists)
                                 
-        sys.stdout.write("] Done\n")
+        # sys.stdout.write("] Done\n")
         
-        ## Setup progress bar
-        toolbar_width = 40
-        total_length  = len(periods) * N
-        sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
-        sys.stdout.flush()
-        id_stat = 0
-        cptbar = 0
+        # ## Setup progress bar
+        # toolbar_width = 40
+        # total_length  = len(periods) * N
+        # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
+        print('['+sys._getframe().f_code.co_name+'] Store eigenfunctions.')
+        # sys.stdout.flush()
+        # id_stat = 0
+        # cptbar = 0
         
         offset = 0
         for reoobj_ in results:
@@ -153,19 +156,19 @@ def get_eigenfunctions(current_struct, options):
                 ## Construct Green's function for a given period 
                 Green_RW.add_one_period(period, iperiod_, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
                 
-                ## Update progress bar
-                id_stat += 1
-                if(int(toolbar_width*id_stat/total_length) > cptbar):
-                        cptbar = int(toolbar_width*id_stat/total_length)
-                        sys.stdout.write("-")
-                        sys.stdout.flush()
+                # ## Update progress bar
+                # id_stat += 1
+                # if(int(toolbar_width*id_stat/total_length) > cptbar):
+                #         cptbar = int(toolbar_width*id_stat/total_length)
+                #         sys.stdout.write("-")
+                #         sys.stdout.flush()
             
             offset += len(periods_)
             
         ## Deallocate
         del results
         
-        sys.stdout.write("] Done\n")
+        # sys.stdout.write("] Done\n")
         print('['+sys._getframe().f_code.co_name+'] Finished collecting eigenfunctions and derivatives from earthsr.')
             
         return Green_RW
