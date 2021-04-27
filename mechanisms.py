@@ -132,8 +132,10 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     domain.update( {'lonmin': lon_source + kilometer2degrees(xmin/1000.), 'lonmax': lon_source + kilometer2degrees(xmax/1000.)} )
     domain.update( {'xmin': xmin, 'xmax': xmax} )
     domain.update( {'ymin': ymin, 'ymax': ymax} )
-    domain.update( {'zmin': 0., 'zmax': zmax} )
-    domain.update( {'dx': dx, 'dy': dy, 'dz': dz} )
+    # domain.update( {'zmin': 0., 'zmax': zmax} )
+    # domain.update( {'dx': dx, 'dy': dy, 'dz': dz} )
+    domain.update( {'dx': dx, 'dy': dy} )
+    # (zmin, zmax, dz) should only be defined at the atmospheric model step, when defining the Rayleigh wave field (class field_RW).
     
     return domain
 
