@@ -25,9 +25,9 @@ options['dimension']         = 3 # atmospheric dimension
 options['dimension_seismic'] = 3 # seismic dimension
 options['ATTENUATION']    = True # using Graves, Broadband ground-motion simulation using a hybrid approach, 2014
 options['COMPUTE_MAPS']   = False # Compute and plot x,y,z wavefield. Computationally heavy.
-options['COMPUTE_XY_PRE'] = None # Compute xy wavefield above source and at given altitude. Computationally heavy. Set to none to disable.
+options['COMPUTE_XY_PRE'] = 20e3 # Compute xy wavefield above source and at given altitude. Computationally heavy. Set to none to disable.
 options['nb_freq']        = 2**9
-options['nb_kxy']         = 2**7
+options['nb_kxy']         = 2**8
 options['coef_low_freq']  = 0.001 # minimum frequency (Hz)
 options['coef_high_freq'] = 5. # maximum frequency (Hz)
 options['nb_layers']      = 100 # Number of seismic layers to discretise (earthsr input).
@@ -110,6 +110,7 @@ for source in options_source['sources']:
   plt.title('$M_w$ ' + str(round(mw, 2)) + ' - $f_0 = ' +str(round(options_source['f0'],3))+ '$ Hz'+ ' - depth $ = ' +str(round(source['depth'],3))+ '$ km')
   plt.xlim([-0.5, 0.5])
   plt.ylim([-0.5, 0.5])
+  # plt.savefig(output_root+'source.pdf')
   
 # ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
 options_source['coef_high_freq'] = options['coef_high_freq']
@@ -121,13 +122,14 @@ options['USE_SPAWN_MPI'] = False
 options['force_dimension'] = False # Only when add_specfem_simu = True
 options['force_f0_source'] = False
 # mechanism, station, domain = {}, {}, {}
-keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'phi', 'station_tab', 'mt']
 
 # Load mechanisms/stations data
 mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
                                                             add_SAC = options_source['add_SAC'], add_perturbations = False, 
                                                             specific_events=list_of_events, options_balloon=options_balloon)
 
+# Set cmap in advance.
+plt.set_cmap('seismic')
 
 #--------------------------------------------------------------#
 # Compute Green functions associated to this seismic setup.    #
@@ -151,7 +153,12 @@ mod_mechanisms.save_mt(mechanisms_data, tmpFolderForCopy)
 # # Loop over each mechanism to generate the atmospheric wavefield
 # for imecha, mechanism_ in mechanisms_data.iterrows():
 imecha = 0
-mechanism = mechanisms_data.loc[imecha]
+mechanism_ = mechanisms_data.loc[imecha]
+# Transform into dictionnary (more practical for further use).
+mechanism = {}
+keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'STRIKE', 'DIP', 'RAKE', 'phi', 'station_tab', 'mt', 'domain']
+for key in keys_mechanism:
+  mechanism[key] = mechanism_[key]
 
 # Set folder for the current mechanism.
 options['global_folder'] = name_sample.replace('XXX', str(imecha+1))
