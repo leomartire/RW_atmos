@@ -4,10 +4,12 @@ import os
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib
-import matplotlib.pyplot as plt
-from pdb import set_trace as bp
+# import matplotlib.pyplot as plt
+# from pdb import set_trace as bp
 import pickle
 import sys
+import lzma
+import argparse
 
 ## display parameters
 font = {'size': 14}
@@ -16,6 +18,17 @@ matplotlib.rc('font', **font)
 ## To make sure that there is no bug when saving and closing the figures
 ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
 matplotlib.use('Agg')
+
+def str2bool(v):
+    # Useful for argparse booleans.
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def autoAdjustCLim(h):
   (vmin, vmax) = h.get_clim()
@@ -30,13 +43,24 @@ def earthsr_local_folder():
     #return('/staff/quentin/Documents/Codes/RW_atmos')
     return('/Users/lmartire/Documents/software/rw_atmos_leo/bin/')
 
+def pickleDump(fname, var):
+  with open(fname, 'wb') as handle:
+    pickle.dump(var, handle)
+def pickleDumpLZMA(fname, var):
+  with lzma.open(fname, 'wb') as handle:
+    pickle.dump(var, handle)
+def pickleLoad(fname):
+  with open(fname, 'rb') as handle:
+    var = pickle.load(handle)
+  return(var)
+
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):
         print('['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
         
         unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
-        id_tab      = [1, 3, 2]
+        # id_tab      = [1, 3, 2]
 
         data = {}
         zover0 = []
