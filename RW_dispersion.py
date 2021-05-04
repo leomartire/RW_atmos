@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
-import pandas as pd
+# import pandas as pd
 import matplotlib
-import matplotlib.pyplot as plt
-from pdb import set_trace as bp
+# import matplotlib.pyplot as plt
+# from pdb import set_trace as bp
 import sys 
-from multiprocessing import set_start_method, get_context
+from multiprocessing import get_context
 from utils import earthsr_local_folder, sysErrHdl
 import read_earth_io as reo
 import velocity_models, utils, RW_atmos
@@ -137,8 +137,8 @@ def get_eigenfunctions(current_struct, options):
                 orig_b4 = reoobj.trmat[iperiod]
                 kmode   = reoobj.wavnum[iperiod].reshape(1,len(reoobj.wavnum[iperiod]))
                         
-                origdep = reoobj.dep
-                nmodes  = orig_b1.shape[1]
+                # origdep = reoobj.dep
+                # nmodes  = orig_b1.shape[1]
                 mu      = reoobj.mu.reshape(len(reoobj.mu),1)
                 lamda   = reoobj.lamda.reshape(len(reoobj.mu),1)
                 rho     = reoobj.rho
@@ -150,8 +150,8 @@ def get_eigenfunctions(current_struct, options):
                 # r3 = b4 r4 = b3
                 d_b2_dz = (omega*orig_b4-np.multiply(kmu,orig_b1))/mu # numpy.multiply does element wise array multiplication
                 d_b1_dz = (np.multiply(klamda,orig_b2)+omega*orig_b3)/(lamda+2*mu)
-                dxz     = np.gradient(orig_b2[:,0])
-                dzz     = np.gradient(orig_b1[:,0])
+                # dxz     = np.gradient(orig_b2[:,0])
+                # dzz     = np.gradient(orig_b1[:,0])
                 
                 ## Construct Green's function for a given period 
                 Green_RW.add_one_period(period, iperiod_, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
@@ -203,7 +203,7 @@ def collect_dispersion_from_earthsr_and_save(nside, options):
       
           list_modes_side[nmode]['loc']  = np.where(data_dispersion_file_fund[:,0] == nmode)
 
-          freq_domain = 0
+          # freq_domain = 0
           if(list_modes_side[nmode]['loc'][0].size > 0):
                   data_dispersion[nmode]['period'] = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],1]
                   data_dispersion[nmode]['cphi']   = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],2]
@@ -272,8 +272,8 @@ def get_default_options():
 
   ##############
   ## Auxiliaries
-  A1D   = {}
-  A1Dst = {}
+  # A1D   = {}
+  # A1Dst = {}
   options['dir_earthsr'] = earthsr_local_folder()
   options['earth_flattening'] = 0 # Earth flattening control variable (0 = no correction; >0 applies correction)
   options['ref_period']  = 10. # Reference period for dispersion correction (0 => none) Generally you would just pick a period shorter than anything you are going to model
@@ -293,7 +293,7 @@ def compute_Green_functions(options_in = {}):
   print('['+sys._getframe().f_code.co_name+'] > Will run earthsr to obtain the dispersion relations.')
   
   options = get_default_options() # Get default options.
-  options.update(options_in) # Update each option based on user input.
+  options.update(options_in) # Update each option (overwrite defaults) based on user input.
   
   # Define frequency domain and store in options.
   f_tab = np.linspace(options['coef_low_freq'], options['coef_high_freq'], options['nb_freq'])
@@ -311,7 +311,7 @@ def compute_Green_functions(options_in = {}):
 
     ##############################
     ## Loop over frequency domains
-    freq_domain = 0
+    # freq_domain = 0
 
     ## Determine adapted model depth for this frequency regime
     #options_loc = get_depth_model(freq_domain, options)
