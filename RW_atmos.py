@@ -957,17 +957,16 @@ class field_RW():
                 
                 return P
                 
+        def get_index_tabs_time(self, t):
+                return(np.argmin(abs(self.t-t)))
         def get_index_tabs(self, t, x, y):
-                
                 # Get required time index        
-                it = np.argmin( abs(self.t - t) )
-                
+                it = self.get_index_tabs_time(t)
                 # Get required location index
                 ix = np.argmin( abs(self.x - x) )
                 iy = -1
                 if(self.dimension > 2):
                         iy = np.argmin( abs(self.y - y) )
-                        
                 return it, ix, iy
                         
         # Compute wavefield for a given physical domain
@@ -1245,7 +1244,7 @@ class field_RW():
 
                 return Mz, Mo, station_tab
 
-def plot_surface_forcing(field, t_station, ix, iy, options):
+def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=False):
     print('['+sys._getframe().f_code.co_name+'] Plot the Rayleigh wave surface forcing at t='+str(t_station)+'.')
         
     it_, ix_, iy_ = field.get_index_tabs(t_station, ix, iy)
@@ -1265,9 +1264,9 @@ def plot_surface_forcing(field, t_station, ix, iy, options):
     
     fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
     
-    if(not options['GOOGLE_COLAB']):
-        cbar.ax.set_ylabel('$v_z$ [m/s]', rotation=90) 
-        plt.savefig(options['global_folder'] + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
+    if(not GOOGLE_COLAB):
+        cbar.ax.set_ylabel('$v_z$ [m/s]', rotation=90)
+        plt.savefig(output_folder + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
 
 def create_RW_field(Green_RW, domain, param_atmos, options):
     print('['+sys._getframe().f_code.co_name+'] Create Rayleigh wave field from Green functions.')
@@ -1359,7 +1358,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         # type_slice = station[id_wavefield]['type_slice']
         
         # Compute Rayleigh wave surface forcing.
-        plot_surface_forcing(field, t_snap, ix, iy, options)
+        plot_surface_forcing(field, t_snap, ix, iy, options['global_folder'], options['GOOGLE_COLAB'])
         
         # Compute maps/slices for a given range of altitudes (m) at a given instant (s)
         if(field.dimension > 2):
