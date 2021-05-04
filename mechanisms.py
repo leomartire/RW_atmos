@@ -4,13 +4,20 @@ import os
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from pdb import set_trace as bp
+# from pdb import set_trace as bp
 from pyrocko import moment_tensor as mtm
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.geodetics.base import gps2dist_azimuth, degrees2kilometers, kilometer2degrees
 from pyrocko.moment_tensor import rotation_from_angle_and_axis
 from obspy.clients.fdsn import Client
 import sys
+
+# import matplotlib.colors as colors
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from pyrocko import moment_tensor as mtm
+# from pyrocko.moment_tensor import rotation_from_angle_and_axis
+from scipy.optimize import minimize, Bounds
+# from scipy.optimize import LinearConstraint
 
 ## display parameters
 font = {'size': 14}
@@ -88,16 +95,17 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
             lon_max_in = lon_max_in_ + diff/2.
             lon_min_in = lon_min_in_ - diff/2.
             
-    dlon, dlat = abs(lon_max_in-lon_min_in)/dchosen, abs(lat_max_in-lat_min_in)/dchosen
+    # dlon, dlat = abs(lon_max_in-lon_min_in)/dchosen, abs(lat_max_in-lat_min_in)/dchosen
 
     lat_max, lat_min = degrees2kilometers(lat_max_in)*1000., degrees2kilometers(lat_min_in)*1000.
     lon_max, lon_min = degrees2kilometers(lon_max_in)*1000., degrees2kilometers(lon_min_in)*1000.
 
-    dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.
+    # dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.
+    dx, dy = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen
 
     xmin, xmax = lon_min - factor*dy - dshift, lon_max + factor*dy + dshift
     ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
-    zmax = 30000.
+    # zmax = 30000.
     
     ## Transform domain to make x and y powers of two
     xmin_, xmax_, dx_ = transform_domain_power2(xmin, xmax, dx)
@@ -630,15 +638,7 @@ def compute_response_one_mecha(x, type_opti, Green_RW):
     
     return x
     
-def find_extreme_cases(mechanisms_data, get_normal_reverse_strike, Green_RW=None):
-
-        import matplotlib.colors as colors
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-        from pyrocko import moment_tensor as mtm
-        from pyrocko.moment_tensor import rotation_from_angle_and_axis
-        from scipy.optimize import minimize, Bounds
-        from scipy.optimize import LinearConstraint
-        
+def find_extreme_cases(mechanisms_data, get_normal_reverse_strike, Green_RW=None):        
         if get_normal_reverse_strike:
                 mechanisms_data_strike  = mechanisms_data.apply(compute_response_one_mecha, axis=1, args=['left_strike_slip', Green_RW])
                 mechanisms_data_normal  = mechanisms_data.apply(compute_response_one_mecha, axis=1, args=['normal', Green_RW])
@@ -731,7 +731,7 @@ def create_stations(x_in, y_in, z_in, name_in, id_in, t_chosen = [50.], balloon=
   ## If data provided store in dict
   data_, file_ = {}, {}
   if data:
-    found_data = False
+    # found_data = False
     for  subdir, dirs, files in os.walk(data[0]):
       for file in files:
         filepath = subdir + os.sep + file
@@ -746,7 +746,7 @@ def create_stations(x_in, y_in, z_in, name_in, id_in, t_chosen = [50.], balloon=
           if(comp == 'v'):
                   comp = 'v' + comp_.lower()
   
-          found_data = True
+          # found_data = True
           data_simu = pd.read_csv( filepath, delim_whitespace=True, header=None )
           
           data_simu.columns = ['t', 'amp']
