@@ -183,7 +183,7 @@ def create_velocity_figures(current_struct, options):
         selected_axs.legend()
         
         if(not options['GOOGLE_COLAB']):
-                plt.savefig(options['global_folder'] + 'cphi.png')
+                plt.savefig(options['global_folder'] + 'cphi.pdf')
                 plt.close('all')
                 
 #######################################
