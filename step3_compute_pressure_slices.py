@@ -86,8 +86,8 @@ def main():
         cbar.ax.set_ylabel('$p''$ [Pa]', rotation=90) 
         plt.savefig(output_path+'map_XY_PRE_t%07.2f.pdf' % (t_snap))
       if(doDumps):
-        np.real(Mxy).tofile(output_path+'map_XY_PRE_z%07.2f_t%07.2f_%dx%d.bin'
-                            % (alt/1e3, t_snap, Mxy.shape[0], Mxy.shape[1]))
+        np.real(Mxy).tofile(output_path+'map_XY_PRE_t%07.2f_%dx%d_z%07.2f.bin'
+                            % (t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
         
 if __name__ == '__main__':
   main()

@@ -1341,8 +1341,8 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         cbar = plt.colorbar(hplt)
         plt.savefig(options['global_folder']+'map_XY_PRE_t%07.2f.pdf' % (t_snap))
         
-        np.real(Mxy).tofile(options['global_folder']+'map_XY_PRE_z%07.2f_t%07.2f_%dx%d.bin'
-                            % (options['COMPUTE_XY_PRE']/1e3, t_snap, Mxy.shape[0], Mxy.shape[1]))
+        np.real(Mxy).tofile(options['global_folder']+'map_XY_PRE_t%07.2f_%dx%d_z%07.2f.bin'
+                            % (t_snap, Mxy.shape[0], Mxy.shape[1], options['COMPUTE_XY_PRE']/1e3))
         if(t_snap == options['t_chosen'][0]):
           np.array([field.x[0], field.x[-1], field.y[0], field.y[-1]]).tofile(options['global_folder']+'map_XY_PRE_XYminmax.bin')
         # Reading is done using A=np.fromfile(filename) in Python, or

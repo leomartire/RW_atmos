@@ -19,7 +19,7 @@ doDumps = 1;
 
 step1 = ['./step1_compute_green.py --output ',OUT1,' --seismicModel ', seismicModel];
 step2 = ['./step2_compute_field.py --output ',OUT2,' --options ',options,' --green ', green];
-step3 = ['./step3_compute_pressure_section.py --output ',OUT3,' --RWField ',field,' --altitudes ',sprintf('%.3f ', alts),' --times ',sprintf('%.3f ', times),' --doPlots ',num2str(doPlots),' --doDumps ',num2str(doDumps)];
+step3 = ['./step3_compute_pressure_slices.py --output ',OUT3,' --RWField ',field,' --altitudes ',sprintf('%.3f ', alts),' --times ',sprintf('%.3f ', times),' --doPlots ',num2str(doPlots),' --doDumps ',num2str(doDumps)];
 
 python = ['/usr/local/bin/python3'];
 
