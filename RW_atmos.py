@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 import numpy as np
-import os
+# import os
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from pdb import set_trace as bp
+# from pdb import set_trace as bp
 import sys 
 from pyrocko import moment_tensor as mtm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 
 from scipy import fftpack
 import scipy.integrate as spi
 from obspy.signal.tf_misfit import plot_tfr
 
 from scipy import interpolate
-from sympy import Symbol, symbols, solve
-from sympy.utilities.lambdify import lambdify
+# from sympy import symbols, solve
+# from sympy.utilities.lambdify import lambdify
 
-from multiprocessing import set_start_method, get_context
+from multiprocessing import get_context
 
 # Local modules
-import mechanisms as mod_mechanisms
-import utils, velocity_models, RW_dispersion
+# import mechanisms as mod_mechanisms
+import utils, velocity_models
 
 # display parameters
 font = {'size': 14}
@@ -97,8 +97,22 @@ class RW_forcing():
           out = out + '+-------------------------------+\n'
           out = out + '|     Rayleigh Wave Forcing     |\n'
           out = out + '|       (Green Functions)       |\n'
+          out = out + '+-------------------------------+\n'
           
-          out = out + ('| %d modes, %d frequencies each\n' % (self.nb_modes, self.nb_freqs))
+          out = out + ('| %5d modes                   |\n' % (self.nb_modes))
+          
+          out = out + ('| %5d frequencies each        |\n' % (self.nb_freqs))
+          
+          out = out + '+-------------------------------+\n'
+          out = out + '| Seismic model:                |\n'
+          out = out + str(self.seismic)+'\n'
+          out = out + '+-------------------------------+\n'
+          out = out + ('| uz:          %d*%d array of %s\n' % (len(self.uz), len(self.uz[0]), type(self.uz[0][0])))
+          out = out + ('| directivity: %d*%d array of %s\n' % (len(self.directivity), len(self.directivity[0]), type(self.directivity[0][0])))
+          out = out + '+-------------------------------+\n'
+          out = out + '| Chosen storage folder:       |\n'
+          out = out + '| '+self.global_folder+'\n'
+          out = out + '+-------------------------------+\n'
           
           if(self.has_mechanism):
             out = out + ('| Chosen mechanism:            |\n')
@@ -109,7 +123,7 @@ class RW_forcing():
             out = out + ('|   rake:   %.0f\n' % (self.rake))
             out = out + ('| Source time function:         |\n')
             out = out + ('|   %s\n' % (self.stf))
-            out = out + ('|   %d points\n' % (self.len(self.stf_data)))
+            out = out + ('|   %d points\n' % (len(self.stf_data)))
             out = out + ('|   f0 = %f\n' % (self.f0))
           else:
             out = out + ('| No associated mechanism yet.  |\n')
@@ -217,8 +231,8 @@ class RW_forcing():
         
         def add_one_period(self, period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep):
         
-                uz    = []
-                freqa = []
+                # uz    = []
+                # freqa = []
                 for imode in range(0, min(len(current_struct),orig_b1.shape[1])):
                 
                         cphi = current_struct[imode]['cphi'][iperiod]
@@ -469,27 +483,54 @@ class field_RW():
           out = ''
           out = out + '+-------------------------------+\n'
           out = out + '|      Rayleigh Wave Field      |\n'
+          out = out + '+-------------------------------+\n'
           
           out = out + '| Seismic model:                |\n'
           out = out + str(self.seismic)+'\n'
+          out = out + '+-------------------------------+\n'
           
           out = out + ('| X-Y domain:                   |\n')
-          out = out + ('|   x: [%.3f, %.3f], %d elements, dx = %.3f\n'
+          out = out + ('|   x: [%.3f, %.3f] m, %d elements, dx = %.3f\n'
                        % (np.min(self.x), np.max(self.x), self.x.size, np.mean(np.diff(self.x))))
-          out = out + ('|   y: [%.3f, %.3f], %d elements, dy = %.3f\n'
+          out = out + ('|   y: [%.3f, %.3f] m, %d elements, dy = %.3f\n'
                        % (np.min(self.y), np.max(self.y), self.y.size, np.mean(np.diff(self.y))))
           
-          out = out + ('| Z domain / atmospheric model: |\n')
+          out = out + ('| Atmospheric model:            |\n')
           if(not self.atmospheric_model_is_generated):
             out = out + ('|   none (atmospheric model is not defined yet).\n')
           else:
-            out = out + ('|   [%.3f, %.3f] m.\n' % (np.min(self.z), np.max(self.z)))
-            out = out + ('|   z: %d elements, dz = %.3f\n' % (self.z.size, np.mean(np.diff(self.z))))
+            out = out + ('|   z: [%.3f, %.3f] m, %d elements, dz = %.3f\n'
+                         % (np.min(self.z), np.max(self.z), self.z.size, np.mean(np.diff(self.z))))
             if(self.isothermal):
               out = out + ('|   Isothermal model.           |\n')
             else:
               out = out + ('|   User-defined model:         |\n')
-              out = out + ('|     rho: %d elements\n' % (self.rho.size))
+              out = out + ('|     rho:     %d elements (density)\n' % (self.rho.size))
+              out = out + ('|     cpa:     %d elements (sound speed)\n' % (self.rho.size))
+              out = out + ('|     winds_x: %d elements\n' % (self.winds[0].size))
+              out = out + ('|     winds_y: %d elements\n' % (self.winds[1].size))
+              out = out + ('|     bulk:    %d elements\n' % (self.bulk.size))
+              out = out + ('|     shear:   %d elements\n' % (self.shear.size))
+              out = out + ('|     kappa:   %d elements\n' % (self.kappa.size))
+              out = out + ('|     cp:      %d elements (isobaric specific heat capacity)\n' % (self.rho.size))
+              out = out + ('|     gamma:   %d elements\n' % (self.gamma.size))
+              out = out + ('|     H:       %d elements (scale height)\n' % (self.H.size))
+              out = out + ('|     Nsq:     %d elements (Brunt-Väisälä frequency)\n' % (self.rho.size))
+          out = out + '+-------------------------------+\n'
+          
+          out = out + ('| T domain (from IFFT):         |\n')
+          out = out + ('|   t: [%.3f, %.3f] s, %d elements, dx = %.3f\n'
+                       % (np.min(self.t), np.max(self.t), self.t.size, np.mean(np.diff(self.t))))
+          out = out + '+-------------------------------+\n'
+          
+          out = out + ('| Frequency domain:             |\n')
+          out = out + ('|   Omega, KX, KY: %d*%d*%d meshgrid (frequency, x, y)\n'
+                       % self.KX.shape)
+          out = out + ('| Forcing:                      |\n')
+          out = out + ('|   Mo:   %d*%d*%d meshgrid for bottom forcing\n'
+                       % self.Mo.shape)
+          out = out + ('|   TFMo: %d*%d*%d meshgrid for Fourier transform of bottom forcing\n'
+                       % self.Mo.shape)
           out = out + '+-------------------------------+\n'
         
           return(out)
@@ -519,7 +560,8 @@ class field_RW():
                 self.google_colab = Green_RW.google_colab
                 
                 # Define time/spatial domain boundaries
-                mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
+                # mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
+                mult_xSpan, mult_ySpan = 1, 1
                 dt_anal, dx_anal, dy_anal = abs(t[1] - t[0]), dx_in, dy_in
                 xmin, xmax = xbounds[0], xbounds[1]
                 if(dimension > 2):
@@ -702,50 +744,51 @@ class field_RW():
                                 KZ = np.lib.scimath.sqrt( -self.KX**2              + (self.KX**2) * Nsq/(Omega_intrinsic**2) -1./(4.*H**2) \
                                         + (1.+1j*(bulk+(4./3.)*shear+kappa*(gamma-1.)/cp)*Omega_intrinsic/(2.*rho*cpa**2))*(Omega_intrinsic / cpa )**2 )
                 
-                # Exact dispersion equation from Godin, Dissipation of acoustic-gravity waves:An asymptotic approach, 2014
-                else:
+                # Exact dispersion equation from Godin, Dissipation of acoustic-gravity waves:An asymptotic approach, 2014.
+                # This whole section is not used anywhere, we comment it out.
+                # else:
                          
-                        if(self.dimension > 2):
-                                kx, ky, kz, Omega = symbols('kx, ky, kz, Omega')
-                                H_, Nsq_, cpa_, rho_, shear_ = symbols('H, gz, c0, rho0, eta0')
+                #         if(self.dimension > 2):
+                #                 kx, ky, kz, Omega = symbols('kx, ky, kz, Omega')
+                #                 H_, Nsq_, cpa_, rho_, shear_ = symbols('H, gz, c0, rho0, eta0')
                                 
-                                # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
-                                # eq. (9)
-                                KZ_exact = solve( \
-                                        (Omega/cpa_)**2 + (kx**2 + ky**2)*Nsq_/Omega**2 \
-                                        + (1j/( Omega*rho_ )) * ( \
-                                          ( ( 7*(Omega**2)/(3*cpa_**2) - kx**2 - ky**2 - kz**2 -1./(4*H_**2) )*( kx**2 + ky**2 + (kz - 1j/(2*H_))**2 ) )*shear_ \
-                                        + ( ((Omega/cpa_)**2) * ( kx**2 + ky**2 + (kz - 1j/(2*H_))**2 ) )*bulk \
-                                        ) - kx**2 - ky**2 - kz**2 -1./(4*H_**2) \
-                                        , kz)
+                #                 # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
+                #                 # eq. (9)
+                #                 KZ_exact = solve( \
+                #                         (Omega/cpa_)**2 + (kx**2 + ky**2)*Nsq_/Omega**2 \
+                #                         + (1j/( Omega*rho_ )) * ( \
+                #                           ( ( 7*(Omega**2)/(3*cpa_**2) - kx**2 - ky**2 - kz**2 -1./(4*H_**2) )*( kx**2 + ky**2 + (kz - 1j/(2*H_))**2 ) )*shear_ \
+                #                         + ( ((Omega/cpa_)**2) * ( kx**2 + ky**2 + (kz - 1j/(2*H_))**2 ) )*bulk \
+                #                         ) - kx**2 - ky**2 - kz**2 -1./(4*H_**2) \
+                #                         , kz)
                                 
-                                func = lambdify([kx, ky, Omega, H_, Nsq_, cpa_, rho_, shear_], KZ_exact[1].evalf())
+                #                 func = lambdify([kx, ky, Omega, H_, Nsq_, cpa_, rho_, shear_], KZ_exact[1].evalf())
                                 
-                                KZ_ = func(0j+self.KX.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
-                                   0j+self.KY.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
-                                   0j+Omega_intrinsic.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
-                                    H, Nsq, cpa, rho, shear).reshape(\
-                                        Omega_intrinsic.shape[0], Omega_intrinsic.shape[1], Omega_intrinsic.shape[2])
+                #                 KZ_ = func(0j+self.KX.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
+                #                    0j+self.KY.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
+                #                    0j+Omega_intrinsic.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
+                #                     H, Nsq, cpa, rho, shear).reshape(\
+                #                         Omega_intrinsic.shape[0], Omega_intrinsic.shape[1], Omega_intrinsic.shape[2])
                 
-                        else:
-                                kx, kz, Omega = symbols('kx, kz, Omega')
+                #         else:
+                #                 kx, kz, Omega = symbols('kx, kz, Omega')
                                 
-                                # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
-                                # eq. (9)
-                                KZ_exact = solve( \
-                                        (Omega/cpa)**2 + (kx**2)*Nsq/Omega**2 \
-                                        + (1j/( Omega*rho )) * ( \
-                                          ( ( 7*(Omega**2)/(3*cpa**2) - kx**2 - kz**2 -1./(4*H**2) )*( kx**2 + (kz - 1j/(2*H))**2 ) )*shear \
-                                        + ( ((Omega/cpa)**2) * ( kx**2 + ky**2 + (kz - 1j/(2*H))**2 ) )*bulk \
-                                        ) - kx**2 - kz**2 -1./(4*H**2) \
-                                        , kz)
+                #                 # From Godin, Dissipation of acoustic-gravity waves: An asymptotic approach, 2014
+                #                 # eq. (9)
+                #                 KZ_exact = solve( \
+                #                         (Omega/cpa)**2 + (kx**2)*Nsq/Omega**2 \
+                #                         + (1j/( Omega*rho )) * ( \
+                #                           ( ( 7*(Omega**2)/(3*cpa**2) - kx**2 - kz**2 -1./(4*H**2) )*( kx**2 + (kz - 1j/(2*H))**2 ) )*shear \
+                #                         + ( ((Omega/cpa)**2) * ( kx**2 + ky**2 + (kz - 1j/(2*H))**2 ) )*bulk \
+                #                         ) - kx**2 - kz**2 -1./(4*H**2) \
+                #                         , kz)
                                 
-                                func = lambdify([kx,ky,Omega], KZ_exact[1].evalf())
+                #                 func = lambdify([kx,ky,Omega], KZ_exact[1].evalf())
                                 
-                                KZ_ = func(0j+self.KX.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
-                                   0j+self.KY.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
-                                   0j+Omega_intrinsic.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2])).reshape(\
-                                        Omega_intrinsic.shape[0],Omega_intrinsic.shape[1],Omega_intrinsic.shape[2])
+                #                 KZ_ = func(0j+self.KX.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
+                #                    0j+self.KY.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2]), \
+                #                    0j+Omega_intrinsic.reshape(Omega_intrinsic.shape[0]*Omega_intrinsic.shape[1]*Omega_intrinsic.shape[2])).reshape(\
+                #                         Omega_intrinsic.shape[0],Omega_intrinsic.shape[1],Omega_intrinsic.shape[2])
                 
                 # Remove infinite/nan numbers that correspond to zero frequencies
                 KZ   = np.nan_to_num(KZ, 0.)
@@ -1218,7 +1261,6 @@ def plot_surface_forcing(field, t_station, ix, iy, options):
     axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
     
     cbar = plt.colorbar(plotMo, cax=axins)
-    plt.set_cmap('seismic')
     utils.autoAdjustCLim(plotMo)
     
     fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
@@ -1314,7 +1356,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         iz         = station[id_wavefield]['zs']
         iy         = station[id_wavefield]['ys']
         ix         = station[id_wavefield]['xs']
-        type_slice = station[id_wavefield]['type_slice']
+        # type_slice = station[id_wavefield]['type_slice']
         
         # Compute Rayleigh wave surface forcing.
         plot_surface_forcing(field, t_snap, ix, iy, options)
@@ -1323,13 +1365,13 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
         if(field.dimension > 2):
           if(options['COMPUTE_MAPS']):
             print('['+sys._getframe().f_code.co_name+'] '+str(field.dimension)+'D. Compute slices along xz, yz, and xy.')
-            Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp)
-            Mxy, Mz_t_tab      = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'xy', comp)
+            Mxz, Myz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, field.z, 'z', comp)
+            Mxy, Mz_t_tab      = field.compute_field_for_xz(t_snap, ix, iy, iz, field.z, 'xy', comp)
           nb_cols  = 2
         else:
           if(options['COMPUTE_MAPS']):
             print('['+sys._getframe().f_code.co_name+'] '+str(field.dimension)+'D. Compute slice along xz only.')
-            Mxz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, z, 'z', comp) 
+            Mxz, Mz_t_tab = field.compute_field_for_xz(t_snap, ix, iy, iz, field.z, 'z', comp) 
           nb_cols = 1
         
         # Display those maps/slices.
@@ -1354,7 +1396,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             
             iax_col += 1
             
-            plotMxy = axs[iax, iax_col].imshow(np.flipud(np.real(Mxy).T), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            # plotMxy = axs[iax, iax_col].imshow(np.flipud(np.real(Mxy).T), extent=[field.y[0]/1000., field.y[-1]/1000., field.x[0]/1000., field.x[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
             axs[iax, iax_col].scatter(iy/1000., ix/1000., color='red', zorder=2)
             axs[iax, iax_col].set_ylabel('West - East (km)')
             axs[iax, iax_col].yaxis.set_label_position("right")
@@ -1363,14 +1405,14 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
             iax += 1
             iax_col = 0
             
-            plotMxz = axs[iax, iax_col].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
+            plotMxz = axs[iax, iax_col].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., field.z[0]/1000., field.z[-1]/1000.], aspect='auto', vmin=vmin, vmax=vmax)
             axs[iax, iax_col].scatter(ix/1000., iz/1000., color='red', zorder=2)
             axs[iax, iax_col].set_xlabel('West - East (km)')
             axs[iax, iax_col].set_ylabel('Altitude (km)')
             
             iax_col += 1
             
-            plotMyz = axs[iax, iax_col].imshow(np.flipud(np.real(Myz).T), extent=[field.y[0]/1000., field.y[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            plotMyz = axs[iax, iax_col].imshow(np.flipud(np.real(Myz).T), extent=[field.y[0]/1000., field.y[-1]/1000., field.z[0]/1000., field.z[-1]/1000.], aspect='auto')
             axs[iax, iax_col].scatter(iy/1000., iz/1000., color='red', zorder=2)
             axs[iax, iax_col].set_xlabel('South - North (km)')
             axs[iax, iax_col].text(0.5, 0.1, 't = ' + str(t_snap) + 's', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=2.0), transform=axs[iax, iax_col].transAxes)
@@ -1400,7 +1442,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
               utils.align_yaxis_np([axs[iax],ax2])
             
             iax += 1
-            plotMxz = axs[iax].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., z[0]/1000., z[-1]/1000.], aspect='auto')
+            plotMxz = axs[iax].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., field.z[0]/1000., field.z[-1]/1000.], aspect='auto')
             axs[iax].scatter(ix/1000., iz/1000., color='red', zorder=2)
             axs[iax].set_xlabel('Distance from source (km)')
             axs[iax].set_ylabel('Altitude (km)')
