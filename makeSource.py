@@ -37,6 +37,7 @@ def main():
   
   args = parser.parse_args()
   print(args)
+  print(' ')
   
   outputPath = args.output
   # Create directory if it does not exist yet.
