@@ -28,7 +28,8 @@ thisFolder = regexprep(mfilename('fullpath'),mfilename,'');
 cd(thisFolder);
 
 % Input.
-dryrun = 0;
+dryrun = 0; verbose = 0;
+seismicModel = '/Users/lmartire/Documents/software/rw_atmos_leo/models/Ridgecrest_seismic.txt';
 zmax = 30e3; nlay = zmax/100; fminmax = [0.005, 5]; nfreq = 2^8; nkxky = 2^10; nmodes = [0, 20];
 f0 = 2;
 imech = 1; sources(imech) = struct('id',imech,'time',[2020,7,1,12,0,0],'mag',4,'latlon',[30,-90],'depth',8,'strikeDipRake',[159,89,-156]);
@@ -46,7 +47,6 @@ end
 % For now, only one model is needed.
 % If multiple models are required, wrap everything from here in a loop.
 idModel = 1;
-seismicModel = '/Users/lmartire/Documents/software/rw_atmos_leo/models/Ridgecrest_seismic.txt';
 OUT1 = [rootOutput,'/MODEL_',sprintf('%04d', idModel),'/STEP1/'];
 step1 = [' --output ',OUT1,' --seismicModel ', seismicModel, ' --nbLayers ',num2str(nlay),' --zmax ',sprintf('%.6e ', zmax),'', ...
          ' --freqMinMax ',sprintf('%.6e ', fminmax),' --nbFreq ',num2str(nfreq),' --nbKXY ',num2str(nkxky),' --nbModes ',sprintf('%d ', nmodes),''];
@@ -55,12 +55,16 @@ options = [OUT1, 'options_out.pkl']; % name must agree with python script for st
 green = [OUT1, 'Green_RW.pkl']; % name must agree with python script for step 1
 if(not(dryrun) && not(exist(green,'file')))
   % Regenerate Green functions.
-  [status, result] = system(c1);
+  [status, result_c1] = system(c1);
   if(status)
-    warning(result);
+    warning(result_c1);
     error(num2str(status));
   else
-    disp(result);
+    if(verbose)
+      disp(result_c1);
+    else
+      fid=fopen([OUT1,'c1_log.txt'],'w'); fprintf(fid, result_c1); fclose(fid);
+    end
   end
 end
 
@@ -84,20 +88,28 @@ step2 = [' --output ',OUT2,' --options ',options,' --green ', green, ' --sourceI
 c2 = [python, ' ', s2p, step2];
 if(not(dryrun))
   % Generate sources.
-  [status, result] = system(c2_sources);
+  [status, result_c2s] = system(c2_sources);
   if(status)
-    warning(result);
+    warning(result_c2s);
     error(num2str(status));
   else
-    disp(result);
+    if(verbose)
+      disp(result_c2s);
+    else
+      fid=fopen([OUT2,'c2s_log.txt'],'w'); fprintf(fid, result_c2s); fclose(fid);
+    end
   end
   % Generate fields associated to all mechanisms.
-  [status, result] = system(c2);
+  [status, result_c2] = system(c2);
   if(status)
-    warning(result);
+    warning(result_c2);
     error(num2str(status));
   else
-    disp(result);
+    if(verbose)
+      disp(result_c2);
+    else
+      fid=fopen([OUT2,'c2_log.txt'],'w'); fprintf(fid, result_c2); fclose(fid);
+    end
   end
 end
 
@@ -112,12 +124,16 @@ for idSource = 1:numel(sources)
   c3 = [python, ' ', s3p, step3];
   if(not(dryrun))
     % Produce pressure slices.
-    [status, result] = system(c3);
+    [status, result_c3] = system(c3);
     if(status)
-      warning(result);
+      warning(result_c3);
       error(num2str(status));
     else
-      disp(result);
+      if(verbose)
+        disp(result_c3);
+      else
+        fid=fopen([OUT3,'c3_log.txt'],'w'); fprintf(fid, result_c3); fclose(fid);
+      end
     end
     % Concatenate pressure slices under Matlab format for current mechanism.
     concatFilePath = concatDumps(OUT3);
