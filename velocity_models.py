@@ -113,7 +113,8 @@ def construct_local_seismic_model(mechanism_data, options):
 ###############################################################
 ## Create adapted velocity model on both sides of the interface 
 def create_velocity_model(options):
-        print('['+sys._getframe().f_code.co_name+'] Create adapted velocity model, with '+str(options['nb_layers'])+' layers.')
+        print('[%s] Create adapted velocity model, with %d layers between 0 and %.0f m depth.'
+              % (sys._getframe().f_code.co_name, options['nb_layers'], options['zmax']))
         
         ## Definition
         side = {}
