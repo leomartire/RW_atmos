@@ -8,6 +8,7 @@ from pdb import set_trace as bp
 import sys 
 from scipy import interpolate
 from pyrocko import moment_tensor as mtm
+import matplotlib.colors as mcolors
 
 ## Local modules
 import utils
@@ -277,10 +278,7 @@ def read_csv_seismic(model, dimension, loc_source = 50000.):
         
         return temp
         
-def plot_atmosphere_and_seismic(global_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab):
-        
-  import matplotlib.colors as mcolors
-  
+def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab):
   print('['+sys._getframe().f_code.co_name+'] Plot seismic and atmospheric models.')
   
   nb_cols = 3
@@ -348,9 +346,9 @@ def plot_atmosphere_and_seismic(global_folder, seismic, z_atmos, rho, cpa, winds
   iax_row = 0
   unknown = rho/1000.
   try:
-   axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
+    axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
   except:
-   bp()
+    bp()
   axs[iax_row, iax].grid()
   if(unknown.min() < 0.5*unknown.max()):
           axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -389,7 +387,7 @@ def plot_atmosphere_and_seismic(global_folder, seismic, z_atmos, rho, cpa, winds
   fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
   
   if(not google_colab):
-    fname = global_folder+'seismic_and_atmos_profiles.pdf'
+    fname = save_folder+'seismic_and_atmos_profiles.pdf'
     print('['+sys._getframe().f_code.co_name+'] Saved seismic and atmospheric models\' plot to \''+fname+'\'.')
     plt.savefig(fname)
     plt.close('all')
