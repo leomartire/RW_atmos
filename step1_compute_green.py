@@ -55,6 +55,7 @@ def main():
   
   args = parser.parse_args()
   print(args)
+  print(' ')
 
   # Sample path name of the directory created to store data and figures
   output_path               = args.output+'/'
