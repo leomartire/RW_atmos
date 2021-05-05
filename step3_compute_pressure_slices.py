@@ -18,7 +18,7 @@ import RW_atmos
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
   
-  required = parser.add_argument_group('required arguments')
+  required = parser.add_argument_group('REQUIRED ARGUMENTS')
   required.add_argument('--output', required=True,
                       help='Output folder path.')
   required.add_argument('--RWField', required=True,
@@ -30,9 +30,10 @@ def main():
                       type=float, nargs='+', default=[5.0],
                       help='List of times in [s]. Defaults to [5.0].')
   
-  parser.add_argument('--doPlots', type=str2bool, choices=[True, False], default=False,
+  misc = parser.add_argument_group('optional arguments - miscellaneous')
+  misc.add_argument('--doPlots', type=str2bool, choices=[True, False], default=False,
                       help='Do the plots? Defaults to False.')
-  parser.add_argument('--doDumps', type=str2bool, choices=[True, False], default=True,
+  misc.add_argument('--doDumps', type=str2bool, choices=[True, False], default=True,
                       help='Do the dumps? Defaults to True.')
   
   args = parser.parse_args()

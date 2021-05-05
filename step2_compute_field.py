@@ -5,6 +5,7 @@ Created on Tue May  4 12:54:45 2021
 
 @author: lmartire
 """
+
 from obspy.core.utcdatetime import UTCDateTime
 from utils import pickleLoad, pickleDump, str2bool
 import mechanisms as mod_mechanisms
@@ -18,15 +19,22 @@ import velocity_models
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
   
-  required = parser.add_argument_group('required arguments')
+  required = parser.add_argument_group('REQUIRED ARGUMENTS')
   required.add_argument('--output', required=True,
                       help='Output folder path.')
   required.add_argument('--options', required=True,
                       help='Path to last set of options Pickle.')
   required.add_argument('--green', required=True,
                       help='Path to Green functions'' object Pickle.')
+  required.add_argument('--sourceIDs', required=True, type=int, nargs='+',
+                      help='IDs of the sources to be imported. Must match files under format ''source_#####_in.pkl'' in the chosen output folder path, generated using the script ''makeSource.py''.')
+  required.add_argument('--latminlatmaxlonminlonmax', required=True, type=float, nargs=4,
+                      help='Min/Max latitude/longitude, regardless of the source mechanism (lat_min, lat_max, lon_min, lon_max).')
+  required.add_argument('--f0', required=True, type=float,
+                      help='Dominant frequency of the source in [Hz], regardless of the source mechanism.')
   
-  parser.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
+  misc = parser.add_argument_group('optional arguments - miscellaneous')
+  misc.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
                       help='Overwrite output folder path? Defaults to True.')
   
   args = parser.parse_args()
@@ -38,6 +46,7 @@ def main():
   
   optionsStep1Path = args.options
   GreenRWPath = args.green
+  sourceIDs = args.sourceIDs
   
   options_step2 = {}
   # HERE LOAD NEW OPTIONS FROM ARGS.
@@ -51,28 +60,31 @@ def main():
   options_source = {}
   options_source['stf-data'] = [] # file where stf is located
   options_source['stf']      = 'gaussian' # gaussian or erf
-  options_source['f0']       = 2. # dominant freuqency (Hz)
-  options_source['lat_min']  = 35. 
-  options_source['lat_max']  = 36.
-  options_source['lon_min']  = -118.
-  options_source['lon_max']  = -117.
+  options_source['f0']       = args.f0 # dominant freuqency (Hz)
+  options_source['lat_min']  = min(args.latminlatmaxlonminlonmax[:2])
+  options_source['lat_max']  = max(args.latminlatmaxlonminlonmax[:2])
+  options_source['lon_min']  = min(args.latminlatmaxlonminlonmax[2:])
+  options_source['lon_max']  = max(args.latminlatmaxlonminlonmax[2:])
   
   # Load sources from Earthquake catalog or build custom source
   options_source['DIRECTORY_MECHANISMS'] = []
   options_source['sources'] = []
-  source_characteristics = { # example of custom source
-      'id': 0,
-      'time': UTCDateTime(2019, 8, 9, 0, 9, 57),
-      'mag': 2.98,
-      'lat': 35.895,
-      'lon': -117.679,
-      'depth': 4.1, #km
-      'strike': 159,
-      'dip': 89,
-      'rake': -156,
-  }
-  options_source['sources'].append( source_characteristics )
-  list_of_events = [0] # list of event to compute, leave empty if you want all    
+  for i in sourceIDs:
+    sourceFileToImport = (output_path+'source_%05d_in.pkl' % (i))
+    source_characteristics = pickleLoad(sourceFileToImport)
+    # source_characteristics = { # example of custom source
+    #     'id': 0,
+    #     'time': UTCDateTime(2019, 8, 9, 0, 9, 57),
+    #     'mag': 2.98,
+    #     'lat': 35.895,
+    #     'lon': -117.679,
+    #     'depth': 4.1, #km
+    #     'strike': 159,
+    #     'dip': 89,
+    #     'rake': -156,
+    # }
+    options_source['sources'].append( source_characteristics )
+  list_of_events = sourceIDs # list of event to compute, leave empty if you want all    
   options_source['add_SAC'] = False # Wheter or not add real station locations downloaded from IRIS within the domain
                                     # boundaries defined in options_source['lat_min'], options_source['lat_max'], ...
   
@@ -81,13 +93,13 @@ def main():
   # options_IRIS['network'] = 'CI,NN,GS,SN,PB,ZY' # Only if need to download stations.
   # options_IRIS['channel'] = 'HHZ,HNZ,DPZ,BNZ,BHZ,ENZ,EHZ' # Only if need to download stations.
   options_IRIS['stations'] = {}
-  i=0
-  options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=0., y=-50.0e3, z=0., comp='p', name='station', id=i); i+=1;
+  # i=0
+  # options_IRIS['stations'][i] = mod_mechanisms.create_one_station(x=0., y=-50.0e3, z=0., comp='p', name='station', id=i); i+=1;
   
   # ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
   options_source['coef_high_freq'] = options['coef_high_freq']
   options_source['nb_kxy']   = options['nb_kxy']
-  options_source['t_chosen'] = options['t_chosen']
+  # options_source['t_chosen'] = options['t_chosen']
   options_source['activate_LA'] = False # Only relevant for Ridgecrest study
   options_source['rotation'] = False
   
