@@ -2,27 +2,124 @@ clear all;
 close all;
 clc;
 
-OUT1 = './OUTPUT_STEP1/';
-seismicModel = '/Users/lmartire/Documents/software/rw_atmos_leo/models/Ridgecrest_seismic.txt';
+% Step 1 computes and saves the Green functions.
+%        INP: one ground model
+%        OUT: one Green functions file
+% Step 2 computes and saves a Rayleigh wave field.
+%        INP: one Green functions file
+%             a set of source mechanisms (currently only supports one)
+%        OUT: one Rayleigh wave field file
+% Step 3 computes pressure slices and Rayleigh wave ground motion.
+%        INP: one Rayleigh wave field file
+%             a set of altitudes and times
+%        OUT: pressure slices at every (altitude, time)
+%             Rayleigh wave ground motion at every time
 
-OUT2 = './OUTPUT_STEP2/';
-options = [OUT1, 'options_out.pkl']; % must agree with python script for step 1
-green = [OUT1, 'Green_RW.pkl']; % must agree with python script for step 1
-
-imech = 0;
-OUT3 = [OUT2,'mechanism_',sprintf('%05d', imech),filesep]; % must agree with python script for step 2
-field = [OUT3,'RW_field.pkl']; % must agree with python script for step 2
-alts = [20]*1e3;
-times = [24];
-doPlots = 0;
-doDumps = 1;
-
-step1 = ['./step1_compute_green.py --output ',OUT1,' --seismicModel ', seismicModel];
-step2 = ['./step2_compute_field.py --output ',OUT2,' --options ',options,' --green ', green];
-step3 = ['./step3_compute_pressure_slices.py --output ',OUT3,' --RWField ',field,' --altitudes ',sprintf('%.3f ', alts),' --times ',sprintf('%.3f ', times),' --doPlots ',num2str(doPlots),' --doDumps ',num2str(doDumps)];
-
+% Parameters.
 python = ['/usr/local/bin/python3'];
+rwatmosroot = ['/Users/lmartire/Documents/software/rw_atmos_leo/'];
+s1p = [rwatmosroot, 'step1_compute_green.py'];
+s2p = [rwatmosroot, 'step2_compute_field.py'];
+s2p_source = [rwatmosroot, 'makeSource.py'];
+s3p = [rwatmosroot, 'step3_compute_pressure_slices.py'];
 
-c1 = [python, ' ', step1];
-c2 = [python, ' ', step2];
-c3 = [python, ' ', step3];
+% Move to this folder.
+thisFolder = regexprep(mfilename('fullpath'),mfilename,'');
+cd(thisFolder);
+
+% Input.
+dryrun = 0;
+zmax = 30e3; nlay = zmax/100; fminmax = [0.005, 5]; nfreq = 2^8; nkxky = 2^10; nmodes = [0, 20];
+f0 = 2;
+imech = 1; sources(imech) = struct('id',imech,'time',[2020,7,1,12,0,0],'mag',4,'latlon',[30,-90],'depth',8,'strikeDipRake',[159,89,-156]);
+latminlatmaxlonminlonmax = [25, 35, -85, -95];
+slice_alts = [20]*1e3; slice_tims = [24]; slice_doPlots = 0; slice_doDumps = 1;
+rootOutput = ['/Users/lmartire/Documents/software/rw_atmos_leo/ALL_OUTPUTS/'];
+
+% Check input.
+dx = max(range(latminlatmaxlonminlonmax(1:2)), range(latminlatmaxlonminlonmax(3:4))) * 111 / nkxky;
+if(dx > 1)
+  warning(['[',mfilename,', WARNING] Dx will be greater than ',sprintf('%.3f', dx),' km. Consider increasing dkxky to avoid aliasing. 2^',num2str(nextpow2(dx*nkxky/.5)),' will ensure something close to 500 m.']);
+end
+
+% Prepare Green functions for each model.
+% For now, only one model is needed.
+% If multiple models are required, wrap everything from here in a loop.
+idModel = 1;
+seismicModel = '/Users/lmartire/Documents/software/rw_atmos_leo/models/Ridgecrest_seismic.txt';
+OUT1 = [rootOutput,'/MODEL_',sprintf('%04d', idModel),'/STEP1/'];
+step1 = [' --output ',OUT1,' --seismicModel ', seismicModel, ' --nbLayers ',num2str(nlay),' --zmax ',sprintf('%.6e ', zmax),'', ...
+         ' --freqMinMax ',sprintf('%.6e ', fminmax),' --nbFreq ',num2str(nfreq),' --nbKXY ',num2str(nkxky),' --nbModes ',sprintf('%d ', nmodes),''];
+c1 = [python, ' ', s1p, step1];
+options = [OUT1, 'options_out.pkl']; % name must agree with python script for step 1
+green = [OUT1, 'Green_RW.pkl']; % name must agree with python script for step 1
+if(not(dryrun) && not(exist(green,'file')))
+  % Regenerate Green functions.
+  [status, result] = system(c1);
+  if(status)
+    warning(result);
+    error(num2str(status));
+  else
+    disp(result);
+  end
+end
+
+disp('********************************');
+disp('********************************');
+
+% Create field for each source.
+OUT2 = [rootOutput,'/MODEL_',sprintf('%04d', idModel),'/STEP2/'];
+c2_sources = '';
+for idSource = 1:numel(sources)
+  % Produce a small source file for each wanted source.
+  OUT_SOURCE = [OUT2,'source_',sprintf('%05d', idSource-1),'_in.pkl'];
+  step2_sources = [' --output ',OUT_SOURCE,' --id ',num2str(sources(idSource).id-1),...
+                   ' --time ',sprintf('%d ', sources(idSource).time),' --mag ',sprintf('%.6f', sources(idSource).mag),...
+                   ' --latlon ',sprintf('%.6f ', sources(idSource).latlon),' --depth ',sprintf('%.6f', sources(idSource).depth),...
+                   ' --strikeDipRake ',sprintf('%.6f ', sources(idSource).strikeDipRake),''];
+  c2_sources = [c2_sources, python, ' ', s2p_source, step2_sources, ';'];
+end
+step2 = [' --output ',OUT2,' --options ',options,' --green ', green, ' --sourceIDs ',sprintf('%d ', (1:numel(sources))-1),...
+         ' --latminlatmaxlonminlonmax ',sprintf('%.6f ', latminlatmaxlonminlonmax),' --f0 ',sprintf('%.6f', f0),''];
+c2 = [python, ' ', s2p, step2];
+if(not(dryrun))
+  % Generate sources.
+  [status, result] = system(c2_sources);
+  if(status)
+    warning(result);
+    error(num2str(status));
+  else
+    disp(result);
+  end
+  % Generate fields associated to all mechanisms.
+  [status, result] = system(c2);
+  if(status)
+    warning(result);
+    error(num2str(status));
+  else
+    disp(result);
+  end
+end
+
+disp('********************************');
+disp('********************************');
+
+% Produce pressure slices for each source.
+for idSource = 1:numel(sources)
+  OUT3 = [OUT2,'mechanism_',sprintf('%05d', idSource-1),filesep]; % name must agree with python script for step 2
+  field = [OUT3,'RW_field.pkl']; % name must agree with python script for step 2
+  step3 = [' --output ',OUT3,' --RWField ',field,' --altitudes ',sprintf('%.3f ', slice_alts),' --times ',sprintf('%.3f ', slice_tims),' --doPlots ',num2str(slice_doPlots),' --doDumps ',num2str(slice_doDumps)];
+  c3 = [python, ' ', s3p, step3];
+  if(not(dryrun))
+    % Produce pressure slices.
+    [status, result] = system(c3);
+    if(status)
+      warning(result);
+      error(num2str(status));
+    else
+      disp(result);
+    end
+    % Concatenate pressure slices under Matlab format for current mechanism.
+    concatFilePath = concatDumps(OUT3);
+  end
+end
