@@ -106,7 +106,7 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     
     # Add a safety margin.
     factor = 0 # Margin in number of elements to be added to either side of the domain.
-    dshift = 15000. # Margin in m to be added to either side of the domain.
+    dshift = 0. # Margin in m to be added to either side of the domain.
     xmin, xmax = lon_min - factor*dy - dshift, lon_max + factor*dy + dshift
     ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
     # zmax = 30000.
