@@ -6,15 +6,53 @@ Created on Tue May  4 12:54:45 2021
 @author: lmartire
 """
 
-from obspy.core.utcdatetime import UTCDateTime
-from utils import pickleLoad, pickleDump, str2bool
+# from obspy.core.utcdatetime import UTCDateTime
+from utils import pickleLoad, pickleDump
 import mechanisms as mod_mechanisms
-import shutil
+# import shutil
 import argparse
 import os
 import sys
 import RW_atmos
 import velocity_models
+# import multiprocessing as mp
+from multiprocessing.pool import ThreadPool as Pool
+
+useMultiProc = True
+
+def worker(output_path, GreenRWPath, options, mechanisms_data, i, param_atmos):
+  if((not useMultiProc) or (useMultiProc and i==0)):
+    verbose = True
+  else:
+    verbose = False
+  
+  # Select mechanism and transform into dictionnary (more practical for further use).
+  mechanism_ = mechanisms_data.loc[i]
+  mechanism = {}
+  keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'STRIKE', 'DIP', 'RAKE', 'phi', 'station_tab', 'mt', 'domain']
+  for key in keys_mechanism:
+    mechanism[key] = mechanism_[key]
+  
+  # Load raw Green functions.
+  if(verbose): print('[%s] Load raw Green functions anew (overwrite any previous mechanism).' % (sys._getframe().f_code.co_name))
+  Green_RW = pickleLoad(GreenRWPath)
+  
+  # Set the current working folder.
+  options['global_folder'] = (output_path+'mechanism_%05d/' % (i))
+  Green_RW.set_global_folder(options['global_folder'])
+  if(not os.path.isdir(Green_RW.global_folder)):
+    os.makedirs(Green_RW.global_folder)
+  
+  # Compute Rayleigh wave field.
+  if(verbose): print('[%s] Update Green functions with chosen focal mechanism (current mechanism ID = %d).' % (sys._getframe().f_code.co_name, i))
+  Green_RW.update_mechanism(mechanism)
+  if(verbose): print('[%s] Create the Rayleigh wave field.' % (sys._getframe().f_code.co_name))
+  RW_field = RW_atmos.create_RW_field(Green_RW, mechanism['domain'], param_atmos, options, verbose=verbose)
+  
+  # Store outputs.
+  pickleDump(Green_RW.global_folder+'RW_field.pkl', RW_field)
+  
+  return(RW_field)
 
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
@@ -33,9 +71,9 @@ def main():
   required.add_argument('--f0', required=True, type=float,
                       help='Dominant frequency of the source in [Hz], regardless of the source mechanism.')
   
-  misc = parser.add_argument_group('optional arguments - miscellaneous')
-  misc.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
-                      help='Overwrite output folder path? Defaults to True.')
+  # misc = parser.add_argument_group('optional arguments - miscellaneous')
+  # misc.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
+  #                     help='Overwrite output folder path? Defaults to True.')
   
   args = parser.parse_args()
   print(args)
@@ -43,7 +81,7 @@ def main():
 
   # Sample path name of the directory created to store data and figures
   output_path               = args.output+'/'
-  forceOverwrite            = args.outputOverwrite
+  # forceOverwrite            = args.outputOverwrite
   
   optionsStep1Path = args.options
   GreenRWPath = args.green
@@ -107,13 +145,8 @@ def main():
   options_balloon = {}
   
   # Check output path is free, make it if necessary.
-  if(os.path.isdir(output_path)):
-    if(forceOverwrite):
-      shutil.rmtree(output_path)
-      print('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_path+'\' existed and has been deleted, as required by script.')
-    else:
-      sys.exit('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_path+'\' exists, and script is not set to overwrite. Rename or delete it before running again.')
-  os.makedirs(output_path)
+  if(not os.path.isdir(output_path)):
+    os.makedirs(output_path)
   
   # Prepare source mechanism and domain.
   mechanisms_data = mod_mechanisms.load_source_mechanism_IRIS(options_source, options_IRIS, dimension=options['dimension'], 
@@ -132,33 +165,21 @@ def main():
   # Generate atmospheric model (assume it is the same for all mechanisms).
   param_atmos = velocity_models.generate_default_atmos()
   
-  # Loop on mechanisms.
-  for i in range(len(mechanisms_data)):
-    # Select mechanism and transform into dictionnary (more practical for further use).
-    mechanism_ = mechanisms_data.loc[i]
-    mechanism = {}
-    keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'STRIKE', 'DIP', 'RAKE', 'phi', 'station_tab', 'mt', 'domain']
-    for key in keys_mechanism:
-      mechanism[key] = mechanism_[key]
-    
-    # Load raw Green functions.
-    print('[%s] Load raw Green functions anew (overwrite any previous mechanism).' % (sys._getframe().f_code.co_name))
-    Green_RW = pickleLoad(GreenRWPath)
-    
-    # Set the current working folder.
-    options['global_folder'] = (output_path+'mechanism_%05d/' % (i))
-    Green_RW.set_global_folder(options['global_folder'])
-    if(not os.path.isdir(Green_RW.global_folder)):
-      os.makedirs(Green_RW.global_folder)
-    
-    # Compute Rayleigh wave field.
-    print('[%s] Update Green functions with chosen focal mechanism (current mechanism ID = %d).' % (sys._getframe().f_code.co_name, i))
-    Green_RW.update_mechanism(mechanism)
-    print('[%s] Create the Rayleigh wave field.' % (sys._getframe().f_code.co_name))
-    RW_field = RW_atmos.create_RW_field(Green_RW, mechanism['domain'], param_atmos, options)
-    
-    # Store outputs.
-    pickleDump(Green_RW.global_folder+'RW_field.pkl', RW_field)
+  if(useMultiProc):
+    pool = Pool(min([len(mechanisms_data), 16]))
+    for i in range(len(mechanisms_data)):
+      result = pool.apply_async(worker, (output_path, GreenRWPath, options, mechanisms_data, i, param_atmos, ))
+    pool.close()
+    pool.join()
+    field = result.get() # Gets last returned process.
+  else:
+    for i in range(len(mechanisms_data)):
+      field = worker(output_path, GreenRWPath, options, mechanisms_data, i, param_atmos)
+  
+  # Plot model only once, and for last computed field. Makes sense because param_atmos is defined outside the loop.
+  velocity_models.plot_atmosphere_and_seismic(output_path, field.seismic, field.z, 
+                                              field.rho, field.cpa, field.winds, field.H, 
+                                              field.isothermal, field.dimension, field.google_colab)
 
 if __name__ == '__main__':
   main()
