@@ -70,39 +70,43 @@ def transform_domain_power2(xmin_in, xmax_in, dx):
     
     return xmin_, xmax_, dx_    
 
-def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lon_min_in_, dimension, dchosen = 50):
-        
+def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lon_min_in_, dimension, nkxky = 2**6):
     lat_max_in = lat_max_in_
     lat_min_in = lat_min_in_
-    if(abs(lat_min_in-lat_max_in) < 1e-3):
-            lat_min_in -= 0.1
     lon_max_in = lon_max_in_
     lon_min_in = lon_min_in_
-    if(abs(lon_min_in-lon_max_in) < 1e-3):
-            lon_min_in -= 0.1
+    # # Check input.
+    # if(abs(lat_min_in-lat_max_in) < 1e-3):
+    #   # If range is too small, lower lower bound.
+    #   lat_min_in -= 0.1
+    # if(abs(lon_min_in-lon_max_in) < 1e-3):
+    #   # If range is too small, lower lower bound.
+    #   lon_min_in -= 0.1
+    # Check input.
+    diff_y = abs(lat_max_in_ - lat_min_in_)
+    diff_x = abs(lon_max_in_ - lon_min_in_)
+    if diff_y < 0.25:
+      # If range is too small, increase symmetrically.
+      lat_max_in = lat_max_in_ + diff_y/2.
+      lat_min_in = lat_min_in_ - diff_y/2.
+    if diff_x < 0.25:
+      # If range is too small, increase symmetrically.
+      lon_max_in = lon_max_in_ + diff_x/2.
+      lon_min_in = lon_min_in_ - diff_x/2.
     
-    factor = 0
-    dshift = 15000.
-    #dchosen = 80
-    
-    diff = abs(lat_max_in_ - lat_min_in_)
-    if diff < 0.25:
-            lat_max_in = lat_max_in_ + diff/2.
-            lat_min_in = lat_min_in_ - diff/2.
-            
-    diff = abs(lon_max_in_ - lon_min_in_)
-    if diff < 0.25:
-            lon_max_in = lon_max_in_ + diff/2.
-            lon_min_in = lon_min_in_ - diff/2.
-            
     # dlon, dlat = abs(lon_max_in-lon_min_in)/dchosen, abs(lat_max_in-lat_min_in)/dchosen
 
+    # Cast lat/lon_min/max in meters relative to source.
     lat_max, lat_min = degrees2kilometers(lat_max_in)*1000., degrees2kilometers(lat_min_in)*1000.
     lon_max, lon_min = degrees2kilometers(lon_max_in)*1000., degrees2kilometers(lon_min_in)*1000.
 
+    # Compute dx dy as from chosen nkxky.
     # dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.
-    dx, dy = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen
-
+    dx, dy = abs(lon_max-lon_min)/nkxky, abs(lat_max-lat_min)/nkxky
+    
+    # Add a safety margin.
+    factor = 0 # Margin in number of elements to be added to either side of the domain.
+    dshift = 15000. # Margin in m to be added to either side of the domain.
     xmin, xmax = lon_min - factor*dy - dshift, lon_max + factor*dy + dshift
     ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
     # zmax = 30000.
@@ -132,7 +136,7 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
                     ymin -= yy[loc_]
     
     ## OLD before Jul 13 2020
-    dx, dy = abs(xmax-xmin)/dchosen, abs(ymax-ymin)/dchosen
+    dx, dy = abs(xmax-xmin)/nkxky, abs(ymax-ymin)/nkxky
     
     domain = {}
     domain.update( {'origin': (lat_source, lon_source)} )
@@ -156,26 +160,26 @@ def compute_coordinate_USE(distances):
     
     return x, y
 
-def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame()):
+def add_source_parameters(mechanism, options_source, dimension, data_GPS=pd.DataFrame()):
 
-    print('['+sys._getframe().f_code.co_name+'] Loading source and stations for event '+str(x['EVID'])+'.')
+    print('['+sys._getframe().f_code.co_name+'] Defining source and domain for event '+str(mechanism['EVID'])+'.')
 
-    x['stf']      = options_source['stf'] # gaussian or erf
-    x['stf-data'] = options_source['stf-data'] # gaussian or erf
-    x['zsource'] = x['DEPTH']*1000.
-    x['f0']      = options_source['f0'] # 0.4
-    x['M0']      = 1e0
-    type_mag     = x['M']
+    mechanism['stf']      = options_source['stf'] # gaussian or erf
+    mechanism['stf-data'] = options_source['stf-data'] # gaussian or erf
+    mechanism['zsource'] = mechanism['DEPTH']*1000.
+    mechanism['f0']      = options_source['f0'] # 0.4
+    mechanism['M0']      = 1e0
+    type_mag     = mechanism['M']
     
-    mw = x['MAG'] if type_mag == 'w' else (2./3.)*x['MAG'] + 1.15
+    mw = mechanism['MAG'] if type_mag == 'w' else (2./3.)*mechanism['MAG'] + 1.15
     m0 = mtm.magnitude_to_moment(mw)  # convert the mag to moment
-    strike, dip, rake = x['STRIKE'], x['DIP'], x['RAKE']
+    strike, dip, rake = mechanism['STRIKE'], mechanism['DIP'], mechanism['RAKE']
     mt = mtm.MomentTensor(strike=strike, dip=dip, rake=rake, scalar_moment=m0)
     
-    x['startdate'] = UTCDateTime(x['#YYY/MM/DD'].replace('/','-') + 'T' + x['HH:mm:SS.ss'])
+    mechanism['startdate'] = UTCDateTime(mechanism['#YYY/MM/DD'].replace('/','-') + 'T' + mechanism['HH:mm:SS.ss'])
     
-    #x['balloon'] = {}
-    x['balloons'] = {}
+    #mechanism['balloon'] = {}
+    mechanism['balloons'] = {}
     any_balloon = False
     lat_max, lat_min = -190, 190
     lon_max, lon_min = -190, 190
@@ -185,56 +189,56 @@ def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame())
             sub_df = data_GPS.loc[ data_GPS['name'] == name_balloon, : ]
     
             balloon = True
-            if(sub_df['startdate'].iloc[0]>x['startdate'] or sub_df['startdate'].iloc[-1]<x['startdate']):
+            if(sub_df['startdate'].iloc[0]>mechanism['startdate'] or sub_df['startdate'].iloc[-1]<mechanism['startdate']):
                     balloon = False
             
-            #x['balloon'].update( {name_balloon: balloon} )
+            #mechanism['balloon'].update( {name_balloon: balloon} )
             
             if(not balloon):
                     continue
     
             any_balloon = True
-            loc_time = np.argmin(abs(sub_df['startdate']-x['startdate']).values)
-            x['balloons'].update( {name_balloon: {'azimuth':gps2dist_azimuth(x['LAT'], x['LON'], sub_df.iloc[loc_time]['Lat'], sub_df.iloc[loc_time]['Lon']), 'balloon': sub_df.iloc[loc_time] }} )
+            loc_time = np.argmin(abs(sub_df['startdate']-mechanism['startdate']).values)
+            mechanism['balloons'].update( {name_balloon: {'azimuth':gps2dist_azimuth(mechanism['LAT'], mechanism['LON'], sub_df.iloc[loc_time]['Lat'], sub_df.iloc[loc_time]['Lon']), 'balloon': sub_df.iloc[loc_time] }} )
             
             if(options_source['rotation']):
                     if name_balloon == options_source['rotation-towards']:
-                            #lat_max = (sub_df.iloc[loc_time]['Lat'] - x['LAT'])
-                            #lat_min = (sub_df.iloc[loc_time]['Lat'] - x['LAT'])
-                            londiff, latdiff = (sub_df.iloc[loc_time]['Lon'] - x['LON']), (sub_df.iloc[loc_time]['Lat'] - x['LAT'])
+                            #lat_max = (sub_df.iloc[loc_time]['Lat'] - mechanism['LAT'])
+                            #lat_min = (sub_df.iloc[loc_time]['Lat'] - mechanism['LAT'])
+                            londiff, latdiff = (sub_df.iloc[loc_time]['Lon'] - mechanism['LON']), (sub_df.iloc[loc_time]['Lat'] - mechanism['LAT'])
                             lon_max = max( lon_max, np.sqrt(londiff**2 + latdiff**2) )
                             lon_min = min( lon_min, np.sqrt(londiff**2 + latdiff**2) )
             else:
-                    lat_max = max( lat_max, (sub_df.iloc[loc_time]['Lat'] - x['LAT']) )
-                    lat_min = min( lat_min, (sub_df.iloc[loc_time]['Lat'] - x['LAT']) )
-                    lon_max = max( lon_max, (sub_df.iloc[loc_time]['Lon'] - x['LON']) )
-                    lon_min = min( lon_min, (sub_df.iloc[loc_time]['Lon'] - x['LON']) )
+                    lat_max = max( lat_max, (sub_df.iloc[loc_time]['Lat'] - mechanism['LAT']) )
+                    lat_min = min( lat_min, (sub_df.iloc[loc_time]['Lat'] - mechanism['LAT']) )
+                    lon_max = max( lon_max, (sub_df.iloc[loc_time]['Lon'] - mechanism['LON']) )
+                    lon_min = min( lon_min, (sub_df.iloc[loc_time]['Lon'] - mechanism['LON']) )
 
-    x['any_balloon'] = any_balloon
-    x['station_tab'] = {}
-    x['M']   = []
-    x['phi'] = 0.
+    mechanism['any_balloon'] = any_balloon
+    mechanism['station_tab'] = {}
+    mechanism['M']   = []
+    mechanism['phi'] = 0.
     ## Create balloon stations
     if(any_balloon):
     
-            keys = [ikey for ikey in x['balloons'].keys()]
-            azimuth_balloon = x['balloons'][keys[0]]['azimuth'][1]
+            keys = [ikey for ikey in mechanism['balloons'].keys()]
+            azimuth_balloon = mechanism['balloons'][keys[0]]['azimuth'][1]
             if(options_source['rotation']):
                     key_balloon = options_source['rotation-towards']
-                    azimuth_balloon = x['balloons'][key_balloon]['azimuth'][1]
+                    azimuth_balloon = mechanism['balloons'][key_balloon]['azimuth'][1]
                     mt = mt.rotated(rotation_from_angle_and_axis(90-azimuth_balloon, [0,0,1])  )
             
             if options_source['activate_LA']:
-                    x['LAT'], x['LON'] = 34.066, -119.3983
+                    mechanism['LAT'], mechanism['LON'] = 34.066, -119.3983
             
             id_in = 0
             if(options_source['rotation']):
-                    stat_loc, id_in  = create_stations(x['balloons'][key_balloon]['azimuth'][0], 0., x['balloons'][key_balloon]['balloon']['Alt'], key_balloon, id_in, t_chosen = options_source['t_chosen'], balloon=True)
+                    stat_loc, id_in  = create_stations(mechanism['balloons'][key_balloon]['azimuth'][0], 0., mechanism['balloons'][key_balloon]['balloon']['Alt'], key_balloon, id_in, t_chosen = options_source['t_chosen'], balloon=True)
             else:
-                    x_, y_ = compute_coordinate_USE(x['balloons'][keys[0]]['azimuth'])
-                    stat_loc, id_in  = create_stations(x_, y_, x['balloons'][keys[0]]['balloon']['Alt'], keys[0], id_in, t_chosen = options_source['t_chosen'], balloon=True)
+                    x_, y_ = compute_coordinate_USE(mechanism['balloons'][keys[0]]['azimuth'])
+                    stat_loc, id_in  = create_stations(x_, y_, mechanism['balloons'][keys[0]]['balloon']['Alt'], keys[0], id_in, t_chosen = options_source['t_chosen'], balloon=True)
                     
-            x['station_tab'].update( stat_loc )
+            mechanism['station_tab'].update( stat_loc )
             
             for idballoon, balloon in enumerate(keys):
             
@@ -246,52 +250,51 @@ def add_source_parameters(x, options_source, dimension, data_GPS=pd.DataFrame())
                                     continue
             
                     if(options_source['rotation']):
-                            distance = x['balloons'][balloon]['azimuth'][0]
-                            azimuth  = x['balloons'][balloon]['azimuth'][1]
+                            distance = mechanism['balloons'][balloon]['azimuth'][0]
+                            azimuth  = mechanism['balloons'][balloon]['azimuth'][1]
                             azimuth_rotation = (azimuth_balloon-azimuth) * np.pi / 180.
                             x_, y_ = distance*np.cos(azimuth_rotation), distance*np.sin(azimuth_rotation)
                             
                     else:
-                            x_, y_ = compute_coordinate_USE(x['balloons'][balloon]['azimuth'])
+                            x_, y_ = compute_coordinate_USE(mechanism['balloons'][balloon]['azimuth'])
                     
-                    stat_loc, id_in  = create_stations(x_, y_, x['balloons'][balloon]['balloon']['Alt'], balloon, id_in, t_chosen = options_source['t_chosen'], balloon=True)
-                    x['station_tab'].update( stat_loc )
+                    stat_loc, id_in  = create_stations(x_, y_, mechanism['balloons'][balloon]['balloon']['Alt'], balloon, id_in, t_chosen = options_source['t_chosen'], balloon=True)
+                    mechanism['station_tab'].update( stat_loc )
                  
     else:
-        lat_max, lat_min = options_source['lat_max']-x['LAT'], options_source['lat_min']-x['LAT']
-        lon_max, lon_min = options_source['lon_max']-x['LON'], options_source['lon_min']-x['LON']
+        # Cast lat/lon_min/max in degrees relative to source.
+        lat_max, lat_min = options_source['lat_max']-mechanism['LAT'], options_source['lat_min']-mechanism['LAT']
+        lon_max, lon_min = options_source['lon_max']-mechanism['LON'], options_source['lon_min']-mechanism['LON']
 
     ## Add mechanism to DataFrame
-    x['mt'] = mt
-    x['M']  = mt.m6_up_south_east()
-    x['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
+    mechanism['mt'] = mt
+    mechanism['M']  = mt.m6_up_south_east()
+    mechanism['M'] /= 1.e15 # Convert N.m = m^2.kg/s^2 to right unit (everything is in km and g/cm^3)
             
     ## Determine domain boundaries   
-    dchosen = options_source['nb_kxy']
-    x['domain'] = get_domain(x['LAT'], x['LON'], lat_max, lat_min, lon_max, lon_min, dimension, dchosen = dchosen)
-    #print('nbkxy: ', abs( x['domain']['xmax'] - x['domain']['xmin'] )/x['domain']['dx'])
+    nkxky = options_source['nb_kxy']
+    mechanism['domain'] = get_domain(mechanism['LAT'], mechanism['LON'], lat_max, lat_min, lon_max, lon_min, dimension, nkxky = nkxky)
+    #print('nbkxy: ', abs( mechanism['domain']['xmax'] - mechanism['domain']['xmin'] )/mechanism['domain']['dx'])
     
     
     ## If domain too large we have to reduce the high frequency bound otherwise aliasing
-    dist_x = abs( x['domain']['xmax'] - x['domain']['xmin'] )
-    dist_y = abs( x['domain']['ymax'] - x['domain']['ymin'] )
+    dist_x = abs( mechanism['domain']['xmax'] - mechanism['domain']['xmin'] )
+    dist_y = abs( mechanism['domain']['ymax'] - mechanism['domain']['ymin'] )
     
     ## Ugly hack to update frequency range if propagation path too long
     if data_GPS.size > 0:
         if (dist_x/1000. >= 100. or dist_y/1000. >= 100.) and sub_df.iloc[loc_time]['Alt']/1000. > 10.:
-            x['coef_high_freq'] = 3.5
+            mechanism['coef_high_freq'] = 3.5
         else:
-            x['coef_high_freq'] = 5.
+            mechanism['coef_high_freq'] = 5.
             
     ## Changed on 2/1/2021
-    x['coef_high_freq'] = options_source['coef_high_freq']
+    mechanism['coef_high_freq'] = options_source['coef_high_freq']
 
-    return x
+    return(mechanism)
 
 def compute_time(x, startdate):
-
     x['startdate'] = UTCDateTime(startdate) + x['GPSTime(s)']
-    
     return x
 
 def compute_SAC(x, client, rotation, t_chosen, add_SAC, options_IRIS):
