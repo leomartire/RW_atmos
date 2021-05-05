@@ -166,6 +166,10 @@ def main():
   param_atmos = velocity_models.generate_default_atmos()
   
   if(useMultiProc):
+    print(' ')
+    print('[%s, WARNING] Using multiprocessing to parallelise the computation of the fields over every mechanism.' % (sys._getframe().f_code.co_name))
+    print('[%s, INFO] We only log the output for the first process, so as not to flood the log.' % (sys._getframe().f_code.co_name))
+    print(' ')
     pool = Pool(min([len(mechanisms_data), 16]))
     for i in range(len(mechanisms_data)):
       result = pool.apply_async(worker, (output_path, GreenRWPath, options, mechanisms_data, i, param_atmos, ))
