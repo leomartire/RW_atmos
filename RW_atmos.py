@@ -19,6 +19,8 @@ from scipy import interpolate
 # from sympy.utilities.lambdify import lambdify
 
 from multiprocessing import get_context
+import multiprocessing as mp
+from functools import partial
 
 # Local modules
 # import mechanisms as mod_mechanisms
@@ -318,13 +320,11 @@ class RW_forcing():
             return response_RW
         
         def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3):
-        
-            import multiprocessing as mp
-            from functools import partial
     
             mode_max = len(self.uz) if mode_max == -1 else mode_max
             
-            parallel = True
+            # Un-parallelled that in order to be able to parallellise multiple mechanisms.
+            parallel = False
             
             if not parallel:
                     for imode in range(0, mode_max):
@@ -1268,8 +1268,8 @@ def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=F
         cbar.ax.set_ylabel('$v_z$ [m/s]', rotation=90)
         plt.savefig(output_folder + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
 
-def create_RW_field(Green_RW, domain, param_atmos, options):
-    print('['+sys._getframe().f_code.co_name+'] Create Rayleigh wave field from Green functions.')
+def create_RW_field(Green_RW, domain, param_atmos, options, verbose=True):
+    if(verbose): print('['+sys._getframe().f_code.co_name+'] Create Rayleigh wave field from Green functions.')
     
     # Extract parameters.
     dimension         = options['dimension']
@@ -1278,7 +1278,7 @@ def create_RW_field(Green_RW, domain, param_atmos, options):
     mode_max          = -1
     
     # Define domain.
-    print('['+sys._getframe().f_code.co_name+'] > Start by defining domain.')
+    if(verbose): print('['+sys._getframe().f_code.co_name+'] > Start by defining domain.')
     # print('[%s] >> Domain is DX * DY * DZ = [%.3f, %.3f] * [%.3f, %.3f] * [%.3f, %.3f] km.'
     #       % (sys._getframe().f_code.co_name, domain['xmin']/1e3, domain['xmax']/1e3, domain['ymin']/1e3, domain['ymax']/1e3, domain['zmin']/1e3, domain['zmax']/1e3))
     # print('['+sys._getframe().f_code.co_name+'] >> Steps are (Dx, Dy, Dz) = (%.0f, %.0f, %.0f) m.'
@@ -1291,16 +1291,17 @@ def create_RW_field(Green_RW, domain, param_atmos, options):
     field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
     
     # Create atmospheric profiles.
-    print('['+sys._getframe().f_code.co_name+'] > Update field with atmospheric model.')
+    if(verbose): print('['+sys._getframe().f_code.co_name+'] > Update field with atmospheric model.')
     if(not param_atmos):
       param_atmos = velocity_models.generate_default_atmos()
     field.generate_atmospheric_model(param_atmos)
     
-    # Plot profiles.
-    velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
-                                                field.rho, field.cpa, field.winds, field.H, 
-                                                field.isothermal, field.dimension, field.google_colab)
-    print(field)
+    # # Plot profiles.
+    # # Using Matplotlib within multithreads breaks everything. Moving this outside of the create_RW_field routine.
+    # velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
+    #                                             field.rho, field.cpa, field.winds, field.H, 
+    #                                             field.isothermal, field.dimension, field.google_colab)
+    if(verbose): print(field)
     return(field)
 
 def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domain, options):
@@ -1321,6 +1322,11 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     
     # Create the Rayleigh wave field.
     field = create_RW_field(Green_RW, domain, param_atmos, options)
+    
+    # Plot profiles.
+    velocity_models.plot_atmosphere_and_seismic(field.global_folder, field.seismic, field.z, 
+                                                field.rho, field.cpa, field.winds, field.H, 
+                                                field.isothermal, field.dimension, field.google_colab)
     
     # Compute maps/slices at given instants.
     # Use parameters of first station to build 2d/3d wavefields.
