@@ -154,7 +154,7 @@ class RW_forcing():
                 self.extract_seismic_parameters(options)
                 
                 # Add source characteristics
-                #self.update_mechanism(mechanism)
+                #self.set_mechanism(mechanism)
                 self.has_mechanism = False
                 
                 # MPI parameter
@@ -166,7 +166,7 @@ class RW_forcing():
         
                 self.global_folder = folder # Save folder path from Green's class
 
-        def update_mechanism(self, mechanism):
+        def set_mechanism(self, mechanism):
                 self.has_mechanism = True
                 self.stf = mechanism['stf']
                 self.stf_data = mechanism['stf-data']
@@ -187,6 +187,21 @@ class RW_forcing():
                 self.mt    = []
                 if 'mt' in mechanism:
                   self.mt = mechanism['mt']
+        
+        def clear_mechanism(self):
+                self.has_mechanism = False
+                delattr(self, 'stf')
+                delattr(self, 'stf_data')
+                delattr(self, 'zsource')
+                delattr(self, 'f0')
+                delattr(self, 'alpha')
+                delattr(self, 'M0')
+                delattr(self, 'M')
+                delattr(self, 'phi')
+                delattr(self, 'strike')
+                delattr(self, 'dip')
+                delattr(self, 'rake')
+                delattr(self, 'mt')
 
         def get_mechanism(self):
                 mechanism = {}
@@ -375,7 +390,7 @@ class RW_forcing():
             mechanism_save = mechanism.copy()
             
             mechanism['M'] = mt.m6_up_south_east()
-            self.update_mechanism(mechanism)
+            self.set_mechanism(mechanism)
     
             mode_max = len(self.uz) if mode_max == -1 else mode_max
             for imode in range(0, mode_max):
@@ -389,7 +404,7 @@ class RW_forcing():
                             # we can not use pd.concat since it is too slow for complex numbers
                             response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
                             
-            self.update_mechanism(mechanism_save)
+            self.set_mechanism(mechanism_save)
             
             coef = 1. if type_opti == 'min' else -1.
             return coef * abs(response_RW.loc[:, response_RW.columns != 'f'].values).max(axis=0)[0]                       
@@ -1318,7 +1333,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
     
     # Update mechanism.
     print('['+sys._getframe().f_code.co_name+'] Update Green functions with chosen focal mechanism.')
-    Green_RW.update_mechanism(mechanism)
+    Green_RW.set_mechanism(mechanism)
     
     # Create the Rayleigh wave field.
     field = create_RW_field(Green_RW, domain, param_atmos, options)
