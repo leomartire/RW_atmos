@@ -16,43 +16,37 @@ import sys
 import RW_atmos
 import velocity_models
 # import multiprocessing as mp
-from multiprocessing.pool import ThreadPool as Pool
+# from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing import Pool
+from copy import deepcopy
+# import time
+# from itertools import repeat
 
-useMultiProc = True
+useMultiProc = False
 
-def worker(output_path, GreenRWPath, options, mechanisms_data, i, param_atmos):
+# def kek(Green_RW_, mech):
+#   Green_RW = deepcopy(Green_RW_)
+#   Green_RW.set_mechanism(mech)
+#   print(Green_RW)
+
+def worker(output_folder, Green_RW_, options, mechanism, i, param_atmos):
+  Green_RW = deepcopy(Green_RW_) # copy because there is only one instance of this variable
+  # param_atmos = deepcopy(param_atmos_)
+  # options = deepcopy(options_)
+  
   if((not useMultiProc) or (useMultiProc and i==0)):
-    verbose = True
+    verbose = False
   else:
     verbose = False
-  
-  # Select mechanism and transform into dictionnary (more practical for further use).
-  mechanism_ = mechanisms_data.loc[i]
-  mechanism = {}
-  keys_mechanism = ['EVID', 'stf', 'stf-data', 'zsource', 'f0', 'M0', 'M', 'STRIKE', 'DIP', 'RAKE', 'phi', 'station_tab', 'mt', 'domain']
-  for key in keys_mechanism:
-    mechanism[key] = mechanism_[key]
-  
-  # Load raw Green functions.
-  if(verbose): print('[%s] Load raw Green functions anew (overwrite any previous mechanism).' % (sys._getframe().f_code.co_name))
-  Green_RW = pickleLoad(GreenRWPath)
-  
-  # Set the current working folder.
-  options['global_folder'] = (output_path+'mechanism_%05d/' % (i))
-  Green_RW.set_global_folder(options['global_folder'])
-  if(not os.path.isdir(Green_RW.global_folder)):
-    os.makedirs(Green_RW.global_folder)
-  
   # Compute Rayleigh wave field.
   if(verbose): print('[%s] Update Green functions with chosen focal mechanism (current mechanism ID = %d).' % (sys._getframe().f_code.co_name, i))
-  Green_RW.update_mechanism(mechanism)
+  Green_RW.set_mechanism(mechanism)
   if(verbose): print('[%s] Create the Rayleigh wave field.' % (sys._getframe().f_code.co_name))
   RW_field = RW_atmos.create_RW_field(Green_RW, mechanism['domain'], param_atmos, options, verbose=verbose)
-  
   # Store outputs.
-  pickleDump(Green_RW.global_folder+'RW_field.pkl', RW_field)
-  
-  return(RW_field)
+  pickleDump(output_folder+'RW_field.pkl', RW_field)
+  # Return.
+  # return(RW_field)
 
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
@@ -158,32 +152,72 @@ def main():
   pickleDump(output_path+'options_source_inp.pkl', options_source)
   pickleDump(output_path+'options_iris_inp.pkl', options_IRIS)
   if(options_balloon):
-    pickleDump(output_path+'options_iris_inp.pkl', options_IRIS)
+    pickleDump(output_path+'options_balloon_inp.pkl', options_IRIS)
+  
+  output_folders = []
   for i in range(len(mechanisms_data)):
+    # Save mechanisms individually (for eventual re-use).
     pickleDump(output_path+'mechanism_data_%05d.pkl' % (i), mechanisms_data.loc[i])
+    # Create output folders serially (so as not to chug the parallel process).
+    output_folder = (output_path+'mechanism_%05d/' % (i))
+    if(not os.path.isdir(output_folder)):
+      os.makedirs(output_folder)
+      # print('Creating '+output_folder+'.')
+    output_folders.append(output_folder)
   
   # Generate atmospheric model (assume it is the same for all mechanisms).
   param_atmos = velocity_models.generate_default_atmos()
+  Green_RW = pickleLoad(GreenRWPath)
   
+  # t1 = time.time()
   if(useMultiProc):
+    npool = min([len(mechanisms_data), 16])
     print(' ')
     print('[%s, WARNING] Using multiprocessing to parallelise the computation of the fields over every mechanism.' % (sys._getframe().f_code.co_name))
+    print('[%s, INFO] Spawning %d processes to take care of the %d mechanisms.' % (sys._getframe().f_code.co_name, npool, len(mechanisms_data)))
     print('[%s, INFO] We only log the output for the first process, so as not to flood the log.' % (sys._getframe().f_code.co_name))
     print(' ')
-    pool = Pool(min([len(mechanisms_data), 16]))
+    pool = Pool(npool)
+    
+    # Apply method. Theoretically will chug RAM more because there's only one instance of Green_RW, options, and param_atmos.
     for i in range(len(mechanisms_data)):
-      result = pool.apply_async(worker, (output_path, GreenRWPath, options, mechanisms_data, i, param_atmos, ))
+      # result = pool.apply_async(worker, (output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
+      pool.apply(worker, (output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
+    
+    # # Starmap method. Added pre-duplication of variables to try and limit RAM chugging; little to no improvement.
+    # Green_RWs = []
+    # optionssss = []
+    # param_atmossss = []
+    # for i in range(len(mechanisms_data)):
+    #   Green_RWs.append(deepcopy(Green_RW))
+    #   optionssss.append(deepcopy(options))
+    #   param_atmossss.append(deepcopy(param_atmos))
+    # argzip = zip([output_folders[i] for i in range(len(mechanisms_data))],
+    #              # repeat(Green_RW),
+    #              [Green_RWs[i] for i in range(len(mechanisms_data))],
+    #              # repeat(options),
+    #              [optionssss[i] for i in range(len(mechanisms_data))],
+    #              [mechanisms_data.loc[i] for i in range(len(mechanisms_data))],
+    #              range(len(mechanisms_data)),
+    #              # repeat(param_atmos)
+    #              [param_atmossss[i] for i in range(len(mechanisms_data))],
+    #              )
+    # result = pool.starmap_async(worker, argzip)
+    
     pool.close()
     pool.join()
-    field = result.get() # Gets last returned process.
+    # field = result.get() # Gets returned value for last finished process.
   else:
     for i in range(len(mechanisms_data)):
-      field = worker(output_path, GreenRWPath, options, mechanisms_data, i, param_atmos)
+      # field = worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
+      worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
+  # t2 = time.time()
+  # print((t2-t1)/10.0)
   
-  # Plot model only once, and for last computed field. Makes sense because param_atmos is defined outside the loop.
-  velocity_models.plot_atmosphere_and_seismic(output_path, field.seismic, field.z, 
-                                              field.rho, field.cpa, field.winds, field.H, 
-                                              field.isothermal, field.dimension, field.google_colab)
+  # # Plot model only once, and for last computed field. Makes sense because param_atmos is defined outside the loop.
+  # velocity_models.plot_atmosphere_and_seismic(output_path, field.seismic, field.z, 
+  #                                             field.rho, field.cpa, field.winds, field.H, 
+  #                                             field.isothermal, field.dimension, field.google_colab)
 
 if __name__ == '__main__':
   main()
