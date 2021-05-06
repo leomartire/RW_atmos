@@ -22,6 +22,7 @@ s1p = [rwatmosroot, 'step1_compute_green.py'];
 s2p = [rwatmosroot, 'step2_compute_field.py'];
 s2p_source = [rwatmosroot, 'makeSource.py'];
 s3p = [rwatmosroot, 'step3_compute_pressure_slices.py'];
+parallel_step3 = 1;
 
 % Move to this folder.
 thisFolder = regexprep(mfilename('fullpath'),mfilename,'');
@@ -32,16 +33,22 @@ dryrun = 0; verbose = 0;
 seismicModel = '/Users/lmartire/Documents/software/rw_atmos_leo/models/Ridgecrest_seismic.txt';
 zmax = 30e3; nlay = zmax/100; fminmax = [0.005, 5]; nfreq = 2^8; nmodes = [0, 20];
 f0 = 2;
-imech = 1; sources(imech) = struct('id',imech,'time',[2020,7,1,12,0,0],'mag',4,'latlon',[30,-90],'depth',8,'strikeDipRake',[159,89,-156]);
-imech = 2; sources(imech) = struct('id',imech,'time',[2020,7,1,14,0,0],'mag',5,'latlon',[30.5,-90.5],'depth',7,'strikeDipRake',[155,45,-6]);
-latminlatmaxlonminlonmax = [28, 32, -88, -92]; nkxky = ceil(max(range(latminlatmaxlonminlonmax(1:2)), range(latminlatmaxlonminlonmax(3:4))) * 111/50);
-slice_alts = [15]*1e3; slice_tims = [20]; slice_doPlots = 0; slice_doDumps = 1;
+imech = 1;
+sources(imech) = struct('id',imech,'time',[2020,7,1,12,0,0],'mag',4,'latlon',[30,-90],'depth',8,'strikeDipRake',[159,89,-156]); imech=imech+1;
+sources(imech) = struct('id',imech,'time',[2020,7,1,14,0,0],'mag',5,'latlon',[30.5,-90.5],'depth',7,'strikeDipRake',[155,45,-6]); imech=imech+1;
+latminlatmaxlonminlonmax = [29, 31, -89, -91]; nkxky = ceil(max(range(latminlatmaxlonminlonmax(1:2)), range(latminlatmaxlonminlonmax(3:4))) * 111/30);
+slice_alts = [5]*1e3; slice_tims = [20, 24, 28]; slice_doPlots = 0; slice_doDumps = 1;
 rootOutput = ['/Users/lmartire/Documents/software/rw_atmos_leo/ALL_OUTPUTS/'];
 
 % Check input.
 dx = max(range(latminlatmaxlonminlonmax(1:2)), range(latminlatmaxlonminlonmax(3:4))) * 111 / nkxky;
 if(dx > 1)
-  warning(['[',mfilename,', WARNING] Dx will be greater than ',sprintf('%.3f', dx),' km. Consider increasing dkxky to avoid aliasing. 2^',num2str(nextpow2(dx*nkxky/.5)),' will ensure something close to 500 m.']);
+  warning(['[',mfilename,', WARNING] Dx will be greater than ',sprintf('%.3f', dx),' km. Consider increasing dkxky to avoid aliasing. ',ceil(num2str(dx*nkxky/.5)),' will ensure something close to 500 m.']);
+end
+
+% Prepare parpool if doesn't already exist.
+if(parallel_step3 && isempty(gcp('nocreate')))
+  p = parpool(min([numel(sources), 16]));
 end
 
 % Prepare Green functions for each model.
@@ -85,7 +92,8 @@ for idSource = 1:numel(sources)
                    ' --time ',sprintf('%d ', sources(idSource).time),' --mag ',sprintf('%.6f', sources(idSource).mag),...
                    ' --latlon ',sprintf('%.6f ', sources(idSource).latlon),' --depth ',sprintf('%.6f', sources(idSource).depth),...
                    ' --strikeDipRake ',sprintf('%.6f ', sources(idSource).strikeDipRake),''];
-  c2s = [c2s, python, ' ', s2p_source, step2_sources, ';'];
+%   c2s = [c2s, python, ' ', s2p_source, step2_sources, ';']; % Make multiple commands to run serially.
+  c2s = [c2s, python, ' ', s2p_source, step2_sources, '&']; % Make one command to run in "parallel".
 end
 step2 = [' --output ',OUT2,' --options ',options,' --green ', green, ' --sourceIDs ',sprintf('%d ', (1:numel(sources))-1),...
          ' --latminlatmaxlonminlonmax ',sprintf('%.6f ', latminlatmaxlonminlonmax),' --f0 ',sprintf('%.6f', f0),''];
@@ -93,6 +101,7 @@ c2 = [python, ' ', s2p, step2];
 if(not(dryrun))
   % Generate sources.
   [status, result_c2s] = system(c2s);
+  pause(0.5 * numel(sources)) % allow .5 s for each source to give the "parallel" runs time to finish
   if(status)
     warning(result_c2s);
     error(num2str(status));
@@ -128,18 +137,11 @@ for idSource = 1:numel(sources)
   c3 = [python, ' ', s3p, step3];
   if(not(dryrun))
     % Produce pressure slices.
-    [status, result_c3] = system(c3);
-    if(status)
-      warning(result_c3);
-      error(num2str(status));
+    if(parallel_step3)
+      futures(idSource) = parfeval(@step3wrapper, 0, c3, OUT3, verbose);
     else
-      if(verbose)
-        disp(result_c3);
-      else
-        quickLog([OUT3,'c3_log.txt'], c3, result_c3);
-      end
+      step3wrapper(c3, OUT3, verbose);
     end
-    % Concatenate pressure slices under Matlab format for current mechanism.
-    concatFilePath = concatDumps(OUT3);
   end
 end
+if(parallel_step3); wait(futures); end % wait for all futures to finish
