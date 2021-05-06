@@ -19,7 +19,8 @@ import velocity_models
 # from multiprocessing.pool import ThreadPool as Pool
 from multiprocessing import Pool
 from copy import deepcopy
-# import time
+import time
+import numpy as np
 # from itertools import repeat
 
 useMultiProc = False
@@ -171,7 +172,7 @@ def main():
   
   # t1 = time.time()
   if(useMultiProc):
-    npool = min([len(mechanisms_data), 16])
+    npool = min([np.floor(len(mechanisms_data)/3), 16]) # min 3 mech per proc, max 16 proc
     print(' ')
     print('[%s, WARNING] Using multiprocessing to parallelise the computation of the fields over every mechanism.' % (sys._getframe().f_code.co_name))
     print('[%s, INFO] Spawning %d processes to take care of the %d mechanisms.' % (sys._getframe().f_code.co_name, npool, len(mechanisms_data)))
@@ -211,8 +212,7 @@ def main():
     for i in range(len(mechanisms_data)):
       # field = worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
       worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
-  # t2 = time.time()
-  # print((t2-t1)/10.0)
+  # print(time.time()-t1)
   
   # # Plot model only once, and for last computed field. Makes sense because param_atmos is defined outside the loop.
   # velocity_models.plot_atmosphere_and_seismic(output_path, field.seismic, field.z, 
