@@ -66,9 +66,9 @@ def main():
   required.add_argument('--f0', required=True, type=float,
                       help='Dominant frequency of the source in [Hz], regardless of the source mechanism.')
   
-  # misc = parser.add_argument_group('optional arguments - miscellaneous')
-  # misc.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
-  #                     help='Overwrite output folder path? Defaults to True.')
+  misc = parser.add_argument_group('optional arguments - miscellaneous')
+  misc.add_argument('--atmosphere', default=[],
+                    help='Atmospheric model path? Defaults to the default atmospheric model defined in \'velocity_models.prepare_atmospheric_model\'.')
   
   args = parser.parse_args()
   print(args)
@@ -80,6 +80,7 @@ def main():
   
   optionsStep1Path = args.options
   GreenRWPath = args.green
+  atmosPath = args.atmosphere
   sourceIDs = args.sourceIDs
   
   options_step2 = {}
@@ -167,8 +168,9 @@ def main():
     output_folders.append(output_folder)
   
   # Generate atmospheric model (assume it is the same for all mechanisms).
-  param_atmos = velocity_models.generate_default_atmos()
+  param_atmos = velocity_models.prepare_atmospheric_model(atmosPath)
   Green_RW = pickleLoad(GreenRWPath)
+  velocity_models.plot_atmosphere_and_seismic_fromAtmosFile(output_path, Green_RW.seismic, atmosPath, options['dimension'])
   
   # t1 = time.time()
   if(useMultiProc):
@@ -213,11 +215,6 @@ def main():
       # field = worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
       worker(output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
   # print(time.time()-t1)
-  
-  # # Plot model only once, and for last computed field. Makes sense because param_atmos is defined outside the loop.
-  # velocity_models.plot_atmosphere_and_seismic(output_path, field.seismic, field.z, 
-  #                                             field.rho, field.cpa, field.winds, field.H, 
-  #                                             field.isothermal, field.dimension, field.google_colab)
 
 if __name__ == '__main__':
   main()
