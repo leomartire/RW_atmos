@@ -226,28 +226,29 @@ def discretize_model_heterogeneous(data, options):
         
         return z_interp, data_interp
         
-def generate_default_atmos():
-        param_atmos = {}
-        param_atmos['isothermal'] = False       
-        param_atmos['subsampling'] = True
-        param_atmos['subsampling_layers'] = 120
-        param_atmos['file'] = './models/default_atmospheric_model.dat'
-        param_atmos['cpa']    = 3.2e2 # m/s
-        param_atmos['H']      = np.inf # m
-        param_atmos['Nsq']    = 1e-10
-        param_atmos['wind_x'] = 0.
-        param_atmos['wind_y'] = 0.
-        
-        param_atmos['bulk']   = 1e-3
-        param_atmos['shear']  = 1e-3
-        param_atmos['kappa']  = 0.
-        param_atmos['gamma']  = 1.4
-        param_atmos['rho']    = 1.2
-        param_atmos['cp']     = 3000.
-        
-        print('['+sys._getframe().f_code.co_name+'] Generated default atmospheric model from \''+param_atmos['file']+'\'.')
-        
-        return param_atmos
+def prepare_atmospheric_model(file = './models/default_atmospheric_model.dat'):
+  print('['+sys._getframe().f_code.co_name+'] Prepare atmospheric model from \''+file+'\'.')
+  param_atmos = {}
+  param_atmos['isothermal'] = False
+  
+  if(param_atmos['isothermal']):
+    param_atmos['cpa']    = 3.2e2 # m/s
+    param_atmos['H']      = np.inf # m
+    param_atmos['Nsq']    = 1e-10
+    param_atmos['wind_x'] = 0.
+    param_atmos['wind_y'] = 0.
+    param_atmos['bulk']   = 1e-3
+    param_atmos['shear']  = 1e-3
+    param_atmos['kappa']  = 0.
+    param_atmos['gamma']  = 1.4
+    param_atmos['rho']    = 1.2
+    param_atmos['cp']     = 3000.
+  else:
+    param_atmos['file']   = file
+    param_atmos['subsampling'] = False
+    param_atmos['subsampling_layers'] = None
+  
+  return(param_atmos)
         
 def read_csv_seismic(model, dimension, loc_source = 50000.):
         print('['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
@@ -277,8 +278,15 @@ def read_csv_seismic(model, dimension, loc_source = 50000.):
         temp = pd.concat([temp, temp_add]).reset_index()
         
         return temp
-        
-def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab):
+
+def plot_atmosphere_and_seismic_fromAtmosFile(save_folder, seismic, param_atmos_file, dimension):
+  model = utils.loadAtmosphericModel(param_atmos_file)
+  plot_atmosphere_and_seismic(save_folder, seismic,
+                              model['z'].values, model['rho'].values, model['cpa'].values, [model['wx'].values, model['wy'].values],
+                                [], False, # only useful if isothermal, and since we're using a file here there's no use to those two args
+                              dimension)
+  
+def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab=False):
   print('['+sys._getframe().f_code.co_name+'] Plot seismic and atmospheric models.')
   
   nb_cols = 3
