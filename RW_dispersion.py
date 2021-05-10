@@ -180,15 +180,15 @@ def compute_dispersion_with_earthsr(no, side, options):
         ## Launch dispersion code
         #print(' model: ' + side['name'])
         # os.system('./bin/earthsr ' + 'input_code_earthsr')
-        sysErrHdl('./bin/earthsr '+'input_code_earthsr')
+        sysErrHdl(sys.path[0]+'/bin/earthsr '+'input_code_earthsr')
         print('****************************************************************')
 
 def move_dispersion_files(no, options):
-        print('['+sys._getframe().f_code.co_name+'] Move earthsr files (disp*, eigen*) to \''+options['global_folder']+'\'.')
-        os.system('mv ' + 'disp* ' + options['global_folder'])
-        os.system('mv ' + 'eigen* ' + options['global_folder'])
+        print('['+sys._getframe().f_code.co_name+'] Move earthsr files (./disp*, ./eigen*) to \''+options['global_folder']+'\' using a system command.')
+        os.system('mv '+'./disp* ' + options['global_folder'])
+        os.system('mv '+'./eigen* ' + options['global_folder'])
         if(no > 0):
-                os.system('mv ' + 'tocomputeIO* ' + options['global_folder'])
+          os.system('mv ' + 'tocomputeIO* ' + options['global_folder'])
 
 ################################################################################################
 ## Before finishing building coefficients, this routine saves dispersion characteristics to file
