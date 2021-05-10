@@ -138,9 +138,9 @@ for idSource = 1:numel(sources)
   if(not(dryrun))
     % Produce pressure slices.
     if(parallel_step3)
-      futures(idSource) = parfeval(@step3wrapper, 0, c3, OUT3, verbose);
+      futures(idSource) = parfeval(@example_wrapper_step3, 0, c3, OUT3, verbose);
     else
-      step3wrapper(c3, OUT3, verbose);
+      example_wrapper_step3(c3, OUT3, verbose);
     end
   end
 end
