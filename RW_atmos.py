@@ -339,7 +339,7 @@ class RW_forcing():
             mode_max = len(self.uz) if mode_max == -1 else mode_max
             
             # Un-parallelled that in order to be able to parallellise multiple mechanisms.
-            parallel = False
+            parallel = True
             
             if not parallel:
                     for imode in range(0, mode_max):
