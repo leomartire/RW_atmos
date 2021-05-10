@@ -191,7 +191,7 @@ mod_mechanisms.display_map_stations(mechanism['EVID'], mechanism['station_tab'],
 #     mod_mechanisms.display_map_stations(mechanism_['EVID'], mechanism_['station_tab'], mechanism_['domain'], options_out['global_folder'])
 
 # Generate atmospheric model.
-param_atmos = velocity_models.generate_default_atmos()
+param_atmos = velocity_models.prepare_atmospheric_model()
 
 # Solve dispersion equations.
 RW_atmos.compute_analytical_acoustic(Green_RW, mechanism, param_atmos, mechanism['station_tab'], mechanism['domain'], options)
