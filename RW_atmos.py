@@ -671,17 +671,9 @@ class field_RW():
                         self.rho   = np.array([param_atmos['rho']])
                         self.cp    = np.array([param_atmos['cp']])
                 else:
-                        try:
-                                temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
-                                temp.columns = ['z', 'rho', 'dummy1', 'cpa', 'p', 'dummy2', 'g', 'dummy3', 'kappa', 'mu', 'dummy4', 'dummy5', 'dummy6', 'wx', 'cp', 'cv', 'gamma']
-                                temp['bulk'] = temp['mu']
-                                temp['wy'] = temp['wx']
-                        except:
-                                temp   = pd.read_csv( param_atmos['file'], delim_whitespace=True, header=None )
-                                temp.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
-                        
-                        temp['bulk'] = 2e-4
-                        temp['mu']   = 2e-4
+                        temp = utils.loadAtmosphericModel(param_atmos['file'])
+                        # temp['bulk'] = 2e-4
+                        # temp['mu']   = 2e-4
                         
                         if(param_atmos['subsampling']):
                                 nb_layers = param_atmos['subsampling_layers']
