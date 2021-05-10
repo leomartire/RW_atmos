@@ -54,6 +54,19 @@ def pickleLoad(fname):
     var = pickle.load(handle)
   return(var)
 
+def loadAtmosphericModel(path):
+  try:
+    model = pd.read_csv(path, delim_whitespace=True, header=None)
+    model.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
+  except:
+    sys.exit('[%s] Could not read atmospheric model file under the right format.' % (sys._getframe().f_code.co_name))
+    # # Eventually try to read another format.
+    # model = pd.read_csv(path, delim_whitespace=True, header=None)
+    # model.columns = ['z', 'rho', 'dummy1', 'cpa', 'p', 'dummy2', 'g', 'dummy3', 'kappa', 'mu', 'dummy4', 'dummy5', 'dummy6', 'wx', 'cp', 'cv', 'gamma']
+    # model['bulk'] = model['mu']
+    # model['wy'] = model['wx']
+  return(model)
+
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):
