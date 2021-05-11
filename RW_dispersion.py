@@ -7,7 +7,7 @@ import matplotlib
 # from pdb import set_trace as bp
 import sys 
 from multiprocessing import get_context
-from utils import earthsr_local_folder, sysErrHdl
+from utils import sysErrHdl
 import read_earth_io as reo
 import velocity_models, utils, RW_atmos
 import inspect
