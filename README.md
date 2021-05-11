@@ -5,9 +5,10 @@ Python prerequisites:
 - numpy,
 - scipy,
 - sympy,
-- obspy.
+- obspy,
+- pyrocko.
 ```
-pip3 install numpy scipy sympy obspy
+pip3 install numpy scipy sympy obspy pyrocko
 ```
 
 Install `earthsr`:
