@@ -10,6 +10,7 @@ from multiprocessing import get_context
 from utils import earthsr_local_folder, sysErrHdl
 import read_earth_io as reo
 import velocity_models, utils, RW_atmos
+import inspect
 
 ## display parameters
 font = {'size': 14}
@@ -274,7 +275,7 @@ def get_default_options():
   ## Auxiliaries
   # A1D   = {}
   # A1Dst = {}
-  options['dir_earthsr'] = earthsr_local_folder()
+  options['dir_earthsr'] = os.path.dirname(os.path.abspath(inspect.getfile(get_default_options)))+'/bin/'
   options['earth_flattening'] = 0 # Earth flattening control variable (0 = no correction; >0 applies correction)
   options['ref_period']  = 10. # Reference period for dispersion correction (0 => none) Generally you would just pick a period shorter than anything you are going to model
   options['output_file'] = 'dispers' # Filename of binary output of dispersion curves.

@@ -39,10 +39,6 @@ def sysErrHdl(cmd):
   if(r!=0):
     sys.exit('os.system(\''+cmd+'\') failed with error code '+str(r)+'.')
 
-def earthsr_local_folder():
-    #return('/staff/quentin/Documents/Codes/RW_atmos')
-    return('/Users/lmartire/Documents/software/rw_atmos_leo/bin/')
-
 def pickleDump(fname, var):
   with open(fname, 'wb') as handle:
     pickle.dump(var, handle)
