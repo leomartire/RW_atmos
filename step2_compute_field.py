@@ -18,12 +18,13 @@ import velocity_models
 # import multiprocessing as mp
 # from multiprocessing.pool import ThreadPool as Pool
 from multiprocessing import Pool
+from mpi4py import MPI
 from copy import deepcopy
 import time
 import numpy as np
 # from itertools import repeat
-from utils import str2bool
-from datetime import datetime
+# from utils import str2bool
+from datetime import datetime, timedelta
 
 # def kek(Green_RW_, mech):
 #   Green_RW = deepcopy(Green_RW_)
@@ -83,6 +84,7 @@ def main():
   print('+----------------------------------------+')
   print("| JOB START TIME = %s |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
   print('+----------------------------------------+')
+  t1 = time.time()
   
   args = parser.parse_args()
   print(args)
@@ -194,7 +196,6 @@ def main():
   Green_RW = pickleLoad(GreenRWPath)
   velocity_models.plot_atmosphere_and_seismic_fromAtmosFile(output_path, Green_RW.seismic, atmosPath, options['dimension'])
   
-  # t1 = time.time()
   if(parallel[0]<=1):
     # User set parallel[0] = 0 (explicitely serial) or parallel[0] = 1 (explicitely ask for one node). Simply run in serial, do not ask MPI ressources.
     # Note this consitutes 2 different cases:
@@ -209,40 +210,52 @@ def main():
   elif(parallel[0]>=2):
     print(' ')
     print('[%s] Computation of the fields over every mechanism: using MPI parallelisation.' % (sys._getframe().f_code.co_name))
-    print('[%s, INFO] Spawning %d processes to take care of the %d mechanisms.' % (sys._getframe().f_code.co_name, parallel[0], len(mechanisms_data)))
+    print('[%s, INFO] Spawning %d MPI processes to take care of the %d mechanisms.' % (sys._getframe().f_code.co_name, parallel[0], len(mechanisms_data)))
     print('[%s, INFO] We only log the output for the first process, so as not to flood the log.' % (sys._getframe().f_code.co_name))
     print(' ')
-    sys.exit('[%s, ERROR] NOT IMPLEMENTED.' % (sys._getframe().f_code.co_name))
-    pool = Pool(parallel[0])
+    # Setup MPI world.
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    # Split the work across the different available MPI processes.
+    IDs = [key for key in range(len(mechanisms_data))]
+    IDs_perRank = [sublist for sublist in np.array_split(IDs, size) if sublist.size>0]
+    # Sync processes just in case.
+    comm.Barrier()
+    # Let the current MPI process (number "rank") take care of its part of the tasks (IDs_perRank[rank]).
+    for i in IDs_perRank[rank]:
+      generateAndSaveRWField(parallel, output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
+    # No output, simply barrier and finish.
+    comm.Barrier()
     
-    # Apply method. Theoretically will chug RAM more because there's only one instance of Green_RW, options, and param_atmos.
-    for i in range(len(mechanisms_data)):
-      # result = pool.apply_async(worker, (output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
-      pool.apply(generateAndSaveRWField, (parallel, output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
-    
-    # # Starmap method. Added pre-duplication of variables to try and limit RAM chugging; little to no improvement.
-    # Green_RWs = []
-    # optionssss = []
-    # param_atmossss = []
+    # pool = Pool(parallel[0])
+    # # Apply method. Theoretically will chug RAM more because there's only one instance of Green_RW, options, and param_atmos.
     # for i in range(len(mechanisms_data)):
-    #   Green_RWs.append(deepcopy(Green_RW))
-    #   optionssss.append(deepcopy(options))
-    #   param_atmossss.append(deepcopy(param_atmos))
-    # argzip = zip([output_folders[i] for i in range(len(mechanisms_data))],
-    #              # repeat(Green_RW),
-    #              [Green_RWs[i] for i in range(len(mechanisms_data))],
-    #              # repeat(options),
-    #              [optionssss[i] for i in range(len(mechanisms_data))],
-    #              [mechanisms_data.loc[i] for i in range(len(mechanisms_data))],
-    #              range(len(mechanisms_data)),
-    #              # repeat(param_atmos)
-    #              [param_atmossss[i] for i in range(len(mechanisms_data))],
-    #              )
-    # result = pool.starmap_async(worker, argzip)
+    #   # result = pool.apply_async(worker, (output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
+    #   pool.apply(generateAndSaveRWField, (parallel, output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
     
-    pool.close()
-    pool.join()
-    # field = result.get() # Gets returned value for last finished process.
+    # # # Starmap method. Added pre-duplication of variables to try and limit RAM chugging; little to no improvement.
+    # # Green_RWs = []
+    # # optionssss = []
+    # # param_atmossss = []
+    # # for i in range(len(mechanisms_data)):
+    # #   Green_RWs.append(deepcopy(Green_RW))
+    # #   optionssss.append(deepcopy(options))
+    # #   param_atmossss.append(deepcopy(param_atmos))
+    # # argzip = zip([output_folders[i] for i in range(len(mechanisms_data))],
+    # #              # repeat(Green_RW),
+    # #              [Green_RWs[i] for i in range(len(mechanisms_data))],
+    # #              # repeat(options),
+    # #              [optionssss[i] for i in range(len(mechanisms_data))],
+    # #              [mechanisms_data.loc[i] for i in range(len(mechanisms_data))],
+    # #              range(len(mechanisms_data)),
+    # #              # repeat(param_atmos)
+    # #              [param_atmossss[i] for i in range(len(mechanisms_data))],
+    # #              )
+    # # result = pool.starmap_async(worker, argzip)
+    # pool.close()
+    # pool.join()
+    # # field = result.get() # Gets returned value for last finished process.
     
   else:
     sys.exit('[%s, ERROR] We shouldn\'t end up here.' % (sys._getframe().f_code.co_name))
@@ -250,6 +263,10 @@ def main():
   
   print('+----------------------------------------+')
   print("JOB   END TIME = %s" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
+  dur = time.time()-t1
+  print('+----------------------------------------+')
+  print("JOB   DURATION = %.5e s (%s)" % (dur, str(timedelta(seconds=round(dur)))))
   print('+----------------------------------------+')
 
 if __name__ == '__main__':
