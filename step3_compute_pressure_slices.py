@@ -14,7 +14,8 @@ import numpy as np
 import os
 # import shutil
 import RW_atmos
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
@@ -38,8 +39,9 @@ def main():
                       help='Do the dumps? Defaults to True.')
   
   print('+----------------------------------------+')
-  print("| JOB START TIME = %s |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
   print('+----------------------------------------+')
+  t1 = time.time()
   
   args = parser.parse_args()
   print(args)
@@ -97,7 +99,11 @@ def main():
                             % (t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
   
   print('+----------------------------------------+')
-  print("JOB   END TIME = %s" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print("JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
+  dur = time.time()-t1
+  print('+----------------------------------------+')
+  print("JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
   print('+----------------------------------------+')
         
 if __name__ == '__main__':

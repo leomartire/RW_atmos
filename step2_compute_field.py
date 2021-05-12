@@ -21,10 +21,10 @@ from multiprocessing import Pool
 from mpi4py import MPI
 from copy import deepcopy
 import time
+from datetime import datetime, timedelta
 import numpy as np
 # from itertools import repeat
 # from utils import str2bool
-from datetime import datetime, timedelta
 
 # def kek(Green_RW_, mech):
 #   Green_RW = deepcopy(Green_RW_)
@@ -82,7 +82,7 @@ def main():
                     help='Atmospheric model path? Defaults to the default atmospheric model defined in \'velocity_models.prepare_atmospheric_model\'.')
   
   print('+----------------------------------------+')
-  print("| JOB START TIME = %s |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
   print('+----------------------------------------+')
   t1 = time.time()
   
@@ -262,11 +262,11 @@ def main():
   # print(time.time()-t1)
   
   print('+----------------------------------------+')
-  print("JOB   END TIME = %s" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print("JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
   print('+----------------------------------------+')
   dur = time.time()-t1
   print('+----------------------------------------+')
-  print("JOB   DURATION = %.5e s (%s)" % (dur, str(timedelta(seconds=round(dur)))))
+  print("JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
   print('+----------------------------------------+')
 
 if __name__ == '__main__':
