@@ -955,8 +955,8 @@ class field_RW():
                 KZ = self.compute_vertical_wavenumber(0, correct_wavenumber = True)
                 indnot0 = np.where(abs(self.Omega) > 0)
                 P = np.zeros(self.Omega.shape, dtype=complex)
-                P[indnot0] = self.rho[0]*(self.cpa[0]**2)*KZ[indnot0]*self.TFMo[indnot0]/(self.Omega[indnot0]) 
-                P = np.nan_to_num(P, 0.) 
+                P[indnot0] = self.rho[0]*(self.cpa[0]**2)*KZ[indnot0]*self.TFMo[indnot0]/(self.Omega[indnot0])
+                P = np.nan_to_num(P, 0.)
                 
                 #bp()
                 

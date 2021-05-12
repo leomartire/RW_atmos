@@ -38,9 +38,9 @@ def main():
   misc.add_argument('--doDumps', type=str2bool, choices=[True, False], default=True,
                       help='Do the dumps? Defaults to True.')
   
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
   print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
   t1 = time.time()
   
   args = parser.parse_args()
@@ -98,13 +98,12 @@ def main():
         np.real(Mxy).tofile(output_path+'map_XY_PRE_t%07.2f_%dx%d_z%07.2f.bin'
                             % (t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
   
-  print('+----------------------------------------+')
-  print("JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
-  print('+----------------------------------------+')
   dur = time.time()-t1
-  print('+----------------------------------------+')
-  print("JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
+  print("| JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+------------------------------------------+')
+  print("| JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
+  print('+------------------------------------------+')
         
 if __name__ == '__main__':
   main()

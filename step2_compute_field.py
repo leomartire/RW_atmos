@@ -81,9 +81,9 @@ def main():
   misc.add_argument('--atmosphere', default=[],
                     help='Atmospheric model path? Defaults to the default atmospheric model defined in \'velocity_models.prepare_atmospheric_model\'.')
   
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
   print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
   t1 = time.time()
   
   args = parser.parse_args()
@@ -261,13 +261,12 @@ def main():
     sys.exit('[%s, ERROR] We shouldn\'t end up here.' % (sys._getframe().f_code.co_name))
   # print(time.time()-t1)
   
-  print('+----------------------------------------+')
-  print("JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
-  print('+----------------------------------------+')
   dur = time.time()-t1
-  print('+----------------------------------------+')
-  print("JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
-  print('+----------------------------------------+')
+  print('+------------------------------------------+')
+  print("| JOB   END TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+------------------------------------------+')
+  print("| JOB   DURATION = %.5e s (%s) |" % (dur, str(timedelta(seconds=round(dur)))))
+  print('+------------------------------------------+')
 
 if __name__ == '__main__':
   main()
