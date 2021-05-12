@@ -14,6 +14,7 @@ import numpy as np
 import os
 # import shutil
 import RW_atmos
+from datetime import datetime
 
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
@@ -35,6 +36,10 @@ def main():
                       help='Do the plots? Defaults to False.')
   misc.add_argument('--doDumps', type=str2bool, choices=[True, False], default=True,
                       help='Do the dumps? Defaults to True.')
+  
+  print('+----------------------------------------+')
+  print("| JOB START TIME = %s |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
   
   args = parser.parse_args()
   print(args)
@@ -90,6 +95,10 @@ def main():
       if(doDumps):
         np.real(Mxy).tofile(output_path+'map_XY_PRE_t%07.2f_%dx%d_z%07.2f.bin'
                             % (t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
+  
+  print('+----------------------------------------+')
+  print("JOB   END TIME = %s" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
         
 if __name__ == '__main__':
   main()

@@ -23,6 +23,7 @@ import time
 import numpy as np
 # from itertools import repeat
 from utils import str2bool
+from datetime import datetime
 
 # def kek(Green_RW_, mech):
 #   Green_RW = deepcopy(Green_RW_)
@@ -78,6 +79,10 @@ def main():
   misc = parser.add_argument_group('optional arguments - miscellaneous')
   misc.add_argument('--atmosphere', default=[],
                     help='Atmospheric model path? Defaults to the default atmospheric model defined in \'velocity_models.prepare_atmospheric_model\'.')
+  
+  print('+----------------------------------------+')
+  print("| JOB START TIME = %s |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
   
   args = parser.parse_args()
   print(args)
@@ -242,6 +247,10 @@ def main():
   else:
     sys.exit('[%s, ERROR] We shouldn\'t end up here.' % (sys._getframe().f_code.co_name))
   # print(time.time()-t1)
+  
+  print('+----------------------------------------+')
+  print("JOB   END TIME = %s" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+----------------------------------------+')
 
 if __name__ == '__main__':
   main()
