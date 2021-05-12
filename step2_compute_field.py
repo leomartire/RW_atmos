@@ -29,12 +29,12 @@ from utils import str2bool
 #   Green_RW.set_mechanism(mech)
 #   print(Green_RW)
 
-def generateAndSaveRWField(parallelSources, output_folder, Green_RW_, options, mechanism, i, param_atmos):
+def generateAndSaveRWField(parallel, output_folder, Green_RW_, options, mechanism, i, param_atmos):
   Green_RW = deepcopy(Green_RW_) # copy because there is only one instance of this variable
   # param_atmos = deepcopy(param_atmos_)
   # options = deepcopy(options_)
   
-  if(parallelSources<=1 or (parallelSources>=2 and i==0)):
+  if(parallel[0]<=1 or (parallel[0]>=2 and i==0)):
     # Print only if we are running serial (parallelSources<=1),
     #         or only the first case if we are running parallel (parallelSources>=2).
     verbose = True
@@ -44,7 +44,7 @@ def generateAndSaveRWField(parallelSources, output_folder, Green_RW_, options, m
   if(verbose): print('[%s] Update Green functions with chosen focal mechanism (current mechanism ID = %d).' % (sys._getframe().f_code.co_name, i))
   Green_RW.set_mechanism(mechanism)
   if(verbose): print('[%s] Create the Rayleigh wave field.' % (sys._getframe().f_code.co_name))
-  RW_field = RW_atmos.create_RW_field(Green_RW, mechanism['domain'], param_atmos, options, verbose=verbose)
+  RW_field = RW_atmos.create_RW_field(Green_RW, mechanism['domain'], param_atmos, options, ncpus = parallel[1], verbose = verbose)
   # Store outputs.
   pickleDump(output_folder+'RW_field.pkl', RW_field)
   # Return.
@@ -195,12 +195,15 @@ def main():
     # Note this consitutes 2 different cases:
     # - Locally, it is best to set parallel[0] = 0 to explicitely state we want a simple serial simulation.
     # - On a cluster, it is best to set parallel[0] = 1 since a request to reserve one node need be made explicit, even if we end up running serial on it.
+    print(' ')
+    print('[%s] Computation of the fields over every mechanism: remaining serial (no parallelisation).' % (sys._getframe().f_code.co_name))
+    print(' ')
     for i in range(len(mechanisms_data)):
-      generateAndSaveRWField(parallel[0], output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
+      generateAndSaveRWField(parallel, output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos)
     
   elif(parallel[0]>=2):
     print(' ')
-    print('[%s, WARNING] Using MPI to parallelise the computation of the fields over every mechanism.' % (sys._getframe().f_code.co_name))
+    print('[%s] Computation of the fields over every mechanism: using MPI parallelisation.' % (sys._getframe().f_code.co_name))
     print('[%s, INFO] Spawning %d processes to take care of the %d mechanisms.' % (sys._getframe().f_code.co_name, parallel[0], len(mechanisms_data)))
     print('[%s, INFO] We only log the output for the first process, so as not to flood the log.' % (sys._getframe().f_code.co_name))
     print(' ')
@@ -210,7 +213,7 @@ def main():
     # Apply method. Theoretically will chug RAM more because there's only one instance of Green_RW, options, and param_atmos.
     for i in range(len(mechanisms_data)):
       # result = pool.apply_async(worker, (output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
-      pool.apply(generateAndSaveRWField, (parallel[0], output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
+      pool.apply(generateAndSaveRWField, (parallel, output_folders[i], Green_RW, options, mechanisms_data.loc[i], i, param_atmos))
     
     # # Starmap method. Added pre-duplication of variables to try and limit RAM chugging; little to no improvement.
     # Green_RWs = []

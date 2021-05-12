@@ -334,44 +334,44 @@ class RW_forcing():
                     
             return response_RW
         
-        def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3):
+        def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3, ncpus = 16):
+            print('[%s] Get the RW response for all modes. Use multithreading over %d CPUs.' % (sys._getframe().f_code.co_name, ncpus))
     
             mode_max = len(self.uz) if mode_max == -1 else mode_max
             
-            # Un-parallelled that in order to be able to parallellise multiple mechanisms.
-            parallel = True
+            if(ncpus<=1):
+              parallel = False
+            else:
+              parallel = True
             
             if not parallel:
-                    for imode in range(0, mode_max):
-                    
-                            #print('Computing mode', imode)
-                    
-                            response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown, dimension_seismic)
-                            if(imode == 0):
-                                    response_RW = response_RW_temp.copy()
-                            else:
-
-                                    # Concatenate dataframes with same freq.
-                                    # we can not use pd.concat since it is too slow for complex numbers
-                                    response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
+              for imode in range(0, mode_max):
+                #print('Computing mode', imode)
+                response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown, dimension_seismic)
+                if(imode == 0):
+                  response_RW = response_RW_temp.copy()
+                else:
+                  # Concatenate dataframes with same freq.
+                  # we can not use pd.concat since it is too slow for complex numbers
+                  response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
             
             else:          
-                    modes = [key for key in range(0, mode_max)]
-                    N = 16
-                    list_of_lists = [sublist for sublist in np.array_split(modes, N) if sublist.size>0]
-                    N = len(list_of_lists)
-                    
-                    local_mode_partial = partial(self.local_mode, r, phi, type, unknown, dimension_seismic)
-                                
-                    if self.use_spawn:
-                            with get_context("spawn").Pool(processes = N) as p:
-                                    results = p.map(local_mode_partial, list_of_lists)
-                    else:
-                            with mp.Pool(processes = N) as p:
-                                    results = p.map(local_mode_partial, list_of_lists)
-            
-                    response_RW = results[0]
-                    for imode, result in enumerate(results): response_RW = utils.concat_df_complex(response_RW, result, 'f');
+              modes = [key for key in range(0, mode_max)]
+              N = ncpus # How many subtasks should be prepared.
+              list_of_lists = [sublist for sublist in np.array_split(modes, N) if sublist.size>0] # Split the modes over the requested number of CPUs.
+              N = len(list_of_lists) # Make sure the requested N correspond to the number of prepared lists.
+              
+              local_mode_partial = partial(self.local_mode, r, phi, type, unknown, dimension_seismic)
+                          
+              if self.use_spawn:
+                with get_context("spawn").Pool(processes = N) as p:
+                        results = p.map(local_mode_partial, list_of_lists)
+              else:
+                with mp.Pool(processes = N) as p:
+                        results = p.map(local_mode_partial, list_of_lists)
+      
+              response_RW = results[0]
+              for imode, result in enumerate(results): response_RW = utils.concat_df_complex(response_RW, result, 'f');
                     
             return response_RW  
                 
@@ -409,11 +409,11 @@ class RW_forcing():
             coef = 1. if type_opti == 'min' else -1.
             return coef * abs(response_RW.loc[:, response_RW.columns != 'f'].values).max(axis=0)[0]                       
 
-        def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1, dimension_seismic = 3):
+        def compute_ifft(self, r_in, phi_in, type, unknown = 'd', mode_max = -1, dimension_seismic = 3, ncpus=16):
         
             # Collect the positive-frequency response of each RW mode
-            RW     = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max, dimension_seismic)
-            RW     = RW.sort_values(by=['f'], ascending=True)
+            RW = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max, dimension_seismic, ncpus)
+            RW = RW.sort_values(by=['f'], ascending=True)
             
             # Positive frequencies
             RW_first = RW.iloc[0:1].copy()
@@ -555,7 +555,7 @@ class field_RW():
         
         
         default_loc = (30., 0.) # (km, degree)
-        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], mode_max = -1, dimension_seismic = 3):
+        def __init__(self, Green_RW, nb_freq, dimension = 2, dx_in = 100., dy_in = 100., xbounds = [100., 100000.], ybounds = [100., 100000.], mode_max = -1, dimension_seismic = 3, ncpus = 16):
 
                 def nextpow2(x):
                         return np.ceil(np.log2(abs(x)))
@@ -567,7 +567,7 @@ class field_RW():
         
                 #########################
                 # Initial call to Green_RW to get the time vector
-                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[1]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic)
+                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[1]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic, ncpus = ncpus)
                 t      = output[0]
                 
                 # Store seismic model
@@ -626,7 +626,7 @@ class field_RW():
                 PHI += np.pi/2.
                 
                 # Compute bottom RW forcing                
-                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown=self.type_output, mode_max = mode_max, dimension_seismic = dimension_seismic)
+                temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown=self.type_output, mode_max = mode_max, dimension_seismic = dimension_seismic, ncpus = ncpus)
                 if(dimension > 2):
                         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
@@ -1275,7 +1275,7 @@ def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=F
         cbar.ax.set_ylabel('$v_z$ [m/s]', rotation=90)
         plt.savefig(output_folder + 'map_wavefield_forcing_t'+str(round(t_station, 2))+'.pdf')
 
-def create_RW_field(Green_RW, domain, param_atmos, options, verbose=True):
+def create_RW_field(Green_RW, domain, param_atmos, options, ncpus = 16, verbose=True):
     if(verbose): print('['+sys._getframe().f_code.co_name+'] Create Rayleigh wave field from Green functions.')
     
     # Extract parameters.
@@ -1295,7 +1295,7 @@ def create_RW_field(Green_RW, domain, param_atmos, options, verbose=True):
     # dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
     dx, dy = domain['dx'], domain['dy']
     # z          = np.arange(domain['zmin'], domain['zmax'], dz)
-    field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic)
+    field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic, ncpus = ncpus)
     
     # Create atmospheric profiles.
     if(verbose): print('['+sys._getframe().f_code.co_name+'] > Update field with atmospheric model.')
