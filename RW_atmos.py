@@ -144,9 +144,29 @@ class RW_forcing():
           out = out + '+-------------------------------+\n'
         
           return(out)
+        
         def __repr__(self):
           # Technically wrong, because repr should contain everything needed to build the instance again, but enough for what we want.
           return(self.__str__())
+        
+        def print_mode_filling(self):
+          # Prepare a matrix which is 0 if (freq(i), mode(j)) is empty, and 1 if (freq(i), mode(j)) contains a velocity.
+          uz_func_mode_freq = np.array([[0 if f==[] else 1 for f in m] for m in self.uz]).T
+          # Print it.
+          print('         ', end=' ')
+          for m in range(self.nb_modes):
+            if(m==self.nb_modes-1):
+              print('%2d' % (m), end='\n')
+            else:
+              print('%2d' % (m), end=' ')
+          for f in range(self.nb_freqs):
+            print('%.3e' % (self.f_tab[f]), end=' ')
+            for m in range(self.nb_modes):
+              if(m==self.nb_modes-1):
+                print('%2d' % (uz_func_mode_freq[f, m]), end='\n')
+              else:
+                print('%2d' % (uz_func_mode_freq[f, m]), end=' ')
+          # dd
 
         def __init__(self, options):
         
@@ -296,6 +316,7 @@ class RW_forcing():
                 uz_tab = []
                 f_tab  = []
                 #print('Compute mode: ', imode)
+                # print(imode, len(self.uz[imode]))
                 for iuz in self.uz[imode]:
                      
                      if(iuz):
@@ -319,7 +340,9 @@ class RW_forcing():
                 
                 response         = pd.DataFrame(np.array(uz_tab)) # Transform list into dataframe
                 response.columns = np.arange(0, phi.size)
-                response['f']    = np.array(f_tab) 
+                response['f']    = np.array(f_tab)
+                # print(np.array(uz_tab).shape, response.shape)
+                # stop
                 
                 return response
 
@@ -346,16 +369,19 @@ class RW_forcing():
             return response_RW
         
         def response_RW_all_modes(self, r, phi, type = 'RW', unknown = 'd', mode_max = -1, dimension_seismic = 3, ncpus = 16):
-            print('[%s] Get the RW response for all modes. Use multithreading over %d CPUs.' % (sys._getframe().f_code.co_name, ncpus))
     
             mode_max = len(self.uz) if mode_max == -1 else mode_max
             
             if(ncpus<=1):
               parallel = False
+              print('[%s] Get the RW response for all modes. Do the computation in serial.' % (sys._getframe().f_code.co_name))
             else:
               parallel = True
+              print('[%s] Get the RW response for all modes. Use multithreading over %d CPUs.' % (sys._getframe().f_code.co_name, ncpus))
             
             if not parallel:
+              # SUGGESTION: INSTEAD OF ALL OF WHAT FOLLOWS, SIMPLY CALL
+              # self.local_mode(r, phi, type, unknown, dimension_seismic)
               for imode in range(0, mode_max):
                 #print('Computing mode', imode)
                 response_RW_temp = self.compute_RW_one_mode(imode, r, phi, type, unknown, dimension_seismic)
@@ -1307,7 +1333,7 @@ def create_RW_field(Green_RW, domain, param_atmos, options, ncpus = 16, verbose=
     dimension         = options['dimension']
     dimension_seismic = options['dimension_seismic']
     nb_freq           = options['nb_freq']
-    mode_max          = -1
+    mode_max          = -1 # -1 will compute all possible modes. Any other value will truncate the computation to the first n modes. Negative values will probably break.
     
     # Define domain.
     if(verbose): print('['+sys._getframe().f_code.co_name+'] > Start by defining domain.')
