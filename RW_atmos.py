@@ -324,31 +324,31 @@ class RW_forcing():
           nfreqmode1 = np.sum(uz_func_mode_freq[:,0])
           if(nfreqmode1 == self.nb_freqs):
             # Easiest case, first mode contains values for all frequencies.
-            print('[%s] First mode contains eigenfrequencies for all expected frequencies, everything is fine.'
+            print('[%s] > > First mode contains eigenfrequencies for all expected frequencies, everything is fine.'
                   % (sys._getframe().f_code.co_name))
             self.nb_freqs_actualforMode1 = self.nb_freqs
             self.f_tab_actualforMode1 = self.f_tab
           else:
             # Somehow earthsr found less frequencies than asked for.
-            print('[%s] First mode contains less eigenfrequencies (%d) than expected frequencies (%d).'
+            print('[%s] > > First mode contains less eigenfrequencies (%d) than expected frequencies (%d).'
                   % (sys._getframe().f_code.co_name, nfreqmode1, self.nb_freqs))
             # Check for empty frequencies in the middle of the series.
             # if mode 1 has [1 1 1 1 1 0 0] then it makes sense
             # if mode 1 has [1 1 0 0 1 1 1] then it does not make sense and is probably an error
             if(np.sum(uz_func_mode_freq[0,nfreqmode1:])>0):
               # If the last indices aren't zero, the zeros are somewhere before, and there is an issue.
-              sys.exit('[%s] > On the first mode, some frequencies have no associated eigenfrequency, this should probably not happen.'
+              sys.exit('[%s] > > > On the first mode, some frequencies have no associated eigenfrequency, this should probably not happen.'
                        % (sys._getframe().f_code.co_name))
             else:
               # This is probably fine, store the updated frequency array.
-              print('[%s] > Store frequency span agreeing with the first mode\'s first %d frequencies.' % (sys._getframe().f_code.co_name, nfreqmode1))
+              print('[%s] > > > Store frequency span agreeing with the first mode\'s first %d frequencies.' % (sys._getframe().f_code.co_name, nfreqmode1))
               self.nb_freqs_actualforMode1 = nfreqmode1
               self.f_tab_actualforMode1 = self.f_tab[:self.nb_freqs_actualforMode1]
           # Check parity.
           if(self.nb_freqs_actualforMode1%2==1):
-            print('[%s] > Odd number of modes found. This will mess up the FFT routines.' % (sys._getframe().f_code.co_name))
-            print('[%s] > > Dropping to even number below, updating "found frequencies", DELETING THE LAST FREQUENCY in UZ and DIRECTIVITY for ALL MODES.' % (sys._getframe().f_code.co_name))
-            print('[%s] > > This will probably only impact the first mode anyway.' % (sys._getframe().f_code.co_name))
+            print('[%s] > > > Odd number of modes found. This will mess up the FFT routines.' % (sys._getframe().f_code.co_name))
+            print('[%s] > > > > Dropping to even number below, updating "found frequencies", DELETING THE LAST FREQUENCY in UZ and DIRECTIVITY for ALL MODES.' % (sys._getframe().f_code.co_name))
+            print('[%s] > > > > This will probably only impact the first mode anyway.' % (sys._getframe().f_code.co_name))
             for m in range(self.nb_modes):
               self.uz[m][self.nb_freqs_actualforMode1-1]=[]
               self.directivity[m][self.nb_freqs_actualforMode1-1]=[]
