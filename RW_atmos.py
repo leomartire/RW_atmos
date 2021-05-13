@@ -106,11 +106,22 @@ class RW_forcing():
           out = out + ('| %5d frequencies each        |\n' % (self.nb_freqs))
           
           out = out + '+-------------------------------+\n'
-          out = out + '| Seismic model:                |\n'
-          out = out + str(self.seismic)+'\n'
+          out = out + '| Frequencies:                  |\n'
+          if(self.nb_freqs>10):
+            for i in range(5):
+              out = out + ('  %.6e\n' % (self.f_tab[i]))
+            out = out + '   ...\n'
+            for i in range(self.nb_freqs-5, self.nb_freqs):
+              out = out + ('  %.6e\n' % (self.f_tab[i]))
+          else:
+            for i in range(self.nb_freqs):
+              out = out + ('  %.6e\n' % (self.f_tab[i]))
           out = out + '+-------------------------------+\n'
           out = out + ('| uz:          %d*%d array of %s\n' % (len(self.uz), len(self.uz[0]), type(self.uz[0][0])))
           out = out + ('| directivity: %d*%d array of %s\n' % (len(self.directivity), len(self.directivity[0]), type(self.directivity[0][0])))
+          out = out + '+-------------------------------+\n'
+          out = out + '| Seismic model:                |\n'
+          out = out + str(self.seismic)+'\n'
           out = out + '+-------------------------------+\n'
           out = out + '| Chosen storage folder:       |\n'
           out = out + '| '+self.global_folder+'\n'
@@ -413,6 +424,8 @@ class RW_forcing():
         
             # Collect the positive-frequency response of each RW mode
             RW = self.response_RW_all_modes(r_in, phi_in, type, unknown, mode_max, dimension_seismic, ncpus)
+            # print(RW)
+            # stop
             RW = RW.sort_values(by=['f'], ascending=True)
             
             # Positive frequencies
@@ -444,10 +457,13 @@ class RW_forcing():
             ifft_RW = fftpack.ifft(fftpack.fftshift(RW_tot.values[:,:-1], axes=0), axis=0)
             nb_fft  = ifft_RW.shape[0]//2
             ifft_RW = ifft_RW[:nb_fft]
+            # print(nb_fft)
+            # stop
             
-            # Compute corresponding time array
-            dt = 1./(2.*abs(RW_neg['f']).max())
-            t  = np.arange(0, dt*nb_fft, dt)    
+            # # Compute corresponding time array
+            # dt = 1./(2.*abs(RW_neg['f']).max())
+            # t  = np.arange(0, dt*nb_fft, dt)
+            t = None # CAN BE COMPUTED OUTSIDE THIS EXPENSIVE FUNCTION
             
             return (t, ifft_RW)
 
@@ -534,7 +550,7 @@ class field_RW():
           out = out + '+-------------------------------+\n'
           
           out = out + ('| T domain (from IFFT):         |\n')
-          out = out + ('|   t: [%.3f, %.3f] s, %d elements, dx = %.3f\n'
+          out = out + ('|   t: [%.3f, %.3f] s, %d elements, dt = %.3f\n'
                        % (np.min(self.t), np.max(self.t), self.t.size, np.mean(np.diff(self.t))))
           out = out + '+-------------------------------+\n'
           
@@ -566,9 +582,12 @@ class field_RW():
                 self.type_output = 'a'
         
                 #########################
-                # Initial call to Green_RW to get the time vector
-                output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[1]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic, ncpus = ncpus)
-                t      = output[0]
+                # # Initial call to Green_RW to get the time vector
+                # output = Green_RW.compute_ifft(np.array([field_RW.default_loc[0]]), np.array([field_RW.default_loc[1]]), type='RW', unknown=self.type_output, dimension_seismic = dimension_seismic, ncpus = ncpus)
+                # t      = output[0]
+                # Probably a good idea to simply compute it as:
+                dt_anal = 1.0/(2.0*Green_RW.f_tab.max())
+                t = np.arange(0, Green_RW.nb_freqs) * dt_anal
                 
                 # Store seismic model
                 self.seismic = Green_RW.seismic
@@ -577,20 +596,22 @@ class field_RW():
                 # Define time/spatial domain boundaries
                 # mult_tSpan, mult_xSpan, mult_ySpan = 1, 1, 1
                 mult_xSpan, mult_ySpan = 1, 1
-                dt_anal, dx_anal, dy_anal = abs(t[1] - t[0]), dx_in, dy_in
+                # dt_anal, dx_anal, dy_anal = abs(t[1] - t[0]), dx_in, dy_in
+                dx_anal, dy_anal = dx_in, dy_in
                 xmin, xmax = xbounds[0], xbounds[1]
                 if(dimension > 2):
                         ymin, ymax = ybounds[0], ybounds[1]
                 
                 # Define frequency/wavenumber boundaries
                 NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
-                NFFT2 = len(t)
+                # NFFT2 = len(t)
+                NFFT2 = Green_RW.nb_freqs
                 if(dimension > 2):
                         NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
                 
                 # Define corresponding time and spatial arrays
                 x = np.linspace(xmin, xmax, NFFT1)
-                t = dt_anal * np.arange(0,NFFT2)
+                # t = dt_anal * np.arange(0,NFFT2) # ALREADY COMPUTED AT BEGINNING OF FUNCTION (either with Green_RW.compute_ifft or analytically) 
                 if(dimension > 2):
                         y  = np.linspace(ymin, ymax, NFFT3)
                 else:
@@ -625,12 +646,16 @@ class field_RW():
                         PHI[:len(x)//2] = np.pi
                 PHI += np.pi/2.
                 
-                # Compute bottom RW forcing                
+                # Compute bottom RW forcing
                 temp   = Green_RW.compute_ifft(R/1000., PHI, type='RW', unknown=self.type_output, mode_max = mode_max, dimension_seismic = dimension_seismic, ncpus = ncpus)
+                # if(dimension > 2):
+                #         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
+                # else:
+                #         t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.size) )
                 if(dimension > 2):
-                        t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
+                  Mo = temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 else:
-                        t, Mo  = temp[0], temp[1].reshape( (temp[1].shape[0], PHI.size) )
+                  Mo = temp[1].reshape( (temp[1].shape[0], PHI.size) )
                 
                 # Store forcing parameters
                 self.Mo = Mo
