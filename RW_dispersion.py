@@ -68,7 +68,7 @@ def local_collect(title, N, periods):
 
 ## Collect eigenfunctions and derivatives from earthsr
 def get_eigenfunctions(current_struct, options):
-        print('['+sys._getframe().f_code.co_name+'] Collect eigenfunctions and derivatives from earthsr.')
+        print('['+sys._getframe().f_code.co_name+'] Create Green functions object. Collect eigenfunctions and derivatives from earthsr and input them to the object.')
 
         import multiprocessing as mp
         from functools import partial
@@ -113,7 +113,7 @@ def get_eigenfunctions(current_struct, options):
         # toolbar_width = 40
         # total_length  = len(periods) * N
         # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
-        print('['+sys._getframe().f_code.co_name+'] > Store eigenfunctions in the local RW spectrum object.')
+        print('['+sys._getframe().f_code.co_name+'] > Store eigenfunctions in the local Green functions object.')
         # sys.stdout.flush()
         # id_stat = 0
         # cptbar = 0
@@ -168,6 +168,9 @@ def get_eigenfunctions(current_struct, options):
             
         ## Deallocate
         del results
+        
+        print('['+sys._getframe().f_code.co_name+'] > Update Green functions object frequency array based on the eigenfunctions that were found.')
+        Green_RW.update_frequencies()
         
         # sys.stdout.write("] Done\n")
         print('['+sys._getframe().f_code.co_name+'] > Finished.')
