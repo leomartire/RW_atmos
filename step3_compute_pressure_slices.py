@@ -51,7 +51,7 @@ def main():
   output_path               = args.output+'/'
   
   RW_field_path = args.RWField
-  t_chosen = args.times
+  t_chosen = np.array(args.times)
   altitudes = args.altitudes
   doPlots = args.doPlots
   doDumps = args.doDumps
@@ -61,6 +61,13 @@ def main():
   
   # Load Rayleigh wave field.
   RW_field = pickleLoad(RW_field_path)
+  
+  # Check input.
+  if(t_chosen.max() > RW_field.t.max()):
+    fm = 0.5/(RW_field.t[1]-RW_field.t[0])
+    sys.exit('[%s, ERROR] Asking for a time (%.3f s) that is later than the maximum time of simulation (%.3f s). To get to %.3f s, return to step 1, and either increase --nbFreq to %d or decrease fMax (in --freqMinMax) to %.3e Hz.'
+             % (sys._getframe().f_code.co_name, t_chosen.max(), RW_field.t.max(),
+                t_chosen.max(), int(np.ceil(t_chosen.max()*2.0*fm+1)), 0.5*(RW_field.t.size-1)/t_chosen.max()))
   
   # Make output path if necessary.
   if(not os.path.isdir(output_path)):
