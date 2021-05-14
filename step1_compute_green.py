@@ -107,10 +107,11 @@ def main():
   output_path_run = output_path+'earthsrRun/'
   if(not os.path.isdir(output_path_run)):
     os.makedirs(output_path_run)
-  print('[%s] Cleaning up earthsr run: move files \'./input_code_earthsr\', \'./ray\', \'./tocomputeIO.input_code_earthsr\' and folder %s to \'%s\' using a Python function.'
-        % (sys._getframe().f_code.co_name, Green_RW.global_folder, output_path_run))
+  print('[%s] Cleaning up earthsr run.' % (sys._getframe().f_code.co_name))
   for k in ['./input_code_earthsr', './ray', './tocomputeIO.input_code_earthsr', Green_RW.global_folder]:
-    os.rename('./'+k, output_path_run+k)
+    print('[%s] > Move \'%s\' to \'%s\' using a Python function.'
+        % (sys._getframe().f_code.co_name, k, output_path_run))
+    os.rename(k, output_path_run+k)
   Green_RW.global_folder = output_path_run+Green_RW.global_folder # Save the moved/stored folder.
   
   # Store outputs.
