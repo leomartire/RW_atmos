@@ -333,10 +333,13 @@ class RW_forcing():
             # Check for empty frequencies in the middle of the series.
             # if mode 1 has [1 1 1 1 1 0 0] then it makes sense
             # if mode 1 has [1 1 0 0 1 1 1] then it does not make sense and is probably an error
-            if(np.sum(uz_func_mode_freq[0,nfreqmode1:])>0):
+            if(np.sum(uz_func_mode_freq[nfreqmode1:,0])>0):
               # If the last indices aren't zero, the zeros are somewhere before, and there is an issue.
-              sys.exit('[%s] > > > On the first mode, some frequencies have no associated eigenfrequency, this should probably not happen.'
-                       % (sys._getframe().f_code.co_name))
+              print('[%s] > > > On the first mode, some frequencies have no associated eigenfrequency:'
+                    % (sys._getframe().f_code.co_name),
+                    file=sys.stderr)
+              print(self.f_tab[np.where(uz_func_mode_freq[:,0]==0)], file=sys.stderr)
+              sys.exit('[%s] > > > This should not happen.' % (sys._getframe().f_code.co_name))
             else:
               # This is probably fine, store the updated frequency array.
               print('[%s] > > > Store frequency span agreeing with the first mode\'s first %d frequencies.' % (sys._getframe().f_code.co_name, nfreqmode1))
