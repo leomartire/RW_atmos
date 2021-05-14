@@ -65,7 +65,7 @@ def local_collect(title, N, periods):
   return (reo.read_egnfile_allper(title, periods, N), periods)
 
 ## Collect eigenfunctions and derivatives from earthsr
-def get_eigenfunctions(current_struct, options):
+def get_eigenfunctions(current_struct, options, ncpu=16):
   print('['+sys._getframe().f_code.co_name+'] Create Green functions object. Collect eigenfunctions and derivatives from earthsr and input them to the object.')
 
   import multiprocessing as mp
@@ -81,7 +81,7 @@ def get_eigenfunctions(current_struct, options):
   # freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
   # freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
   
-  N = 16
+  N = ncpu
   list_of_lists = np.array_split(periods, N)
   
   local_collect_partial = partial(local_collect, options['global_folder'] + 'eigen.input_code_earthsr', N)
@@ -284,7 +284,7 @@ def get_default_options():
   
   return(options)
 
-def compute_Green_functions(options_in = {}):
+def compute_Green_functions(options_in = {}, ncpu=16):
   print('['+sys._getframe().f_code.co_name+'] Compute Rayleigh waves\' Green functions.')
   print('['+sys._getframe().f_code.co_name+'] > Will run earthsr to obtain the dispersion relations.')
   
@@ -336,7 +336,7 @@ def compute_Green_functions(options_in = {}):
     velocity_models.create_velocity_figures(current_struct, options)
     
     ## Class containing routine to construct RW/acoustic spectrum at a given location
-    Green_RW = get_eigenfunctions(current_struct, options)
+    Green_RW = get_eigenfunctions(current_struct, options, ncpu=ncpu)
     
     # ## Compute sensitivity maps
     # if(False):

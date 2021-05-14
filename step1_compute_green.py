@@ -22,6 +22,8 @@ def main():
                       help='Path to a SPECFEM-formatted elastic model.')
   required.add_argument('--output', required=True,
                       help='Output folder path.')
+  required.add_argument('--nCPU', type=int, required=True,
+                      help='Number of CPUs to use for multithreading the collection of earthsr outputs.')
   
   freqs = parser.add_argument_group('optional arguments - frequency domain')
   def__freqMinMax = [0.001, 5.0];
@@ -58,8 +60,9 @@ def main():
   print(' ')
 
   # Sample path name of the directory created to store data and figures
-  output_path               = args.output+'/'
-  forceOverwrite            = args.outputOverwrite
+  output_path    = args.output+'/'
+  forceOverwrite = args.outputOverwrite
+  ncpu           = args.nCPU
   
   # RW-atmos integration options
   options = {}
@@ -97,7 +100,7 @@ def main():
   pickleDump(output_path+'options_inp.pkl', options)
   
   # Compute Green functions.
-  Green_RW, options_out_rw = RW_dispersion.compute_Green_functions(options)
+  Green_RW, options_out_rw = RW_dispersion.compute_Green_functions(options, ncpu)
   options.update(options_out_rw)
   
   # Cleanup run.
