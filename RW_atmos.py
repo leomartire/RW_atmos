@@ -280,35 +280,33 @@ class RW_forcing():
                         sys.exit('Source time function "'+self.stf+'" not recognized!')
         
         def add_one_period(self, period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep):
-        
-                # uz    = []
-                # freqa = []
-                for imode in range(0, min(len(current_struct),orig_b1.shape[1])):
-                
-                        cphi = current_struct[imode]['cphi'][iperiod]
-                        cg   = current_struct[imode]['cg'][iperiod]
-                        r2   = orig_b2[:,imode]
-                        r1   = orig_b1[:,imode]
-                        kn   = kmode[:,imode]
-                        d_r2_dz = d_b2_dz[:,imode]
-                        d_r1_dz = d_b1_dz[:,imode]
-                        
-                        I1   = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
-                        
-                        kn = kn[0]
-                        self.directivity[imode][iperiod] = directivity(dep, d_r1_dz, d_r2_dz, kn, r1, r2)
-                        
-                        r2 = r2[0]
-                        r1 = r1[0]
-                        
-                        # Compute quality factor
-                        #QR  = spi.simps( (2./Qp[:])*(lamda[:] + 2*mu[:])*( kn*r1 + d_r2_dz )**2, dep[:])
-                        #QR += spi.simps( (2.*mu[:]/Qs[:])*(( kn*r2 + d_r1_dz )**2 - 4*kn*r1*d_r2_dz ), dep[:])
-                        #QR *= 1./(4.*(kn**2)*cg*cphi*I1)
-                        QR = current_struct[imode]['QR'][iperiod]
-                        
-                        # Store Green's functions for an arbitrary moment tensor
-                        self.uz[imode][iperiod] = vertical_velocity(period, r2, cphi, cg, I1, kn, QR, self.directivity[imode][iperiod])
+          # uz    = []
+          # freqa = []
+          for imode in range(0, min(len(current_struct),orig_b1.shape[1])):
+            cphi = current_struct[imode]['cphi'][iperiod]
+            cg   = current_struct[imode]['cg'][iperiod]
+            r2   = orig_b2[:,imode]
+            r1   = orig_b1[:,imode]
+            kn   = kmode[:,imode]
+            d_r2_dz = d_b2_dz[:,imode]
+            d_r1_dz = d_b1_dz[:,imode]
+            
+            I1   = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
+            
+            kn = kn[0]
+            self.directivity[imode][iperiod] = directivity(dep, d_r1_dz, d_r2_dz, kn, r1, r2)
+            
+            r2 = r2[0]
+            r1 = r1[0]
+            
+            # Compute quality factor
+            #QR  = spi.simps( (2./Qp[:])*(lamda[:] + 2*mu[:])*( kn*r1 + d_r2_dz )**2, dep[:])
+            #QR += spi.simps( (2.*mu[:]/Qs[:])*(( kn*r2 + d_r1_dz )**2 - 4*kn*r1*d_r2_dz ), dep[:])
+            #QR *= 1./(4.*(kn**2)*cg*cphi*I1)
+            QR = current_struct[imode]['QR'][iperiod]
+            
+            # Store Green's functions for an arbitrary moment tensor
+            self.uz[imode][iperiod] = vertical_velocity(period, r2, cphi, cg, I1, kn, QR, self.directivity[imode][iperiod])
                         
         def update_frequencies(self):
           # Compare the set of expected frequencies (self.nb_freq, self.f_tab)
