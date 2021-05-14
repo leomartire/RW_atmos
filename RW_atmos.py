@@ -124,7 +124,7 @@ class RW_forcing():
           out = out + '| Seismic model:                |\n'
           out = out + str(self.seismic)+'\n'
           out = out + '+-------------------------------+\n'
-          out = out + '| Chosen storage folder:       |\n'
+          out = out + '| Chosen storage folder:        |\n'
           out = out + '| '+self.global_folder+'\n'
           out = out + '+-------------------------------+\n'
           
