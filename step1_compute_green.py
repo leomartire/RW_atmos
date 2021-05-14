@@ -102,6 +102,12 @@ def main():
   # Compute Green functions.
   Green_RW, options_out_rw = RW_dispersion.compute_Green_functions(options, ncpu)
   options.update(options_out_rw)
+  print(Green_RW)
+  
+  # Check output.
+  if(Green_RW.nb_freqs_actualforMode1<0.5*Green_RW.nb_freqs):
+    sys.exit('[%s] > Green functions object contains very few frequencies (%d) compared to what was asked (%d). Something went wrong.'
+             % (sys._getframe().f_code.co_name, Green_RW.nb_freqs_actualforMode1, Green_RW.nb_freqs))
   
   # Cleanup run.
   output_path_run = output_path+'earthsrRun/'
