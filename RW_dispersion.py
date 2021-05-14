@@ -22,177 +22,171 @@ matplotlib.use('Agg')
 
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
-        print('['+sys._getframe().f_code.co_name+'] Generate velocity and option files to run earthsr.')
-        
-        format_header = '%d %d %12.12f \n'
-        format_string = '%12.12f %12.12f %12.12f %12.12f %12.12f %12.12f \n'
-        format_phase  = '%12.12f %12.12f %d %d \n'
-        format_freq   = '%d %d %12.12f %12.12f \n'
-        
-        ## Write input files - LEFT AND RIGHT
-        #for nside in range(1,3):
-            
-        side['name']   = options['global_folder'] + '/input_code_earthsr'
-    
-        ## Generate link for dispersion code
-        os.system('rm ' + './input_code_earthsr')
-        os.system('ln ' + '-s ' + side['name'])
+  print('['+sys._getframe().f_code.co_name+'] Generate velocity and option files to run earthsr.')
+  
+  format_header = '%d %d %12.12f \n'
+  format_string = '%12.12f %12.12f %12.12f %12.12f %12.12f %12.12f \n'
+  format_phase  = '%12.12f %12.12f %d %d \n'
+  format_freq   = '%d %d %12.12f %12.12f \n'
+  
+  ## Write input files - LEFT AND RIGHT
+  #for nside in range(1,3):
+  side['name']   = options['global_folder'] + '/input_code_earthsr'
 
-        ## Open file
-        with open(side['name'], 'w') as f:
-        
-                f.write(format_header % (options['nb_layers'], options['earth_flattening'], options['ref_period']))
-                for l in range(0, options['nb_layers']-1):
-                        f.write(format_string % (options['h'][l], side['vp'][l], side['vs'][l], side['rho'][l], side['Qa'][l], side['Qb'][l]))
-                hend = 0.
-                f.write(format_string % (hend, side['vp'][l],side['vs'][l], side['rho'][l], side['Qa'][l], side['Qb'][l])) 
-                # Surface wave type.  1 = Rayleigh; <>1 Love.  In this case we choose the Rayleigh option
-                f.write('%d\n' % (options['type_wave'] ))
-                # Filename of binary output of dispersion curves.  In this case it is called "ray"
-                txt_type = 'ray' 
-                f.write('%s\n' % (txt_type))
-                # min and max phase velocities and min and max branch (mode) numbers.
-                f.write(format_phase % (options['min_max_phase'][0], options['min_max_phase'][1], options['nb_modes'][0], options['nb_modes'][1]))
-                # Number of sources, number of frequencies, frequency interval and starting (lowest) frequency.
-                f.write(format_freq % (options['nb_source'], options['nb_freq'], options['df'], options['freq_range'][0]))
-                # Source depths in km.
-                f.write('%12.12f \n' % (options['source_depth']))
-                # Receiver depths in km.
-                f.write('%12.12f \n' % (options['receiver_depth']))
-                # This this point the program loops over another set of input lines starting with the surface
-                # wave type (1st line after model).
-                f.write('%d \n' % (options['Loop']))
+  ## Generate link for dispersion code
+  os.system('rm ' + './input_code_earthsr')
+  os.system('ln ' + '-s ' + side['name'])
+
+  ## Open file
+  with open(side['name'], 'w') as f:
+    f.write(format_header % (options['nb_layers'], options['earth_flattening'], options['ref_period']))
+    for l in range(0, options['nb_layers']-1):
+            f.write(format_string % (options['h'][l], side['vp'][l], side['vs'][l], side['rho'][l], side['Qa'][l], side['Qb'][l]))
+    hend = 0.
+    f.write(format_string % (hend, side['vp'][l],side['vs'][l], side['rho'][l], side['Qa'][l], side['Qb'][l])) 
+    # Surface wave type.  1 = Rayleigh; <>1 Love.  In this case we choose the Rayleigh option
+    f.write('%d\n' % (options['type_wave'] ))
+    # Filename of binary output of dispersion curves.  In this case it is called "ray"
+    txt_type = 'ray' 
+    f.write('%s\n' % (txt_type))
+    # min and max phase velocities and min and max branch (mode) numbers.
+    f.write(format_phase % (options['min_max_phase'][0], options['min_max_phase'][1], options['nb_modes'][0], options['nb_modes'][1]))
+    # Number of sources, number of frequencies, frequency interval and starting (lowest) frequency.
+    f.write(format_freq % (options['nb_source'], options['nb_freq'], options['df'], options['freq_range'][0]))
+    # Source depths in km.
+    f.write('%12.12f \n' % (options['source_depth']))
+    # Receiver depths in km.
+    f.write('%12.12f \n' % (options['receiver_depth']))
+    # This this point the program loops over another set of input lines starting with the surface
+    # wave type (1st line after model).
+    f.write('%d \n' % (options['Loop']))
 
 def local_collect(title, N, periods):
   return (reo.read_egnfile_allper(title, periods, N), periods)
 
 ## Collect eigenfunctions and derivatives from earthsr
 def get_eigenfunctions(current_struct, options):
-        print('['+sys._getframe().f_code.co_name+'] Create Green functions object. Collect eigenfunctions and derivatives from earthsr and input them to the object.')
+  print('['+sys._getframe().f_code.co_name+'] Create Green functions object. Collect eigenfunctions and derivatives from earthsr and input them to the object.')
 
-        import multiprocessing as mp
-        from functools import partial
-        
-        ## Construct RW spectrum object 
-        Green_RW = RW_atmos.RW_forcing(options)
+  import multiprocessing as mp
+  from functools import partial
+  
+  ## Construct RW spectrum object 
+  Green_RW = RW_atmos.RW_forcing(options)
 
-        periods = 1./np.linspace(options['f_tab'][-1], options['f_tab'][0], len(options['f_tab']))
-        
-        # UNUSED.
-        # uz_tab = []
-        # freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
-        # freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
-        
-        N = 16
-        list_of_lists = np.array_split(periods, N)
-        
-        local_collect_partial = partial(local_collect, options['global_folder'] + 'eigen.input_code_earthsr', N)
-        
-        # ## Setup progress bar
-        # toolbar_width = 40
-        # total_length  = len(periods) * (options['nb_modes'][1]+1)
-        # # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
-        print('['+sys._getframe().f_code.co_name+'] > Building eigenfunctions from earthsr output.')
-        # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
-        # sys.stdout.flush()
-        # #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
-        
-        if N == 1:
-                results = [local_collect_partial(periods)]
-        else:
-                if options['USE_SPAWN_MPI']:
-                        with get_context("spawn").Pool(processes = N) as p:
-                                results = p.map(local_collect_partial, list_of_lists)
-                else:
-                        with mp.Pool(processes = N) as p:
-                                results = p.map(local_collect_partial, list_of_lists)
-                                
-        # sys.stdout.write("] Done\n")
-        
-        # ## Setup progress bar
-        # toolbar_width = 40
-        # total_length  = len(periods) * N
-        # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
-        print('['+sys._getframe().f_code.co_name+'] > Store eigenfunctions in the local Green functions object.')
-        # sys.stdout.flush()
-        # id_stat = 0
-        # cptbar = 0
-        
-        offset = 0
-        for reoobj_ in results:
-            
-            reoobj   = reoobj_[0]
-            periods_ = reoobj_[1]
-            for iperiod, period in enumerate(periods_):
-        
-                iperiod_ = offset + iperiod
-        
-                #reoobj=reo.read_egnfile_per(options['global_folder'] + 'eigen.input_code_earthsr', period)
-                
-                dep     = reoobj.dep
-                omega   = 2*np.pi/period
-                
-                orig_b1 = reoobj.uzmat[iperiod]
-                orig_b2 = reoobj.urmat[iperiod]
-                orig_b3 = reoobj.tzmat[iperiod]
-                orig_b4 = reoobj.trmat[iperiod]
-                kmode   = reoobj.wavnum[iperiod].reshape(1,len(reoobj.wavnum[iperiod]))
-                        
-                # origdep = reoobj.dep
-                # nmodes  = orig_b1.shape[1]
-                mu      = reoobj.mu.reshape(len(reoobj.mu),1)
-                lamda   = reoobj.lamda.reshape(len(reoobj.mu),1)
-                rho     = reoobj.rho
-                kmu    = np.dot(mu,kmode)
-                klamda = np.dot(lamda,kmode)
-                
-                # Eq. (7.28) Aki-Richards
-                # r1 = b2 r2 = b1
-                # r3 = b4 r4 = b3
-                d_b2_dz = (omega*orig_b4-np.multiply(kmu,orig_b1))/mu # numpy.multiply does element wise array multiplication
-                d_b1_dz = (np.multiply(klamda,orig_b2)+omega*orig_b3)/(lamda+2*mu)
-                # dxz     = np.gradient(orig_b2[:,0])
-                # dzz     = np.gradient(orig_b1[:,0])
-                
-                ## Construct Green's function for a given period 
-                Green_RW.add_one_period(period, iperiod_, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
-                
-                # ## Update progress bar
-                # id_stat += 1
-                # if(int(toolbar_width*id_stat/total_length) > cptbar):
-                #         cptbar = int(toolbar_width*id_stat/total_length)
-                #         sys.stdout.write("-")
-                #         sys.stdout.flush()
-            
-            offset += len(periods_)
-            
-        ## Deallocate
-        del results
-        
-        print('['+sys._getframe().f_code.co_name+'] > Update Green functions object frequency array based on the eigenfunctions that were found.')
-        Green_RW.update_frequencies()
-        
-        # sys.stdout.write("] Done\n")
-        print('['+sys._getframe().f_code.co_name+'] > Finished.')
-            
-        return Green_RW
+  periods = 1./np.linspace(options['f_tab'][-1], options['f_tab'][0], len(options['f_tab']))
+  
+  # UNUSED.
+  # uz_tab = []
+  # freq_tab  = [[] for ii in range(0,options['nb_modes'][1]+1) ]
+  # freqa_tab = [[] for ii in range(0,options['nb_modes'][1]+1) ]
+  
+  N = 16
+  list_of_lists = np.array_split(periods, N)
+  
+  local_collect_partial = partial(local_collect, options['global_folder'] + 'eigen.input_code_earthsr', N)
+  
+  # ## Setup progress bar
+  # toolbar_width = 40
+  # total_length  = len(periods) * (options['nb_modes'][1]+1)
+  # # sys.stdout.write("Building eigenfunctions: [%s]" % (" " * toolbar_width))
+  print('['+sys._getframe().f_code.co_name+'] > Building eigenfunctions from earthsr output.')
+  # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Building eigenfunctions: [%s]" % (" " * toolbar_width))
+  # sys.stdout.flush()
+  # #sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+  
+  if N == 1:
+    results = [local_collect_partial(periods)]
+  else:
+    if options['USE_SPAWN_MPI']:
+      with get_context("spawn").Pool(processes = N) as p:
+        results = p.map(local_collect_partial, list_of_lists)
+    else:
+      with mp.Pool(processes = N) as p:
+        results = p.map(local_collect_partial, list_of_lists)
+                          
+  # sys.stdout.write("] Done\n")
+  
+  # ## Setup progress bar
+  # toolbar_width = 40
+  # total_length  = len(periods) * N
+  # sys.stdout.write("["+sys._getframe().f_code.co_name+"] Store eigenfunctions: [%s]" % (" " * toolbar_width))
+  print('['+sys._getframe().f_code.co_name+'] > Store eigenfunctions in the local Green functions object.')
+  # sys.stdout.flush()
+  # id_stat = 0
+  # cptbar = 0
+  
+  offset = 0
+  for reoobj_ in results:
+    reoobj   = reoobj_[0]
+    periods_ = reoobj_[1]
+    for iperiod, period in enumerate(periods_):
+      iperiod_ = offset + iperiod
+      #reoobj=reo.read_egnfile_per(options['global_folder'] + 'eigen.input_code_earthsr', period)
+      
+      dep     = reoobj.dep
+      omega   = 2*np.pi/period
+      
+      orig_b1 = reoobj.uzmat[iperiod]
+      orig_b2 = reoobj.urmat[iperiod]
+      orig_b3 = reoobj.tzmat[iperiod]
+      orig_b4 = reoobj.trmat[iperiod]
+      kmode   = reoobj.wavnum[iperiod].reshape(1,len(reoobj.wavnum[iperiod]))
+              
+      # origdep = reoobj.dep
+      # nmodes  = orig_b1.shape[1]
+      mu      = reoobj.mu.reshape(len(reoobj.mu),1)
+      lamda   = reoobj.lamda.reshape(len(reoobj.mu),1)
+      rho     = reoobj.rho
+      kmu    = np.dot(mu,kmode)
+      klamda = np.dot(lamda,kmode)
+      
+      # Eq. (7.28) Aki-Richards
+      # r1 = b2 r2 = b1
+      # r3 = b4 r4 = b3
+      d_b2_dz = (omega*orig_b4-np.multiply(kmu,orig_b1))/mu # numpy.multiply does element wise array multiplication
+      d_b1_dz = (np.multiply(klamda,orig_b2)+omega*orig_b3)/(lamda+2*mu)
+      # dxz     = np.gradient(orig_b2[:,0])
+      # dzz     = np.gradient(orig_b1[:,0])
+      
+      ## Construct Green's function for a given period 
+      Green_RW.add_one_period(period, iperiod_, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep)
+      
+      # ## Update progress bar
+      # id_stat += 1
+      # if(int(toolbar_width*id_stat/total_length) > cptbar):
+      #         cptbar = int(toolbar_width*id_stat/total_length)
+      #         sys.stdout.write("-")
+      #         sys.stdout.flush()
+    
+    offset += len(periods_)
+      
+  ## Deallocate
+  del results
+  
+  print('['+sys._getframe().f_code.co_name+'] > Update Green functions object frequency array based on the eigenfunctions that were found.')
+  Green_RW.update_frequencies()
+  
+  # sys.stdout.write("] Done\n")
+  print('['+sys._getframe().f_code.co_name+'] > Finished.')
+      
+  return Green_RW
                 
 def compute_dispersion_with_earthsr(no, side, options):
-        print('['+sys._getframe().f_code.co_name+'] Run earthsr.')
-        
-        print('****************************************************************')
-        ## Launch dispersion code
-        #print(' model: ' + side['name'])
-        # os.system('./bin/earthsr ' + 'input_code_earthsr')
-        sysErrHdl(sys.path[0]+'/bin/earthsr '+'input_code_earthsr')
-        print('****************************************************************')
+  print('['+sys._getframe().f_code.co_name+'] Run earthsr.')
+  print('****************************************************************')
+  ## Launch dispersion code
+  #print(' model: ' + side['name'])
+  # os.system('./bin/earthsr ' + 'input_code_earthsr')
+  sysErrHdl(sys.path[0]+'/bin/earthsr '+'input_code_earthsr')
+  print('****************************************************************')
 
 def move_dispersion_files(no, options):
-        print('['+sys._getframe().f_code.co_name+'] Move earthsr files (./disp*, ./eigen*) to \''+options['global_folder']+'\' using a system command.')
-        os.system('mv '+'./disp* ' + options['global_folder'])
-        os.system('mv '+'./eigen* ' + options['global_folder'])
-        if(no > 0):
-          os.system('mv ' + 'tocomputeIO* ' + options['global_folder'])
+  print('['+sys._getframe().f_code.co_name+'] Move earthsr files (./disp*, ./eigen*) to \''+options['global_folder']+'\' using a system command.')
+  os.system('mv '+'./disp* ' + options['global_folder'])
+  os.system('mv '+'./eigen* ' + options['global_folder'])
+  if(no > 0):
+    os.system('mv ' + 'tocomputeIO* ' + options['global_folder'])
 
 ################################################################################################
 ## Before finishing building coefficients, this routine saves dispersion characteristics to file
@@ -204,35 +198,33 @@ def collect_dispersion_from_earthsr_and_save(nside, options):
   data_dispersion = [{} for i in range(0, options['nb_modes'][1])]
   list_modes_side = [{} for j in range(0, options['nb_modes'][1])]
   for nmode in range(0, options['nb_modes'][1]):
-      
-          list_modes_side[nmode]['loc']  = np.where(data_dispersion_file_fund[:,0] == nmode)
+    list_modes_side[nmode]['loc']  = np.where(data_dispersion_file_fund[:,0] == nmode)
 
-          # freq_domain = 0
-          if(list_modes_side[nmode]['loc'][0].size > 0):
-                  data_dispersion[nmode]['period'] = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],1]
-                  data_dispersion[nmode]['cphi']   = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],2]
-                  data_dispersion[nmode]['cg']     = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],3]
-                  data_dispersion[nmode]['QR']     = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],4]   
+    # freq_domain = 0
+    if(list_modes_side[nmode]['loc'][0].size > 0):
+      data_dispersion[nmode]['period'] = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],1]
+      data_dispersion[nmode]['cphi']   = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],2]
+      data_dispersion[nmode]['cg']     = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],3]
+      data_dispersion[nmode]['QR']     = data_dispersion_file_fund[list_modes_side[nmode]['loc'][0],4]   
 
-          ## Add nan for periods where 1st mode has not been calculated
-          if(nmode > 0 and list_modes_side[nmode]['loc'][0].size > 0):
-
-                  cpt       = len(data_dispersion[nmode]['period'])-1
-                  save_cphi = data_dispersion[nmode]['cphi'][-1]*0. + np.inf
-                  save_cg   = data_dispersion[nmode]['cg'][-1]*0. + np.inf
-                  save_QR   = data_dispersion[nmode]['QR'][-1]*0. + np.inf
-                  while data_dispersion[nmode]['period'][-1] < data_dispersion[0]['period'][-1]:
-                          cpt += 1
-                          data_dispersion[nmode]['period'] = np.concatenate([data_dispersion[nmode]['period'], [data_dispersion[0]['period'][cpt]]])
-                          data_dispersion[nmode]['cphi']   = np.concatenate([data_dispersion[nmode]['cphi'], [save_cphi]])
-                          data_dispersion[nmode]['cg']     = np.concatenate([data_dispersion[nmode]['cg'], [save_cg]])
-                          data_dispersion[nmode]['QR']     = np.concatenate([data_dispersion[nmode]['QR'], [save_QR]])
+    ## Add nan for periods where 1st mode has not been calculated
+    if(nmode > 0 and list_modes_side[nmode]['loc'][0].size > 0):
+      cpt       = len(data_dispersion[nmode]['period'])-1
+      save_cphi = data_dispersion[nmode]['cphi'][-1]*0. + np.inf
+      save_cg   = data_dispersion[nmode]['cg'][-1]*0. + np.inf
+      save_QR   = data_dispersion[nmode]['QR'][-1]*0. + np.inf
+      while data_dispersion[nmode]['period'][-1] < data_dispersion[0]['period'][-1]:
+        cpt += 1
+        data_dispersion[nmode]['period'] = np.concatenate([data_dispersion[nmode]['period'], [data_dispersion[0]['period'][cpt]]])
+        data_dispersion[nmode]['cphi']   = np.concatenate([data_dispersion[nmode]['cphi'], [save_cphi]])
+        data_dispersion[nmode]['cg']     = np.concatenate([data_dispersion[nmode]['cg'], [save_cg]])
+        data_dispersion[nmode]['QR']     = np.concatenate([data_dispersion[nmode]['QR'], [save_QR]])
 
   ## Save with name "current_struct" to be consistent with resonance_eigen
   current_struct = data_dispersion
   for nmode in range(0, len(current_struct)):
-          if( len(current_struct[nmode]) > 0 ):
-                  current_struct[nmode]['fks'] = 1./current_struct[nmode]['period']
+    if( len(current_struct[nmode]) > 0 ):
+      current_struct[nmode]['fks'] = 1./current_struct[nmode]['period']
       
   utils.save_dict(current_struct, options['global_folder'] + 'PARAM_dispersion.mat')
   
