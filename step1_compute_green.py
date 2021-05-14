@@ -109,9 +109,12 @@ def main():
     os.makedirs(output_path_run)
   print('[%s] Cleaning up earthsr run.' % (sys._getframe().f_code.co_name))
   for k in ['./input_code_earthsr', './ray', './tocomputeIO.input_code_earthsr', Green_RW.global_folder]:
-    print('[%s] > Move \'%s/%s\' to \'%s\' using a Python function.'
-        % (sys._getframe().f_code.co_name, os.path.abspath(os.getcwd()), k, output_path_run))
-    os.rename(os.path.abspath(os.getcwd())+'/'+k, output_path_run+k)
+    # print('[%s] > Move \'%s/%s\' to \'%s\' using a Python function.'
+    #     % (sys._getframe().f_code.co_name, os.path.abspath(os.getcwd()), k, output_path_run))
+    # os.rename(os.path.abspath(os.getcwd())+'/'+k, output_path_run+k)
+    print('[%s] > Move \'%s\' to \'%s\' using a system command.'
+        % (sys._getframe().f_code.co_name, k, output_path_run))
+    os.system('mv '+k+' '+output_path_run)
   Green_RW.global_folder = output_path_run+Green_RW.global_folder # Save the moved/stored folder.
   
   # Store outputs.
