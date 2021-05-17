@@ -582,7 +582,7 @@ class field_RW():
         def __str__(self):
           out = ''
           out = out + '+-------------------------------+\n'
-          out = out + '|      Rayleigh Wave Field      |\n'
+          out = out + ('|    %dD Rayleigh Wave Field     |\n' % (self.dimension))
           out = out + '+-------------------------------+\n'
           
           out = out + '| Seismic model:                |\n'
@@ -624,13 +624,22 @@ class field_RW():
           out = out + '+-------------------------------+\n'
           
           out = out + ('| Frequency domain:             |\n')
-          out = out + ('|   Omega, KX, KY: %d*%d*%d meshgrid (frequency, x, y)\n'
-                       % self.KX.shape)
-          out = out + ('| Forcing:                      |\n')
-          out = out + ('|   Mo:   %d*%d*%d meshgrid for bottom forcing\n'
-                       % self.Mo.shape)
-          out = out + ('|   TFMo: %d*%d*%d meshgrid for Fourier transform of bottom forcing\n'
-                       % self.Mo.shape)
+          if(self.dimension==3):
+            out = out + ('|   Omega, KX, KY: %d*%d*%d meshgrid (frequency, x, y)\n'
+                         % self.KX.shape)
+            out = out + ('| Forcing:                      |\n')
+            out = out + ('|   Mo:   %d*%d*%d meshgrid for bottom forcing\n'
+                         % self.Mo.shape)
+            out = out + ('|   TFMo: %d*%d*%d meshgrid for Fourier transform of bottom forcing\n'
+                         % self.Mo.shape)
+          else:
+            out = out + ('|   Omega, KX, KY: %d*%d meshgrid (frequency, x)\n'
+                         % self.KX.shape)
+            out = out + ('| Forcing:                      |\n')
+            out = out + ('|   Mo:   %d*%d meshgrid for bottom forcing\n'
+                         % self.Mo.shape)
+            out = out + ('|   TFMo: %d*%d meshgrid for Fourier transform of bottom forcing\n'
+                         % self.Mo.shape)
           out = out + '+-------------------------------+\n'
         
           return(out)
@@ -1145,7 +1154,7 @@ class field_RW():
                     elif(type_slice == 'xy'):
                       Mz_xy[:, :] = field_at_it[it,:,:]
                       
-                      # Save time serie
+                      # Save time series
                       if(idz == zloc):
                         # modif 5/1/2020
                         #iy = np.argmin( abs(self.y - y) )
@@ -1154,13 +1163,20 @@ class field_RW():
                                           
                   # 2d
                   else:
-                    Mz_xz[idz, :] = field_at_it[it,:]
-                    
-                    # Save time series
-                    if(idz == zloc):
-                      # modif 5/1/2020
-                      #ix = np.argmin( abs(self.x - x) )
-                      timeseries = field_at_it[:,ix]
+                    if(type_slice == 'z'):
+                      Mz_xz[idz, :] = field_at_it[it,:]
+                      # Save time series
+                      if(idz == zloc):
+                        # modif 5/1/2020
+                        #ix = np.argmin( abs(self.x - x) )
+                        timeseries = field_at_it[:,ix]
+                      
+                    elif(type_slice == 'xy'):
+                      # An "XY slice" makes little sense in 2D, but we still want to grab the "line" that makes.
+                      Mz_xy[:] = np.reshape(field_at_it[it,:], (-1, 1))
+                      # Save time series
+                      if(idz == zloc):
+                        timeseries = field_at_it[:,ix]
 
                   # update the bar
                   if(len(zvect) > 1):
@@ -1172,12 +1188,16 @@ class field_RW():
                 if(len(zvect) > 1):
                         sys.stdout.write("] Done\n")
                 
-                if(self.dimension > 2 and type_slice == 'z'):
-                        return Mz_xz, Mz_yz, timeseries
-                elif(self.dimension > 2 and type_slice == 'xy'):
-                        return Mz_xy, timeseries
+                if(self.dimension > 2):
+                  if(type_slice == 'z'):
+                    return Mz_xz, Mz_yz, timeseries
+                  elif(type_slice == 'xy'):
+                    return Mz_xy, timeseries
                 else:
-                        return Mz_xz, timeseries
+                  if(type_slice == 'z'):
+                    return Mz_xz, timeseries
+                  elif(type_slice == 'xy'):
+                    return Mz_xy, timeseries
                                 
         def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True):
                 
