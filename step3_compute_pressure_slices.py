@@ -80,12 +80,20 @@ def main():
     if(doPlots):
       RW_atmos.plot_surface_forcing(RW_field, t_snap, 0, 0, output_path, False)
     if(doDumps):
-      M0 = RW_field.Mo[RW_field.get_index_tabs_time(t_snap), :, :]
-      np.real(M0).tofile(output_path+'map_XY_RW_t%07.2f_%dx%d.bin'
-                         % (t_snap, M0.shape[0], M0.shape[1]))
+      if(RW_field.dimension==3):
+        M0 = RW_field.Mo[RW_field.get_index_tabs_time(t_snap), :, :]
+        tag = 'XY'
+        np.real(M0).tofile(output_path+'map_%s_RW_t%07.2f_%dx%d.bin'
+                           % (tag, t_snap, M0.shape[0], M0.shape[1]))
+      else:
+        # Note: this call would work in 3D too, but it is more explicit to separate the two in order to keep in mind the shapes of the involved fields.
+        M0 = RW_field.Mo[RW_field.get_index_tabs_time(t_snap), :]
+        tag = 'X'
+        np.real(M0).tofile(output_path+'map_%s_RW_t%07.2f_%dx1.bin'
+                           % (tag, t_snap, M0.shape[0]))
       # Save "grid" only once.
       if(t_snap==t_chosen[0]):
-        np.array([RW_field.x[0], RW_field.x[-1], RW_field.y[0], RW_field.y[-1]]).tofile(output_path+'map_XY_PRE_XYminmax.bin')
+        np.array([RW_field.x[0], RW_field.x[-1], RW_field.y[0], RW_field.y[-1]]).tofile(output_path+'map_%s_PRE_XYminmax.bin' % (tag))
     
     # Horizontal pressure slices.
     for alt in altitudes:
@@ -100,10 +108,10 @@ def main():
         plt.title('Pressure Field at %.1f km' % (alt/1e3))
         cbar = plt.colorbar(hplt)
         cbar.ax.set_ylabel('$p''$ [Pa]', rotation=90) 
-        plt.savefig(output_path+'map_XY_PRE_t%07.2f.pdf' % (t_snap))
+        plt.savefig(output_path+'map_%s_PRE_t%07.2f.pdf' % (tag, t_snap))
       if(doDumps):
-        np.real(Mxy).tofile(output_path+'map_XY_PRE_t%07.2f_%dx%d_z%07.2f.bin'
-                            % (t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
+        np.real(Mxy).tofile(output_path+'map_%s_PRE_t%07.2f_%dx%d_z%07.2f.bin'
+                            % (tag, t_snap, Mxy.shape[0], Mxy.shape[1], alt/1e3))
   
   dur = time.time()-t1
   print('+------------------------------------------+')
