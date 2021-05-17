@@ -2,8 +2,17 @@ function [outpath] = concatDumps(root)
   thisFolder = regexprep(mfilename('fullpath'),mfilename,'');
   addpath(genpath([thisFolder,filesep,'..']));
   
-  fname_xy = [root,'map_XY_PRE_XYminmax.bin'];
-  fname_p_filter = [root,'map_XY_PRE_t*_*_z*.bin'];
+  fname_xy = [root,'map_*_PRE_XYminmax.bin'];
+  fname_p_filter = [root,'map_*_PRE_t*_*_z*.bin'];
+  
+  fxy = dir(fname_xy);
+  if(numel(fxy)>1)
+    error('you should not be able to find more than one xy file');
+  elseif(numel(fxy)==0)
+    error('no xy file found');
+  else
+    fname_xy = [fxy(1).folder,filesep,fxy(1).name];
+  end
 
   [xy] = readPreDumps_xy(fname_xy);
   fnames_p = dir(fname_p_filter);
