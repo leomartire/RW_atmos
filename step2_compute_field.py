@@ -70,6 +70,11 @@ def main():
                            'Second integer encodes the multithreading parallelisation for the RW modes (as specified in the output of step 1). '+
                              '0 = serial (not recommended); n>0 = multithread over n CPUs.')
   
+  def__nbKXY = 2**6
+  required.add_argument('--atmosDimension', type=int, choices=[2,3], default=3,
+                      help='Atmospheric dimension. Defaults to 3.')
+  required.add_argument('--nbKXY', type=int, default=def__nbKXY,
+                        help=('Number of wavenumber points. Defaults to %d.' % (def__nbKXY)))
   required.add_argument('--sourceIDs', required=True, type=int, nargs='+',
                       help='IDs of the sources to be imported. Must match files under format ''source_#####_in.pkl'' in the chosen output folder path, generated using the script ''makeSource.py''.')
   required.add_argument('--latminlatmaxlonminlonmax', required=True, type=float, nargs=4,
@@ -108,6 +113,7 @@ def main():
     print('[%s, WARNING] Requesting 1 node for multiple (%d) sources. Will run the source loop in serial. This is not optimal but will work.' % (sys._getframe().f_code.co_name, len(sourceIDs)))
   
   options_step2 = {}
+  options_step2['dimension'] = args.atmosDimension
   # HERE LOAD NEW OPTIONS FROM ARGS.
   
   # Load previous options, and update with new ones.
@@ -157,7 +163,7 @@ def main():
   
   # ugly hack: copy options from one dict to another & initialize other options only relevant to Ridgecrest
   options_source['coef_high_freq'] = options['coef_high_freq']
-  options_source['nb_kxy']   = options['nb_kxy']
+  options_source['nb_kxy']   = args.nbKXY
   # options_source['t_chosen'] = options['t_chosen']
   options_source['activate_LA'] = False # Only relevant for Ridgecrest study
   options_source['rotation'] = False

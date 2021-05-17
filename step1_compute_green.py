@@ -32,9 +32,9 @@ def main():
   def__nbFreq = 2**8
   freqs.add_argument('--nbFreq', type=int, default=def__nbFreq,
                      help=('Number of frequency points. Defaults to %d.' % (def__nbFreq)))
-  def__nbKXY = 2**6
-  freqs.add_argument('--nbKXY', type=int, default=def__nbKXY,
-                     help=('Number of wavenumber points. Defaults to %d.' % (def__nbKXY)))
+  # def__nbKXY = 2**6
+  # freqs.add_argument('--nbKXY', type=int, default=def__nbKXY,
+  #                    help=('Number of wavenumber points. Defaults to %d.' % (def__nbKXY)))
   def__nbModes = [0, 50];
   freqs.add_argument('--nbModes', type=int, nargs=2, default=def__nbModes,
                      help=('Min/max number of modes to compute. Defaults to [%d, %d].' % (def__nbModes[0], def__nbModes[1])))
@@ -44,14 +44,12 @@ def main():
   freqs.add_argument('--nbLayers', type=int, default=def__nbLayers,
                      help=('Number of discretisation layers for the elastic domain. Defaults to %d.' % (def__nbLayers)))
   def__zmax = 10.0e3
-  freqs.add_argument('--zmax', type=float, default=def__zmax,
+  freqs.add_argument('--depthMax', type=float, default=def__zmax,
                      help=('Maximum depth for the elastic domain. Defaults to %.0f m.' % (def__zmax)))
   
   misc = parser.add_argument_group('optional arguments - miscellaneous')
   misc.add_argument('--outputOverwrite', type=str2bool, choices=[True, False], default=True,
                       help='Overwrite output folder path? Defaults to True.')
-  misc.add_argument('--dimension', type=int, choices=[2,3], default=3,
-                      help='Atmospheric dimension. Defaults to 3.')
   misc.add_argument('--dimensionSeismic', type=int, choices=[2,3], default=3,
                       help='Seismic dimension. Defaults to 3.')
   
@@ -66,17 +64,17 @@ def main():
   
   # RW-atmos integration options
   options = {}
-  options['dimension']         = args.dimension # atmospheric dimension
+  # options['dimension']         = args.dimension # atmospheric dimension
   options['dimension_seismic'] = args.dimensionSeismic # seismic dimension
   # options['ATTENUATION']    = True # using Graves, Broadband ground-motion simulation using a hybrid approach, 2014
   # options['COMPUTE_MAPS']   = False # Compute and plot x,y,z wavefield. Computationally heavy.
   # options['COMPUTE_XY_PRE'] = 20e3 # Compute xy wavefield above source and at given altitude. Computationally heavy. Set to none to disable.
   options['nb_freq']        = args.nbFreq
-  options['nb_kxy']         = args.nbKXY
+  # options['nb_kxy']         = args.nbKXY
   options['coef_low_freq']  = min(args.freqMinMax) # minimum frequency (Hz)
   options['coef_high_freq'] = max(args.freqMinMax) # maximum frequency (Hz)
   options['nb_layers']      = args.nbLayers # Number of seismic layers to discretise (earthsr input).
-  options['zmax']           = args.zmax # Maximum depth (m) for seismic layers (earthsr input).
+  options['zmax']           = args.depthMax # Maximum depth (m) for seismic layers (earthsr input).
   options['nb_modes']       = args.nbModes # min, max number of modes
   # options['t_chosen']       = [0., 90.] # time (s) to display wavefield
   # options['t_chosen']       = [10, 24, 32]
