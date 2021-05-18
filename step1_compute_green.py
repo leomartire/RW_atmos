@@ -82,8 +82,7 @@ def main():
   options['models']['specfem'] = args.seismicModel # './models/Ridgecrest_seismic.txt'
   options['type_model']        = 'specfem' # specfem or specfem2d
   options['chosen_model']      = 'specfem'
-  options['USE_SPAWN_MPI'] = False
-  options['source_depth'] = 8.
+  options['USE_SPAWN_MPI'] = False 
   
   # Check output path is free, make it if necessary.
   if(os.path.isdir(output_path)):
