@@ -255,16 +255,16 @@ def get_default_options():
   options['ONLY_purely_1d'] = False
 
   ## Hetergeneous structure
-  options['type_model']    = 'specfem2d'
-  options['models'] = {}
-  options['models_dimension'] = {}
-  #options['models']['specfem'] = '/home/quentin/Documents/DATA/CODES/eclipse_workspace/GIT-DG/current/specfem-dg/EXAMPLES/Ridgecrest_test_38624623_Hare_notopo/Ridgecrest_seismic.txt'
-  options['models']['specfem'] = './Ridgecrest_seismic.txt'
-  options['models_dimension']['specfem'] = 1
-  #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
-  #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/Ridgecrest_SSD/simulations/Ridgecrest_mesh_simu_fine_batch2_3/Ridgecrest_seismic.txt'
-  options['chosen_model'] = 'specfem'
-  options['zmax'] = 80000.
+  # options['type_model']    = 'specfem2d'
+  # options['models'] = {}
+  # options['models_dimension'] = {}
+  # #options['models']['specfem'] = '/home/quentin/Documents/DATA/CODES/eclipse_workspace/GIT-DG/current/specfem-dg/EXAMPLES/Ridgecrest_test_38624623_Hare_notopo/Ridgecrest_seismic.txt'
+  # options['models']['specfem'] = './Ridgecrest_seismic.txt'
+  # options['models_dimension']['specfem'] = 1
+  # #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/seismic_models/Ridgecrest_seismic.txt'
+  # #options['models']['specfem'] = '/home/quentin/Documents/DATA/Ridgecrest/Ridgecrest_SSD/simulations/Ridgecrest_mesh_simu_fine_batch2_3/Ridgecrest_seismic.txt'
+  # options['chosen_model'] = 'specfem'
+  # options['zmax'] = 80000.
 
   ##############
   ## Auxiliaries
@@ -276,7 +276,7 @@ def get_default_options():
   options['output_file'] = 'dispers' # Filename of binary output of dispersion curves.
   options['min_max_phase'] = [0, 0] # min and max phase velocities and min and max branch (mode) numbers. Note that if we choose the min and max phase velocities to be 0, the program will choose the phase velocity range itself.  In this case case we ask the program to figure out the appropriate range (0.0000000       0.0000000) and solve modes 0 (fundamental) to 4.
   options['nb_source'] = 1 # Number of sources
-  options['source_depth']   = 6.8 # (km)
+  # options['source_depth']   = 6.8 # (km)
   options['receiver_depth'] = 0 # (km)
   options['coef_low_freq']  = 0.001
   options['coef_high_freq'] = 0.5#1.
