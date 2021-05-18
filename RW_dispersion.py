@@ -54,9 +54,10 @@ def generate_model_for_earthsr(side, options):
     # Number of sources, number of frequencies, frequency interval and starting (lowest) frequency.
     f.write(format_freq % (options['nb_source'], options['nb_freq'], options['df'], options['freq_range'][0]))
     # Source depths in km.
-    f.write('%12.12f \n' % (options['source_depth']))
+    f.write('%12.12f \n' % (np.mean(side['z'][1:3]))) # for earthsr input, but unused in the case of computing eigenfunctions
     # Receiver depths in km.
-    f.write('%12.12f \n' % (options['receiver_depth']))
+    # f.write('%12.12f \n' % (options['receiver_depth']))
+    f.write('%12.12f \n' % (np.mean(side['z'][0:2]))) # for earthsr input, but unused in the case of computing eigenfunctions
     # This this point the program loops over another set of input lines starting with the surface
     # wave type (1st line after model).
     f.write('%d \n' % (options['Loop']))
