@@ -78,10 +78,12 @@ def main():
   options['nb_modes']       = args.nbModes # min, max number of modes
   # options['t_chosen']       = [0., 90.] # time (s) to display wavefield
   # options['t_chosen']       = [10, 24, 32]
-  options['models'] = {}
+  options['models']            = {}
   options['models']['specfem'] = args.seismicModel # './models/Ridgecrest_seismic.txt'
   options['type_model']        = 'specfem' # specfem or specfem2d
+  options['chosen_model']      = 'specfem'
   options['USE_SPAWN_MPI'] = False
+  options['source_depth'] = 8.
   
   # Check output path is free, make it if necessary.
   if(os.path.isdir(output_path)):
