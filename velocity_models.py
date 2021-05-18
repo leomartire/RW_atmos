@@ -122,7 +122,7 @@ def create_velocity_model(options):
         unknown_tab  = ['rho', 'vs', 'vp', 'Qp', 'Qs']
         
         ## Jack's files
-        options['z'] = np.arange(0.,100000,2800)
+        options['z'] = np.arange(0.,100000,2800) # what?
         
         if(options['type_model'] == 'specfem'):
                 zover0, data = utils.read_specfem_files(options)
@@ -190,11 +190,20 @@ def create_velocity_figures(current_struct, options):
                 
 #######################################
 ## Discretize continuous model for SWRT
-def discretize_model_heterogeneous(data, options): 
-
+def discretize_model_heterogeneous(data, options):
+        # For some reason options['z'] is in meters here.
         ## Build interpolated depth model
         z_interp = np.linspace(options['z'][0], options['zmax'], options['nb_layers'])
-        z_interp_interm = np.linspace(options['z'][0], options['z'][-1], 400)
+        if(any(z_interp==options['source_depth']*1e3)):
+          # If options['source_depth'] falls on the interface between two
+          # layers, earthsr will generate a duplicate depth and this will
+          # mess up the rest of the program (for some reason).
+          # In that case, simply increase the number of layers.
+          print("[%s] options['source_depth'] falls on the interface between two layers, increase number of layers by one so that this doesn't happen anymore."
+                % (sys._getframe().f_code.co_name))
+          options['nb_layers'] += 1
+          z_interp = np.linspace(options['z'][0], options['zmax'], options['nb_layers'])
+        # z_interp_interm = np.linspace(options['z'][0], options['z'][-1], 400)
 
         ## Loop over models (CVMH/CVMS) and unknowns (rho/vs/vp)
         data_interp = {}
