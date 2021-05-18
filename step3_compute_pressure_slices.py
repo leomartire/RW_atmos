@@ -91,6 +91,9 @@ def main():
         tag = 'X'
         np.real(M0).tofile(output_path+'map_%s_RW_t%07.2f_%dx1.bin'
                            % (tag, t_snap, M0.shape[0]))
+      if(np.all(np.isnan(M0))):
+        # Safeguard.
+        sys.exit('[%s, ERROR] All values in the Rayleigh wave forcing are NaNs. Something went terribly wrong.' % (sys._getframe().f_code.co_name))
       # Save "grid" only once.
       if(t_snap==t_chosen[0]):
         np.array([RW_field.x[0], RW_field.x[-1], RW_field.y[0], RW_field.y[-1]]).tofile(output_path+'map_%s_PRE_XYminmax.bin' % (tag))
