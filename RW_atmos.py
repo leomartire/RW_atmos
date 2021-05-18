@@ -282,6 +282,7 @@ class RW_forcing():
         def add_one_period(self, period, iperiod, current_struct, rho, orig_b1, orig_b2, d_b1_dz, d_b2_dz, kmode, dep):
           # uz    = []
           # freqa = []
+          np.seterr(all='raise') # Force raising exceptions when encountering "RuntimeWarning: divide by zero encountered in true_divide".
           for imode in range(0, min(len(current_struct),orig_b1.shape[1])):
             cphi = current_struct[imode]['cphi'][iperiod]
             cg   = current_struct[imode]['cg'][iperiod]
@@ -291,7 +292,16 @@ class RW_forcing():
             d_r2_dz = d_b2_dz[:,imode]
             d_r1_dz = d_b1_dz[:,imode]
             
-            I1   = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
+            try:
+              I1 = 0.5*spi.simps(rho[:]*( r1**2 + r2**2 ), dep[:])
+            except(FloatingPointError):
+              (u, c) = np.unique(dep, return_counts=True)
+              if(np.any(c>1)):
+                print('[%s] Duplicate depth(s) found during integration:' % (sys._getframe().f_code.co_name))
+                print(u[c>1])
+                raise(FloatingPointError)
+              else:
+                sys.exit('what?')
             
             kn = kn[0]
             self.directivity[imode][iperiod] = directivity(dep, d_r1_dz, d_r2_dz, kn, r1, r2)
@@ -456,6 +466,10 @@ class RW_forcing():
       
               response_RW = results[0]
               for imode, result in enumerate(results): response_RW = utils.concat_df_complex(response_RW, result, 'f');
+            
+            if(np.all(np.isnan(response_RW[0]))):
+              # Safeguard.
+              sys.exit('[%s, ERROR] All values in the Rayleigh wave response are NaNs. Something went terribly wrong.' % (sys._getframe().f_code.co_name))
                     
             return response_RW  
                 
@@ -737,6 +751,9 @@ class field_RW():
                 #   Mo = temp[1].reshape( (temp[1].shape[0], PHI.shape[0], PHI.shape[1]) )
                 # else:
                 #   Mo = temp[1].reshape( (temp[1].shape[0], PHI.size) )
+                if(np.all(np.isnan(Mo))):
+                  # Safeguard.
+                  sys.exit('[%s, ERROR] All values in the Rayleigh wave forcing are NaNs. Something went terribly wrong.' % (sys._getframe().f_code.co_name))
                 
                 # Store forcing parameters
                 self.Mo = Mo
