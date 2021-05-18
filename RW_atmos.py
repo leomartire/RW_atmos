@@ -62,6 +62,7 @@ class vertical_velocity():
                 
                 # 2d
                 elif(dimension_seismic == 2):
+                        # 1e3 is okay, because homogeneisation of the equations
                         return 1e3*comp_deriv*(self.r2/(4*self.cphi*self.cg*self.I1))*(1./(self.kn))*np.exp( 1j*( self.kn*r + np.pi/2. ) )*self.directivity.compute_directivity(phi, M, depth) * self.add_attenuation(r)
                 else:
                         sys.exit('Seismic dimension not recognized!')
@@ -79,7 +80,7 @@ class directivity():
         
         def compute_directivity(self, phi, M, depth):
         
-                idz = np.argmin( abs(self.dep - depth/1000.) )
+                idz = np.argmin( abs(self.dep - depth/1000.) ) # get id of the source depth in the dep vector (which is the depths for the eigenfunctions)
                 dr1dz_source = self.dr1dz_source[idz]
                 dr2dz_source = self.dr2dz_source[idz]
                 r1_source = self.r1_source[idz]
@@ -151,8 +152,9 @@ class RW_forcing():
           return(self.__str__())
         
         def get_mode_filling(self):
-          # Prepare a matrix which is 1 if (freq(i), mode(j)) contains a velocity, or 0 if (freq(i), mode(j)) is empty.
-          return(np.array([[0 if f==[] else 1 for f in m] for m in self.uz]).T)
+          # Prepare a matrix which is 1 if (period(i), mode(j)) contains a velocity, or 0 if (period(i), mode(j)) is empty.
+          mat = np.array([[0 if p==[] else 1 for p in m] for m in self.uz]).T
+          return(np.flipud(mat)) # make (freq, mode)
         
         def print_mode_filling(self):
           uz_func_mode_freq = self.get_mode_filling()
@@ -213,9 +215,9 @@ class RW_forcing():
                 self.M     = mechanism['M']*self.M0
                 self.phi   = mechanism['phi']
                 
-                self.strike = mechanism['STRIKE']
-                self.dip = mechanism['DIP']
-                self.rake = mechanism['RAKE']
+                self.strike = mechanism['STRIKE'] # info only because everything is in self.M as a matrix
+                self.dip = mechanism['DIP'] # info only because everything is in self.M as a matrix
+                self.rake = mechanism['RAKE'] # info only because everything is in self.M as a matrix
                 
                 self.mt    = []
                 if 'mt' in mechanism:
@@ -340,31 +342,32 @@ class RW_forcing():
             # Somehow earthsr found less frequencies than asked for.
             print('[%s] > > First mode contains less eigenfrequencies (%d) than expected frequencies (%d).'
                   % (sys._getframe().f_code.co_name, nfreqmode1, self.nb_freqs))
-            # Check for empty frequencies in the middle of the series.
-            # if mode 1 has [1 1 1 1 1 0 0] then it makes sense
-            # if mode 1 has [1 1 0 0 1 1 1] then it does not make sense and is probably an error
-            if(np.sum(uz_func_mode_freq[nfreqmode1:,0])>0):
-              # If the last indices aren't zero, the zeros are somewhere before, and there is an issue.
-              print('[%s] > > > On the first mode, some frequencies have no associated eigenfrequency:'
-                    % (sys._getframe().f_code.co_name),
-                    file=sys.stderr)
-              print(self.f_tab[np.where(uz_func_mode_freq[:,0]==0)], file=sys.stderr)
-              sys.exit('[%s] > > > This should not happen.' % (sys._getframe().f_code.co_name))
-            else:
-              # This is probably fine, store the updated frequency array.
-              print('[%s] > > > Store frequency span agreeing with the first mode\'s first %d frequencies.' % (sys._getframe().f_code.co_name, nfreqmode1))
-              self.nb_freqs_actualforMode1 = nfreqmode1
-              self.f_tab_actualforMode1 = self.f_tab[:self.nb_freqs_actualforMode1]
-          # Check parity.
-          if(self.nb_freqs_actualforMode1%2==1):
-            print('[%s] > > > Odd number of modes found. This will mess up the FFT routines.' % (sys._getframe().f_code.co_name))
-            print('[%s] > > > > Dropping to even number below, updating "found frequencies", DELETING THE LAST FREQUENCY in UZ and DIRECTIVITY for ALL MODES.' % (sys._getframe().f_code.co_name))
-            print('[%s] > > > > This will probably only impact the first mode anyway.' % (sys._getframe().f_code.co_name))
-            for m in range(self.nb_modes):
-              self.uz[m][self.nb_freqs_actualforMode1-1]=[]
-              self.directivity[m][self.nb_freqs_actualforMode1-1]=[]
-            self.nb_freqs_actualforMode1 -= 1
-            self.f_tab_actualforMode1 = self.f_tab[:self.nb_freqs_actualforMode1]
+            sys.exit(['[%s, ERROR] This should not happen: fundamental mode should always have all frequencies.'])
+          #   # Check for empty frequencies in the middle of the series.
+          #   # if mode 1 has [1 1 1 1 1 0 0] then it makes sense (no it does not, cf. error above)
+          #   # if mode 1 has [1 1 0 0 1 1 1] then it does not make sense and is probably an error
+          #   if(np.sum(uz_func_mode_freq[nfreqmode1:,0])>0):
+          #     # If the last indices aren't zero, the zeros are somewhere before, and there is an issue.
+          #     print('[%s] > > > On the first mode, some frequencies have no associated eigenfrequency:'
+          #           % (sys._getframe().f_code.co_name),
+          #           file=sys.stderr)
+          #     print(self.f_tab[np.where(uz_func_mode_freq[:,0]==0)], file=sys.stderr)
+          #     sys.exit('[%s] > > > This should not happen.' % (sys._getframe().f_code.co_name))
+          #   else:
+          #     # This is probably fine, store the updated frequency array.
+          #     print('[%s] > > > Store frequency span agreeing with the first mode\'s first %d frequencies.' % (sys._getframe().f_code.co_name, nfreqmode1))
+          #     self.nb_freqs_actualforMode1 = nfreqmode1
+          #     self.f_tab_actualforMode1 = self.f_tab[:self.nb_freqs_actualforMode1]
+          # # Check parity.
+          # if(self.nb_freqs_actualforMode1%2==1):
+          #   print('[%s] > > > Odd number of modes found. This will mess up the FFT routines.' % (sys._getframe().f_code.co_name))
+          #   print('[%s] > > > > Dropping to even number below, updating "found frequencies", DELETING THE LAST FREQUENCY in UZ and DIRECTIVITY for ALL MODES.' % (sys._getframe().f_code.co_name))
+          #   print('[%s] > > > > This will probably only impact the first mode anyway.' % (sys._getframe().f_code.co_name))
+          #   for m in range(self.nb_modes):
+          #     self.uz[m][self.nb_freqs_actualforMode1-1]=[]
+          #     self.directivity[m][self.nb_freqs_actualforMode1-1]=[]
+          #   self.nb_freqs_actualforMode1 -= 1
+          #   self.f_tab_actualforMode1 = self.f_tab[:self.nb_freqs_actualforMode1]
           
         def compute_RW_one_mode(self, imode, r, phi, type = 'RW', unknown = 'd', dimension_seismic = 3):
         
