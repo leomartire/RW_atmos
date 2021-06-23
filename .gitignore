@@ -1,0 +1,10 @@
+
+*.o
+*.pyc
+
+.DS_STORE
+*/.DS_STORE
+
+ALL_OUTPUTS/*
+bin/*
+.ipynb_checkpoints/*
