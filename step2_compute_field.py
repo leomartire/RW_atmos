@@ -53,7 +53,7 @@ def generateAndSaveRWField(parallel, output_folder, Green_RW_, options, mechanis
   # return(RW_field)
 
 def main():
-  parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
+  parser = argparse.ArgumentParser(description='Computes Rayleigh wave field from Green functions.')
   
   required = parser.add_argument_group('REQUIRED ARGUMENTS')
   required.add_argument('--output', required=True,

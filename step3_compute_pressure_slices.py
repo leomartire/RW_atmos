@@ -18,7 +18,7 @@ import time
 from datetime import datetime, timedelta
 
 def main():
-  parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
+  parser = argparse.ArgumentParser(description='Computes pressure slices from Rayleigh wave field.')
   
   required = parser.add_argument_group('REQUIRED ARGUMENTS')
   required.add_argument('--output', required=True,
