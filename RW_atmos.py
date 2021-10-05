@@ -554,14 +554,16 @@ class RW_forcing():
             return (t, ifft_RW)
 
 def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
-
+    output_folder = options['output_folder']
+    
     # Save waveforms     
     df = pd.DataFrame()
     df['t']  = t
-    df['vz'] = np.real(Mz_t)
+    df[comp] = np.real(Mz_t)
     name_file = 'waveform_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
-    df.to_csv(options['global_folder'] + name_file, index=False)
-    print('['+sys._getframe().f_code.co_name+'] Save waveform to \''+options['global_folder']+name_file+'\'.')
+    output_file = output_folder+name_file
+    df.to_csv(output_file, index=False)
+    print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
     
     # Deallocate
     df = None
@@ -570,8 +572,9 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     df['t']  = t
     df['vz'] = np.real(RW_Mz_t)
     name_file = 'RW_waveform_z0_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
-    df.to_csv(options['global_folder'] + name_file, index=False)
-    print('['+sys._getframe().f_code.co_name+'] Save waveform to \''+options['global_folder']+name_file+'\'.')
+    output_file = output_folder+name_file
+    df.to_csv(output_file, index=False)
+    print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
     
     # Deallocate
     df = None
@@ -580,19 +583,23 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     #freq_min, freq_max = Green_RW.f0/10., Green_RW.f0*2.
     freq_min, freq_max = options['coef_low_freq'], options['coef_high_freq']
     tr   = RWAtmosUtils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
-    fig = plot_tfr(tr.data, dt=tr.stats.delta, fmin=freq_min, fmax=freq_max, w0=4., nf=64, fft_zero_pad_fac=4, show=False, t0=0., left=0.16, bottom=0.12, w_2=0.5)
+    fig = plot_tfr(tr.data, dt=tr.stats.delta,
+                   fmin=freq_min, fmax=freq_max,
+                   w0=4., nf=64, fft_zero_pad_fac=4,
+                   show=False, t0=0.,
+                   left=0.16, bottom=0.12, w_2=0.5, )
     fig.axes[0].grid()
     fig.axes[0].set_xlabel('Time (s)')
     fig.axes[2].grid()
     fig.axes[2].set_ylabel('Frequency (Hz)')
-    fig.axes[1].text(0.1, 1.08, 'E = '+str(round(ix/1000.,1))+' S = '+str(round(iy/1000.,1))+' U = '+str(round(iz/1000.,1)) +' km', horizontalalignment='center', verticalalignment='center', bbox=dict(facecolor='w', edgecolor='black', pad=4.0), transform=fig.axes[1].transAxes)
-    
-    if(not options['GOOGLE_COLAB']):
-            name_file = 'freq_time_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.png'
-            plt.savefig(options['global_folder'] + name_file)
-            plt.close('all')
-
-    tr, fig = None, None
+    fig.axes[1].text(0.1, 1.08, 'E = '+str(round(ix/1000.,1))+' S = '+str(round(iy/1000.,1))+' U = '+str(round(iz/1000.,1)) +' km',
+                     horizontalalignment='center', verticalalignment='center',
+                     bbox=dict(facecolor='w', edgecolor='black', pad=4.0),
+                     transform=fig.axes[1].transAxes)
+    name_file = 'freq_time_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.png'
+    output_file = output_folder + name_file
+    fig.savefig(output_file)
+    plt.close('all')
 
 class field_RW():
         
@@ -1219,7 +1226,9 @@ class field_RW():
                   elif(type_slice == 'xy'):
                     return Mz_xy, timeseries
                                 
-        def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True):
+        def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True, output_folder='.'):
+          print('[%s] Building time series.' % (sys._getframe().f_code.co_name))
+          
           # Extract location and component from station dict
           x_in, y_in, z_in = [stat['xs'] for stat in station_in], \
                              [stat['ys'] for stat in station_in], \
@@ -1228,14 +1237,6 @@ class field_RW():
           name_in = [stat['name'] for stat in station_in]
           # t_chosen_in = [stat['t_chosen'] for stat in station_in]
           id_in   = [stat['id'] for stat in station_in]
-          
-          # Setup progress bar
-          cptbar        = 0
-          toolbar_width = 40
-          total_length  = len(x_in)
-          sys.stdout.write("Building time series: [%s]" % (" " * toolbar_width))
-          sys.stdout.flush()
-          sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
           
           if(merged_computation):
             _, _, _, integrated_KZ = self.compute_response_at_given_z(np.unique(z_in).tolist(), 0., [], 'p', return_only_KZ = True) # 'p' is dummy
@@ -1271,7 +1272,8 @@ class field_RW():
                 elif(there_is_p and comp == 'p'):
                   field_at_it_p, _, _, _ = self.compute_response_at_given_z([z], 0., TFMo_p, comp, KZ_in = integrated_KZ[id_z], only_TFMo_integration = True)
                 else:
-                  sys.exit('Unit ' + comp + ' not recognized!')  
+                  raise ValueError('[%s] Component \'%s\' not recognized.'
+                                   % (sys._getframe().f_code.co_name, comp))  
                        
               # Stores fields
               if(not merged_computation and create_timeseries_here):
@@ -1299,13 +1301,14 @@ class field_RW():
                 if(not z == z_aux or not comp == comp_aux):
                   continue
                 
-                ix   = np.argmin( abs(self.x - x) )
+                ix = np.argmin( abs(self.x - x) )
                 if(self.dimension==2):
                   if create_timeseries_here:
                     for id_field, ifield in enumerate(link_field_at_it_loc):
                       if ifield['x'] == x:
                         id_field_chosen = id_field
-                    del field_at_it_loc
+                    Mz = field_at_it_loc[id_field_chosen]
+                    Mo = self.Mo[:, ix]
                     
                   else:
                     if z_aux > 0:   
@@ -1321,8 +1324,7 @@ class field_RW():
                       if ifield['x'] == x and ifield['y'] == y :
                         id_field_chosen = id_field
                     Mz = field_at_it_loc[id_field_chosen]
-                    Mo = self.Mo[:, ix, iy] 
-                    del field_at_it_loc
+                    Mo = self.Mo[:, ix, iy]
                     
                   else:
                     if z_aux > 0:   
@@ -1352,28 +1354,23 @@ class field_RW():
                 # Create waveform within this routine if requested
                 if create_timeseries_here:
                   options_in = {}
-                  options_in['GOOGLE_COLAB']   = self.google_colab
+                  # options_in['GOOGLE_COLAB']   = self.google_colab
                   options_in['coef_low_freq']  = self.coef_low_freq[0]
                   options_in['coef_high_freq'] = self.coef_low_freq[-1]
-                  options_in['global_folder']  = self.global_folder
-                  generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)  
-                  
-                  # Delete working arrays to save memory space
-                  del Mz, Mo, link_field_at_it_loc, ifield
-                        
-                # Update progress bar
-                id_stat += 1
-                if(int(toolbar_width*id_stat/total_length) > cptbar):
-                  cptbar = int(toolbar_width*id_stat/total_length)
-                  sys.stdout.write("-")
-                  sys.stdout.flush()
+                  options_in['output_folder']  = output_folder
+                  if(self.dimension==2):
+                    generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix]), comp_aux, z, y, x, name, options_in)
+                  elif(self.dimension==3):
+                    generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)
+                  else:
+                    raise ValueError('[%s] Field dimension is %d, which is impossible.'
+                                     % (sys._getframe().f_code.co_name, self.dimension))
               
-              if(merged_computation):
-                del field_at_it, field_at_it_p
-              elif(z > 0):
-                del field_at_it_        
-                    
-          sys.stdout.write("] Done\n")
+              # if(merged_computation):
+              #   del field_at_it, field_at_it_p
+              # elif(z > 0):
+              #   del field_at_it_
+              
           return(Mz, Mo, station_tab)
 
 def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=False):
