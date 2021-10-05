@@ -1300,8 +1300,21 @@ class field_RW():
                   continue
                 
                 ix   = np.argmin( abs(self.x - x) )
-                
-                if(self.dimension==3):
+                if(self.dimension==2):
+                  if create_timeseries_here:
+                    for id_field, ifield in enumerate(link_field_at_it_loc):
+                      if ifield['x'] == x:
+                        id_field_chosen = id_field
+                    del field_at_it_loc
+                    
+                  else:
+                    if z_aux > 0:   
+                      Mz.append( field_at_it_[:, ix] )
+                    else:   
+                      Mz.append( self.Mo[:, ix] )
+                    Mo.append( self.Mo[:, ix] )
+                  
+                elif(self.dimension==3):
                   iy = np.argmin( abs(self.y - y) )
                   if create_timeseries_here:
                     for id_field, ifield in enumerate(link_field_at_it_loc):
@@ -1317,21 +1330,7 @@ class field_RW():
                     else:   
                       Mz.append( self.Mo[:, ix, iy] )
                     Mo.append( self.Mo[:, ix, iy] )
-                    
-                elif(self.dimension==2):
-                  if create_timeseries_here:
-                    for id_field, ifield in enumerate(link_field_at_it_loc):
-                      if ifield['x'] == x:
-                        id_field_chosen = id_field
-                    del field_at_it_loc
-                    
-                  else:
-                    if z_aux > 0:   
-                      Mz.append( field_at_it_[:, ix] )
-                    else:   
-                      Mz.append( self.Mo[:, ix] )
-                    Mo.append( self.Mo[:, ix] )
-                    
+                  
                 else:
                   raise ValueError('[%s] Field dimension is %d, which is impossible.'
                                    % (sys._getframe().f_code.co_name, self.dimension))
