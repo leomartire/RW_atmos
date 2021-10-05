@@ -1220,180 +1220,162 @@ class field_RW():
                     return Mz_xy, timeseries
                                 
         def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True):
+          # Extract location and component from station dict
+          x_in, y_in, z_in = [stat['xs'] for stat in station_in], \
+                             [stat['ys'] for stat in station_in], \
+                             [stat['zs'] for stat in station_in]
+          comp_in = [stat['comp'] for stat in station_in]
+          name_in = [stat['name'] for stat in station_in]
+          # t_chosen_in = [stat['t_chosen'] for stat in station_in]
+          id_in   = [stat['id'] for stat in station_in]
+          
+          # Setup progress bar
+          cptbar        = 0
+          toolbar_width = 40
+          total_length  = len(x_in)
+          sys.stdout.write("Building time series: [%s]" % (" " * toolbar_width))
+          sys.stdout.flush()
+          sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+          
+          if(merged_computation):
+            _, _, _, integrated_KZ = self.compute_response_at_given_z(np.unique(z_in).tolist(), 0., [], 'p', return_only_KZ = True) # 'p' is dummy
+           
+          there_is_vz = False
+          if('vz' in comp_in):
+            there_is_vz = True
+            if(False):
+              TFMo = self.TFMo.copy()
+          
+          there_is_p = False
+          if('p' in comp_in):
+            there_is_p = True
+            if(False):
+              TFMo_p = self.convert_TFMo_to_pressure().copy()
+           
+          station_tab = {}
+          Mz, Mo = [], []       
+          id_stat = 0
+          for comp in np.unique(comp_in):
+            if('vz' in comp):
+              TFMo_ = self.TFMo.copy()
+            if('p' in comp):
+              TFMo_ = self.convert_TFMo_to_pressure().copy()
+    
+            for id_z, z in enumerate(np.unique(z_in)):
+              if(not merged_computation):
+                if z > 0:
+                  field_at_it_, _, _, _ = self.compute_response_at_given_z([z], 0., TFMo_, comp)
+              else:
+                if(there_is_vz and comp == 'vz'):
+                  field_at_it,   _, _, _ = self.compute_response_at_given_z([z], 0., TFMo, comp, KZ_in = integrated_KZ[id_z], only_TFMo_integration = True)
+                elif(there_is_p and comp == 'p'):
+                  field_at_it_p, _, _, _ = self.compute_response_at_given_z([z], 0., TFMo_p, comp, KZ_in = integrated_KZ[id_z], only_TFMo_integration = True)
+                else:
+                  sys.exit('Unit ' + comp + ' not recognized!')  
+                       
+              # Stores fields
+              if(not merged_computation and create_timeseries_here):
+                field_at_it_loc      = []
+                link_field_at_it_loc = []
+                for x in np.unique(x_in):
+                  ix   = np.argmin( abs(self.x - x) )
+                  for y in np.unique(y_in):
+                    if(self.dimension==2):
+                      # 2D, no need to find y.
+                      field_at_it_loc.append( np.real(field_at_it_[:, ix]) )
+                    elif(self.dimension==3):
+                      iy = np.argmin( abs(self.y - y) )
+                      field_at_it_loc.append( np.real(field_at_it_[:, ix, iy]) )
+                    else:
+                      raise ValueError('[%s] Field dimension is %d, which is impossible.'
+                                       % (sys._getframe().f_code.co_name, self.dimension))
+                    link_field_at_it_loc.append( {'x': x, 'y': y} )
+                del field_at_it_
+                       
+              # Loop over all required station locations
+              # for x, y, z_aux, comp_aux, name, t_chosen, id in zip(x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in):
+              for x, y, z_aux, comp_aux, name, id in zip(x_in, y_in, z_in, comp_in, name_in, id_in):
+                # Skip all stations that do not match z / comp
+                if(not z == z_aux or not comp == comp_aux):
+                  continue
                 
-                # Extract location and component from station dict
-                x_in, y_in, z_in = [stat['xs'] for stat in station_in], \
-                                   [stat['ys'] for stat in station_in], \
-                                   [stat['zs'] for stat in station_in]
-                comp_in = [stat['comp'] for stat in station_in]
-                name_in = [stat['name'] for stat in station_in]
-                # t_chosen_in = [stat['t_chosen'] for stat in station_in]
-                id_in   = [stat['id'] for stat in station_in]
+                ix   = np.argmin( abs(self.x - x) )
                 
-                # Setup progress bar
-                cptbar        = 0
-                toolbar_width = 40
-                total_length  = len(x_in)
-                sys.stdout.write("Building time series: [%s]" % (" " * toolbar_width))
-                sys.stdout.flush()
-                sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+                if(self.dimension==3):
+                  iy = np.argmin( abs(self.y - y) )
+                  if create_timeseries_here:
+                    for id_field, ifield in enumerate(link_field_at_it_loc):
+                      if ifield['x'] == x and ifield['y'] == y :
+                        id_field_chosen = id_field
+                    Mz = field_at_it_loc[id_field_chosen]
+                    Mo = self.Mo[:, ix, iy] 
+                    del field_at_it_loc
+                    
+                  else:
+                    if z_aux > 0:   
+                      Mz.append( field_at_it_[:, ix, iy] )
+                    else:   
+                      Mz.append( self.Mo[:, ix, iy] )
+                    Mo.append( self.Mo[:, ix, iy] )
+                    
+                elif(self.dimension==2):
+                  if create_timeseries_here:
+                    for id_field, ifield in enumerate(link_field_at_it_loc):
+                      if ifield['x'] == x:
+                        id_field_chosen = id_field
+                    del field_at_it_loc
+                    
+                  else:
+                    if z_aux > 0:   
+                      Mz.append( field_at_it_[:, ix] )
+                    else:   
+                      Mz.append( self.Mo[:, ix] )
+                    Mo.append( self.Mo[:, ix] )
+                    
+                else:
+                  raise ValueError('[%s] Field dimension is %d, which is impossible.'
+                                   % (sys._getframe().f_code.co_name, self.dimension))
                 
-                if(merged_computation):
-                        _, _, _, integrated_KZ = self.compute_response_at_given_z(np.unique(z_in).tolist(), 0., [], 'p', return_only_KZ = True) # 'p' is dummy
-                 
-                there_is_vz = False
-                if('vz' in comp_in):
-                        there_is_vz = True
-                        if(False):
-                                TFMo = self.TFMo.copy()
-                
-                there_is_p = False
-                if('p' in comp_in):
-                        there_is_p = True
-                        if(False):
-                                TFMo_p = self.convert_TFMo_to_pressure().copy()
-                 
-                station_tab = {}
-                Mz, Mo = [], []       
-                id_stat = 0
-                for comp in np.unique(comp_in):
-
-                        if('vz' in comp):
-                                TFMo_ = self.TFMo.copy()
+                # Create list of station with the right entries
+                station = {}
+                station.update( {'id': id} )
+                station.update( {'id_field': id_stat} )
+                station.update( {'name': name} )
+                if(self.dimension > 2):
+                  station.update( {'xs': x, 'ys': y, 'zs': z_aux} ) 
+                else:
+                  station.update( {'xs': x, 'zs': z_aux} ) 
+                # station.update( {'t_chosen': t_chosen} )
+                station.update( {'type_slice': 'xz'} )
+                station.update( {'comp': comp_aux} )
+                station_tab[id] = station                            
                         
-                        if('p' in comp):
-                                TFMo_ = self.convert_TFMo_to_pressure().copy()
-                
-                        for id_z, z in enumerate(np.unique(z_in)):
-                
-                                if(not merged_computation):
-                                
-                                        if z > 0:
-                                                field_at_it_, _, _, _ = self.compute_response_at_given_z([z], 0., TFMo_, comp)
-                                              
-                                else:
-                                        if(there_is_vz and comp == 'vz'):
-                                                field_at_it,   _, _, _ = self.compute_response_at_given_z([z], 0., TFMo, comp, KZ_in = integrated_KZ[id_z], only_TFMo_integration = True)
-                                        elif(there_is_p and comp == 'p'):
-                                                field_at_it_p, _, _, _ = self.compute_response_at_given_z([z], 0., TFMo_p, comp, KZ_in = integrated_KZ[id_z], only_TFMo_integration = True)
-                                        else:
-                                                sys.exit('Unit ' + comp + ' not recognized!')  
-                                         
-                                # Stores fields
-                                if(not merged_computation and create_timeseries_here):
-                                        field_at_it_loc      = []
-                                        link_field_at_it_loc = []
-                                        for x in np.unique(x_in):
-                                                ix   = np.argmin( abs(self.x - x) )
-                                                for y in np.unique(y_in):
-                                                  if(self.dimension==2):
-                                                    # 2D, no need to find y.
-                                                    field_at_it_loc.append( np.real(field_at_it_[:, ix]) )
-                                                  elif(self.dimension==3):
-                                                    iy = np.argmin( abs(self.y - y) )
-                                                    field_at_it_loc.append( np.real(field_at_it_[:, ix, iy]) )
-                                                  else:
-                                                    raise ValueError('[%s] Field dimension is %d, which is impossible.'
-                                                                     % (sys._getframe().f_code.co_name, self.dimension))
-                                                  link_field_at_it_loc.append( {'x': x, 'y': y} )
-                                         
-                                        del field_at_it_
-                                         
-                                # Loop over all required station locations
-                                # for x, y, z_aux, comp_aux, name, t_chosen, id in zip(x_in, y_in, z_in, comp_in, name_in, t_chosen_in, id_in):
-                                for x, y, z_aux, comp_aux, name, id in zip(x_in, y_in, z_in, comp_in, name_in, id_in):
-                                        
-                                        # Skip all stations that do not match z / comp
-                                        if(not z == z_aux or not comp == comp_aux):
-                                                continue
-                                               
-                                        ix   = np.argmin( abs(self.x - x) )
-                                        
-                                        # 3d
-                                        if(self.dimension > 2):
-                                                iy = np.argmin( abs(self.y - y) )
-                                                
-                                                if create_timeseries_here:
-                                                
-                                                        for id_field, ifield in enumerate(link_field_at_it_loc):
-                                                                if ifield['x'] == x and ifield['y'] == y :
-                                                                        id_field_chosen = id_field
-                                                        
-                                                        Mz = field_at_it_loc[id_field_chosen]
-                                                        Mo = self.Mo[:, ix, iy] 
-                                                        
-                                                        del field_at_it_loc
-                                                
-                                                else:
-                                                
-                                                        if z_aux > 0:   
-                                                                Mz.append( field_at_it_[:, ix, iy] )
-                                                        else:   
-                                                                Mz.append( self.Mo[:, ix, iy] )
-                                                        Mo.append( self.Mo[:, ix, iy] )
-                                                        
-                                        # 2d
-                                        else:
-                                                if create_timeseries_here:
-                                                
-                                                        for id_field, ifield in enumerate(link_field_at_it_loc):
-                                                                if ifield['x'] == x:
-                                                                        id_field_chosen = id_field
-                                                        
-                                                        del field_at_it_loc
-                                                        
-                                                else:
-                                                
-                                                        if z_aux > 0:   
-                                                                Mz.append( field_at_it_[:, ix] )
-                                                        else:   
-                                                                Mz.append( self.Mo[:, ix] )
-                                                        
-                                                        Mo.append( self.Mo[:, ix] )
-                                                        
-                                        # Create list of station with the right entries
-                                        station = {}
-                                        station.update( {'id': id} )
-                                        station.update( {'id_field': id_stat} )
-                                        station.update( {'name': name} )
-                                        if(self.dimension > 2):
-                                                station.update( {'xs': x, 'ys': y, 'zs': z_aux} ) 
-                                        else:
-                                                station.update( {'xs': x, 'zs': z_aux} ) 
-                                        # station.update( {'t_chosen': t_chosen} )
-                                        station.update( {'type_slice': 'xz'} )
-                                        station.update( {'comp': comp_aux} )
-                                        station_tab[id] = station                            
-                                                
-                                        # Create waveform within this routine if requested
-                                        if create_timeseries_here:
-        
-                                                options_in = {}
-                                                options_in['GOOGLE_COLAB']   = self.google_colab
-                                                options_in['coef_low_freq']  = self.coef_low_freq[0]
-                                                options_in['coef_high_freq'] = self.coef_low_freq[-1]
-                                                options_in['global_folder']  = self.global_folder
-                                                generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)  
-                                                
-                                                # Delete working arrays to save memory space
-                                                del Mz, Mo, link_field_at_it_loc, ifield
-                                                
-                                        # Update progress bar
-                                        id_stat += 1
-                                        if(int(toolbar_width*id_stat/total_length) > cptbar):
-                                                cptbar = int(toolbar_width*id_stat/total_length)
-                                                sys.stdout.write("-")
-                                                sys.stdout.flush()
-
-                                
-                                if(merged_computation):
-                                        del field_at_it, field_at_it_p
-                                elif(z > 0):
-                                        del field_at_it_        
-
-                sys.stdout.write("] Done\n")
-
-                return Mz, Mo, station_tab
+                # Create waveform within this routine if requested
+                if create_timeseries_here:
+                  options_in = {}
+                  options_in['GOOGLE_COLAB']   = self.google_colab
+                  options_in['coef_low_freq']  = self.coef_low_freq[0]
+                  options_in['coef_high_freq'] = self.coef_low_freq[-1]
+                  options_in['global_folder']  = self.global_folder
+                  generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)  
+                  
+                  # Delete working arrays to save memory space
+                  del Mz, Mo, link_field_at_it_loc, ifield
+                        
+                # Update progress bar
+                id_stat += 1
+                if(int(toolbar_width*id_stat/total_length) > cptbar):
+                  cptbar = int(toolbar_width*id_stat/total_length)
+                  sys.stdout.write("-")
+                  sys.stdout.flush()
+              
+              if(merged_computation):
+                del field_at_it, field_at_it_p
+              elif(z > 0):
+                del field_at_it_        
+                    
+          sys.stdout.write("] Done\n")
+          return(Mz, Mo, station_tab)
 
 def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=False):
     print('['+sys._getframe().f_code.co_name+'] Plot the Rayleigh wave surface forcing at t='+str(t_station)+'.')
