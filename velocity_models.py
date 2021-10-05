@@ -11,7 +11,8 @@ from pyrocko import moment_tensor as mtm
 import matplotlib.colors as mcolors
 
 ## Local modules
-import utils
+import RWAtmosUtils
+
 try:
     sys.path.append('/staff/quentin/Documents/Projects/Ridgecrest/')
     from extract_velocity_ucvm import get_velocity_ucvm
@@ -125,9 +126,9 @@ def create_velocity_model(options):
         options['z'] = np.arange(0.,100000,2800) # what?
         
         if(options['type_model'] == 'specfem'):
-                zover0, data = utils.read_specfem_files(options)
+                zover0, data = RWAtmosUtils.read_specfem_files(options)
         elif(options['type_model'] == 'specfem2d'):
-                zover0, data = utils.read_specfem2d_files(options)
+                zover0, data = RWAtmosUtils.read_specfem2d_files(options)
         else:
                 sys.exit('Trying to load an external velocity model that is not supported: ' + options['type_model'])     
                    
@@ -289,7 +290,7 @@ def read_csv_seismic(model, dimension, loc_source = 50000.):
         return temp
 
 def plot_atmosphere_and_seismic_fromAtmosFile(save_folder, seismic, param_atmos_file, dimension):
-  model = utils.loadAtmosphericModel(param_atmos_file)
+  model = RWAtmosUtils.loadAtmosphericModel(param_atmos_file)
   plot_atmosphere_and_seismic(save_folder, seismic,
                               model['z'].values, model['rho'].values, model['cpa'].values, [model['wx'].values, model['wy'].values],
                                 [], False, # only useful if isothermal, and since we're using a file here there's no use to those two args

@@ -24,7 +24,7 @@ from functools import partial
 
 # Local modules
 # import mechanisms as mod_mechanisms
-import utils, velocity_models
+import RWAtmosUtils, velocity_models
 
 # display parameters
 font = {'size': 14}
@@ -425,7 +425,7 @@ class RW_forcing():
 
                             # Concatenate dataframes with same freq.
                             # we can not use pd.concat since it is too slow for complex numbers
-                            response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
+                            response_RW = RWAtmosUtils.concat_df_complex(response_RW, response_RW_temp, 'f')
                     
             return response_RW
         
@@ -450,7 +450,7 @@ class RW_forcing():
                 else:
                   # Concatenate dataframes with same freq.
                   # we can not use pd.concat since it is too slow for complex numbers
-                  response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
+                  response_RW = RWAtmosUtils.concat_df_complex(response_RW, response_RW_temp, 'f')
             
             else:          
               modes = [key for key in range(0, mode_max)]
@@ -468,7 +468,7 @@ class RW_forcing():
                         results = p.map(local_mode_partial, list_of_lists)
       
               response_RW = results[0]
-              for imode, result in enumerate(results): response_RW = utils.concat_df_complex(response_RW, result, 'f');
+              for imode, result in enumerate(results): response_RW = RWAtmosUtils.concat_df_complex(response_RW, result, 'f');
             
             if(np.all(np.isnan(response_RW[0]))):
               # Safeguard.
@@ -503,7 +503,7 @@ class RW_forcing():
 
                             # Concatenate dataframes with same freq.
                             # we can not use pd.concat since it is too slow for complex numbers
-                            response_RW = utils.concat_df_complex(response_RW, response_RW_temp, 'f')
+                            response_RW = RWAtmosUtils.concat_df_complex(response_RW, response_RW_temp, 'f')
                             
             self.set_mechanism(mechanism_save)
             
@@ -579,7 +579,7 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
     # Create frequency/time plot
     #freq_min, freq_max = Green_RW.f0/10., Green_RW.f0*2.
     freq_min, freq_max = options['coef_low_freq'], options['coef_high_freq']
-    tr   = utils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
+    tr   = RWAtmosUtils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
     fig = plot_tfr(tr.data, dt=tr.stats.delta, fmin=freq_min, fmax=freq_max, w0=4., nf=64, fft_zero_pad_fac=4, show=False, t0=0., left=0.16, bottom=0.12, w_2=0.5)
     fig.axes[0].grid()
     fig.axes[0].set_xlabel('Time (s)')
@@ -797,7 +797,7 @@ class field_RW():
                         self.rho   = np.array([param_atmos['rho']])
                         self.cp    = np.array([param_atmos['cp']])
                 else:
-                        temp = utils.loadAtmosphericModel(param_atmos['file'])
+                        temp = RWAtmosUtils.loadAtmosphericModel(param_atmos['file'])
                         # temp['bulk'] = 2e-4
                         # temp['mu']   = 2e-4
                         
@@ -1404,7 +1404,7 @@ def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=F
     axins.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=False, left=False)
     
     cbar = plt.colorbar(plotMo, cax=axins)
-    utils.autoAdjustCLim(plotMo)
+    RWAtmosUtils.autoAdjustCLim(plotMo)
     
     fig.subplots_adjust(hspace=0.3, right=0.8, left=0.2, top=0.94, bottom=0.15)
     
@@ -1588,7 +1588,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
               ax2.plot(field.t, np.real(RW_Mz_t_tab[id_wavefield_timeseries]), color=color, zorder=1, linestyle='--')
               ax2.tick_params(axis='y', labelcolor=color)
               
-              utils.align_yaxis_np([axs[iax],ax2])
+              RWAtmosUtils.align_yaxis_np([axs[iax],ax2])
             
             iax += 1
             plotMxz = axs[iax].imshow(np.flipud(np.real(Mxz).T), extent=[field.x[0]/1000., field.x[-1]/1000., field.z[0]/1000., field.z[-1]/1000.], aspect='auto')

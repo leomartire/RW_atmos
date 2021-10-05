@@ -7,18 +7,18 @@ import matplotlib
 # from pdb import set_trace as bp
 import sys 
 from multiprocessing import get_context
-from utils import sysErrHdl
+from RWAtmosUtils import sysErrHdl, earthsrExecutable
 import read_earth_io as reo
-import velocity_models, utils, RW_atmos
+import velocity_models, RWAtmosUtils, RW_atmos
 import inspect
 
-## display parameters
-font = {'size': 14}
-matplotlib.rc('font', **font)
+# ## display parameters
+# font = {'size': 14}
+# matplotlib.rc('font', **font)
 
-## To make sure that there is no bug when saving and closing the figures
-## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
-matplotlib.use('Agg')
+# ## To make sure that there is no bug when saving and closing the figures
+# ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
+# matplotlib.use('Agg')
 
 ## Generate velocity and option files to run earthsr
 def generate_model_for_earthsr(side, options):
@@ -179,7 +179,7 @@ def compute_dispersion_with_earthsr(no, side, options):
   ## Launch dispersion code
   #print(' model: ' + side['name'])
   # os.system('./bin/earthsr ' + 'input_code_earthsr')
-  sysErrHdl(sys.path[0]+'/bin/earthsr '+'input_code_earthsr')
+  sysErrHdl(earthsrExecutable+' '+'input_code_earthsr')
   print('****************************************************************')
 
 def move_dispersion_files(no, options):
@@ -194,7 +194,7 @@ def move_dispersion_files(no, options):
 def collect_dispersion_from_earthsr_and_save(nside, options):
   print('['+sys._getframe().f_code.co_name+'] Read earthsr output files.')
   
-  data_dispersion_file_fund   = utils.load(options['global_folder'] + 'disp_vconly.input_code_earthsr')
+  data_dispersion_file_fund = RWAtmosUtils.load(options['global_folder'] + 'disp_vconly.input_code_earthsr')
 
   data_dispersion = [{} for i in range(0, options['nb_modes'][1])]
   list_modes_side = [{} for j in range(0, options['nb_modes'][1])]
@@ -227,7 +227,7 @@ def collect_dispersion_from_earthsr_and_save(nside, options):
     if( len(current_struct[nmode]) > 0 ):
       current_struct[nmode]['fks'] = 1./current_struct[nmode]['period']
       
-  utils.save_dict(current_struct, options['global_folder'] + 'PARAM_dispersion.mat')
+  RWAtmosUtils.save_dict(current_struct, options['global_folder'] + 'PARAM_dispersion.mat')
   
   return current_struct
 
@@ -303,7 +303,7 @@ def compute_Green_functions(options_in = {}, ncpu=16):
   
     ###########################################
     ## Build right frequency and spatial ranges
-    options_loc = utils.determine_folders(options)
+    options_loc = RWAtmosUtils.determine_folders(options)
     options.update( options_loc )
 
     ##############################
