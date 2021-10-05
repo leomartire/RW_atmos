@@ -131,7 +131,7 @@ def create_velocity_model(options):
                 zover0, data = RWAtmosUtils.read_specfem2d_files(options)
         else:
                 sys.exit('Trying to load an external velocity model that is not supported: ' + options['type_model'])     
-                   
+        
         options['z'] = zover0.copy()
         z_interp, data_interp = discretize_model_heterogeneous(data, options)
 
@@ -205,7 +205,10 @@ def discretize_model_heterogeneous(data, options):
         #   options['nb_layers'] += 1
         #   z_interp = np.linspace(options['z'][0], options['zmax'], options['nb_layers'])
         # z_interp_interm = np.linspace(options['z'][0], options['z'][-1], 400)
-
+        
+        # For some reason, interpolate.interp1d fails when the given x is zero (because of np.nextafter). Introduce an offset to shift the interpolation.
+        offset = 1
+        
         ## Loop over models (CVMH/CVMS) and unknowns (rho/vs/vp)
         data_interp = {}
         for imodel in data:
@@ -229,8 +232,8 @@ def discretize_model_heterogeneous(data, options):
                         #f    = interpolate.interp1d(z_interp_interm, temp_interm, kind='previous')
                         #data_interp[imodel][iunknown] = f(z_interp)
                         
-                        f    = interpolate.interp1d(options['z'], temp, kind='next')
-                        temp_interm = f(z_interp)/1000.
+                        f    = interpolate.interp1d(options['z']+offset, temp, kind='next')
+                        temp_interm = f(z_interp+offset)/1000.
                         
                         data_interp[imodel][iunknown] = temp_interm
         
@@ -293,7 +296,7 @@ def plot_atmosphere_and_seismic_fromAtmosFile(save_folder, seismic, param_atmos_
   model = RWAtmosUtils.loadAtmosphericModel(param_atmos_file)
   plot_atmosphere_and_seismic(save_folder, seismic,
                               model['z'].values, model['rho'].values, model['cpa'].values, [model['wx'].values, model['wy'].values],
-                                [], False, # only useful if isothermal, and since we're using a file here there's no use to those two args
+                              [], False, # only useful if isothermal, and since we're using a file here there's no use to those two args
                               dimension)
   
 def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, H, isothermal, dimension, google_colab=False):
@@ -310,8 +313,11 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
   z  = seismic['z'].values/1000.
   zi = np.linspace(z[0], z[-1], 10000)
   
-  f = interpolate.interp1d(z, seismic['rho'].values/1000., kind='previous')
-  unknown = f(zi)
+  # For some reason, interpolate.interp1d fails when the given x is zero (because of np.nextafter). Introduce an offset to shift the interpolation.
+  offset = 1
+  
+  f = interpolate.interp1d(z+offset, seismic['rho'].values/1000., kind='previous')
+  unknown = f(zi+offset)
   axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
   axs[iax_row, iax].grid()
   axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -322,8 +328,8 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
   axs[iax_row, iax].invert_yaxis()
   
   iax += 1
-  f = interpolate.interp1d(z, seismic['vp'].values/1000., kind='previous')
-  unknown = f(zi)
+  f = interpolate.interp1d(z+offset, seismic['vp'].values/1000., kind='previous')
+  unknown = f(zi+offset)
   axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
   axs[iax_row, iax].grid()
   axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -333,8 +339,8 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
   axs[iax_row, iax].set_xlabel('$v_p$ (km/s)')
   
   iax += 1
-  f = interpolate.interp1d(z, seismic['vs'].values/1000., kind='previous')
-  unknown = f(zi)
+  f = interpolate.interp1d(z+offset, seismic['vs'].values/1000., kind='previous')
+  unknown = f(zi+offset)
   axs[iax_row, iax].plot(unknown, zi, color=colors[iax+iax_row*nb_cols])
   axs[iax_row, iax].grid()
   axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -388,7 +394,7 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
   
   
   iax += 1
-  unknown = wx/1000.
+  unknown = wx
   axs[iax_row, iax].plot(unknown, z, color=colors[iax+iax_row*nb_cols])
   if(not isothermal):
           axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
@@ -400,7 +406,7 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
                   axs[iax_row, iax].set_xlim([min(unknown.min(), unknown_.min()), max(unknown.max(), unknown_.max())])
   axs[iax_row, iax].grid()
   axs[iax_row, iax].tick_params(axis='both', which='both', labelleft=False)
-  axs[iax_row, iax].set_title('winds (km/s)')
+  axs[iax_row, iax].set_title('winds (m/s)')
   
   fig.subplots_adjust(hspace=0.3, right=0.95, left=0.2, top=0.9, bottom=0.15)
   
