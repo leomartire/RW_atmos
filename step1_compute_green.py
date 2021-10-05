@@ -2,17 +2,18 @@
 # -*- coding: utf-8 -*-
 
 import os
-import RW_dispersion
 # import mechanisms as mod_mechanisms
 # from obspy.core.utcdatetime import UTCDateTime
 # import matplotlib.pyplot as plt
 # from pyrocko import moment_tensor as mtm
 # from obspy.imaging.beachball import beach
-from utils import pickleDump, str2bool
 import sys
 # import numpy as np
 import shutil
 import argparse
+
+from utils import str2bool
+import wrappers
 
 def main():
   parser = argparse.ArgumentParser(description='Computes Green functions with earthsr.')
@@ -35,7 +36,7 @@ def main():
   # def__nbKXY = 2**6
   # freqs.add_argument('--nbKXY', type=int, default=def__nbKXY,
   #                    help=('Number of wavenumber points. Defaults to %d.' % (def__nbKXY)))
-  def__nbModes = [0, 50];
+  def__nbModes = [0, 50]
   freqs.add_argument('--nbModes', type=int, nargs=2, default=def__nbModes,
                      help=('Min/max number of modes to compute. Defaults to [%d, %d].' % (def__nbModes[0], def__nbModes[1])))
   
@@ -84,47 +85,7 @@ def main():
   options['chosen_model']      = 'specfem'
   options['USE_SPAWN_MPI'] = False 
   
-  # Check output path is free, make it if necessary.
-  if(os.path.isdir(output_path)):
-    if(forceOverwrite):
-      shutil.rmtree(output_path)
-      print('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_path+'\' existed and has been deleted, as required by script.')
-    else:
-      sys.exit('['+sys._getframe().f_code.co_name+'] Output files root folder \''+output_path+'\' exists, and script is not set to overwrite. Rename or delete it before running again.')
-  os.makedirs(output_path)
-  
-  # Store inputs.
-  shutil.copyfile(options['models']['specfem'], output_path+'seismic_model__specfem.txt')
-  options['models']['specfem'] = output_path+'seismic_model__specfem.txt' # Make sure we use the stored one (in case one needs to re-run using the stored "options_inp" file).
-  pickleDump(output_path+'options_inp.pkl', options)
-  
-  # Compute Green functions.
-  Green_RW, options_out_rw = RW_dispersion.compute_Green_functions(options, ncpu)
-  options.update(options_out_rw)
-  print(Green_RW)
-  
-  # Check output.
-  if(Green_RW.nb_freqs_actualforMode1<0.5*Green_RW.nb_freqs):
-    sys.exit('[%s] > Green functions object contains very few frequencies (%d) compared to what was asked (%d). Something went wrong.'
-             % (sys._getframe().f_code.co_name, Green_RW.nb_freqs_actualforMode1, Green_RW.nb_freqs))
-  
-  # Cleanup run.
-  output_path_run = output_path+'earthsrRun/'
-  if(not os.path.isdir(output_path_run)):
-    os.makedirs(output_path_run)
-  print('[%s] Cleaning up earthsr run.' % (sys._getframe().f_code.co_name))
-  for k in ['./input_code_earthsr', './ray', './tocomputeIO.input_code_earthsr', Green_RW.global_folder]:
-    # print('[%s] > Move \'%s/%s\' to \'%s\' using a Python function.'
-    #     % (sys._getframe().f_code.co_name, os.path.abspath(os.getcwd()), k, output_path_run))
-    # os.rename(os.path.abspath(os.getcwd())+'/'+k, output_path_run+k)
-    print('[%s] > Move \'%s\' to \'%s\' using a system command.'
-        % (sys._getframe().f_code.co_name, k, output_path_run))
-    os.system('mv '+k+' '+output_path_run)
-  Green_RW.global_folder = output_path_run+Green_RW.global_folder # Save the moved/stored folder.
-  
-  # Store outputs.
-  pickleDump(output_path+'Green_RW.pkl', Green_RW)
-  pickleDump(output_path+'options_out.pkl', options)
+  wrappers.computeGreen(output_path, ncpu, options, forceOverwrite=forceOverwrite)
 
 if __name__ == '__main__':
   main()
