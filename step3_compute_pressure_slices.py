@@ -38,11 +38,6 @@ def main():
   misc.add_argument('--doDumps', type=str2bool, choices=[True, False], default=True,
                       help='Do the dumps? Defaults to True.')
   
-  print('+------------------------------------------+')
-  print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
-  print('+------------------------------------------+')
-  t1 = time.time()
-  
   args = parser.parse_args()
   print(args)
   print(' ')
@@ -58,6 +53,11 @@ def main():
   
   if((not doPlots) and (not doDumps)):
     sys.exit('[%s, ERROR] Either doPlots or doDumps has to be activated.' % (sys._getframe().f_code.co_name))
+  
+  print('+------------------------------------------+')
+  print("| JOB START TIME = %s   |" % (datetime.now().strftime("%Y/%m/%d @ %H:%M:%S")))
+  print('+------------------------------------------+')
+  t1 = time.time()
   
   # Load Rayleigh wave field.
   RW_field = pickleLoad(RW_field_path)
