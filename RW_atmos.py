@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-# from pdb import set_trace as bp
+from pdb import set_trace as bp
 import sys 
 from pyrocko import moment_tensor as mtm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -1222,13 +1222,13 @@ class field_RW():
         def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True):
                 
                 # Extract location and component from station dict
-                x_in, y_in, z_in = [station_in[stat]['xs'] for stat in station_in], \
-                        [station_in[stat]['ys'] for stat in station_in], \
-                        [station_in[stat]['zs'] for stat in station_in]
-                comp_in = [station_in[stat]['comp'] for stat in station_in]
-                name_in = [station_in[stat]['name'] for stat in station_in]
-                # t_chosen_in = [station_in[stat]['t_chosen'] for stat in station_in]
-                id_in   = [station_in[stat]['id'] for stat in station_in]
+                x_in, y_in, z_in = [stat['xs'] for stat in station_in], \
+                                   [stat['ys'] for stat in station_in], \
+                                   [stat['zs'] for stat in station_in]
+                comp_in = [stat['comp'] for stat in station_in]
+                name_in = [stat['name'] for stat in station_in]
+                # t_chosen_in = [stat['t_chosen'] for stat in station_in]
+                id_in   = [stat['id'] for stat in station_in]
                 
                 # Setup progress bar
                 cptbar        = 0
@@ -1286,9 +1286,16 @@ class field_RW():
                                         for x in np.unique(x_in):
                                                 ix   = np.argmin( abs(self.x - x) )
                                                 for y in np.unique(y_in):
-                                                        iy = np.argmin( abs(self.y - y) )
-                                                        field_at_it_loc.append( np.real(field_at_it_[:, ix, iy]) )
-                                                        link_field_at_it_loc.append( {'x': x, 'y': y} )
+                                                  if(self.dimension==2):
+                                                    # 2D, no need to find y.
+                                                    field_at_it_loc.append( np.real(field_at_it_[:, ix]) )
+                                                  elif(self.dimension==3):
+                                                    iy = np.argmin( abs(self.y - y) )
+                                                    field_at_it_loc.append( np.real(field_at_it_[:, ix, iy]) )
+                                                  else:
+                                                    raise ValueError('[%s] Field dimension is %d, which is impossible.'
+                                                                     % (sys._getframe().f_code.co_name, self.dimension))
+                                                  link_field_at_it_loc.append( {'x': x, 'y': y} )
                                          
                                         del field_at_it_
                                          
@@ -1614,7 +1621,7 @@ def compute_analytical_acoustic(Green_RW, mechanism, param_atmos, station, domai
       print('['+sys._getframe().f_code.co_name+'] Compute time series at each stations.')
       create_timeseries_here = False
       Mz_t_tab, RW_Mz_t_tab, station_updated = field.compute_field_timeseries(station, create_timeseries_here = create_timeseries_here)
-      id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
+      # id_wavefield_timeseries = station_updated[id_wavefield]['id_field']
       if(not create_timeseries_here):
         for id_wavefield in station_updated:
           # Current field
