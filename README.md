@@ -16,3 +16,6 @@ Install `earthsr`:
 ```
 make install
 ```
+
+Make sure Python knows where earthsr is located.
+In `utils.py`, set `earthsrExecutable` to point to the full path to the earthsr executable.
