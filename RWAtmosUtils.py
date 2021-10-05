@@ -11,13 +11,15 @@ import sys
 import lzma
 import argparse
 
-## display parameters
-font = {'size': 14}
-matplotlib.rc('font', **font)
+# ## display parameters
+# font = {'size': 14}
+# matplotlib.rc('font', **font)
 
-## To make sure that there is no bug when saving and closing the figures
-## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
-matplotlib.use('Agg')
+# ## To make sure that there is no bug when saving and closing the figures
+# ## https://stackoverflow.com/questions/27147300/matplotlib-tcl-asyncdelete-async-handler-deleted-by-the-wrong-thread
+# matplotlib.use('Agg')
+
+earthsrExecutable = '/Users/lmartire/Documents/software/rw_atmos_leo/bin/earthsr'
 
 def str2bool(v):
     # Useful for argparse booleans.
@@ -52,8 +54,8 @@ def pickleLoad(fname):
 
 def loadAtmosphericModel(path):
   try:
-    model = pd.read_csv(path, delim_whitespace=True, header=None)
-    model.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
+    model = pd.read_csv(path, delim_whitespace=True)
+    # model.columns = ['z', 'rho', 'cpa', 'p', 'g', 'kappa', 'mu', 'bulk', 'wx', 'wy', 'cp', 'cv', 'gamma']
   except:
     sys.exit('[%s] Could not read atmospheric model file under the right format.' % (sys._getframe().f_code.co_name))
     # # Eventually try to read another format.
