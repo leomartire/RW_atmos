@@ -136,10 +136,10 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     xmin_, xmax_, dx_ = transform_domain_power2(xmin, xmax, dx)
     xmin, xmax, dx = xmin_, xmax_, dx_
     
-    # Transform domain to make y a power of two.
     if(dimension == 3):
       if(abs(dy) < 1e-5):
         dy = (ymax-ymin)/10 ## DEFAULT VALUE
+      # Transform domain to make y a power of two.
       ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
       ymin, ymax, dy = ymin_, ymax_, dy_
       yy   = np.arange(ymin, ymax, dy)
