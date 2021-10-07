@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-# from pdb import set_trace as bp
+from pdb import set_trace as bp
 from pyrocko import moment_tensor as mtm
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.geodetics.base import gps2dist_azimuth, degrees2kilometers, kilometer2degrees
@@ -71,6 +71,24 @@ def transform_domain_power2(xmin_in, xmax_in, dx):
     return xmin_, xmax_, dx_    
 
 def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lon_min_in_, dimension, nkxky = 2**6):
+    if(   type(nkxky)==int
+       or (type(nkxky)==list and len(nkxky)==1)):
+      nkxkyDifferent = False
+      nkx = nkxky
+      del nkxky
+    elif(type(nkxky)==list and len(nkxky)==2):
+      if(dimension==2):
+        raise ValueError('[%s] Cannot put two values for nkxky when dimension = 2.'
+                         % (sys._getframe().f_code.co_name))
+      else:
+        nkxkyDifferent = True
+        nkx = nkxky[0]
+        nky = nkxky[1]
+        del nkxky
+    else:
+      raise ValueError('[%s] nkxky must be a either: an integer, a list of length 1, or a list of length 2.'
+                       % (sys._getframe().f_code.co_name))
+    
     lat_max_in = lat_max_in_
     lat_min_in = lat_min_in_
     lon_max_in = lon_max_in_
@@ -102,7 +120,10 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
 
     # Compute dx dy as from chosen nkxky.
     # dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.
-    dx, dy = abs(lon_max-lon_min)/nkxky, abs(lat_max-lat_min)/nkxky
+    if(nkxkyDifferent):
+      dx, dy = abs(lon_max-lon_min)/nkx, abs(lat_max-lat_min)/nky
+    else:
+      dx, dy = abs(lon_max-lon_min)/nkx, abs(lat_max-lat_min)/nkx
     
     # Add a safety margin.
     factor = 0 # Margin in number of elements to be added to either side of the domain.
@@ -118,25 +139,24 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     #ymin, ymax, dy = ymin_, ymax_, dy_
     #int(2**nextpow2((xmax-xmin)/dx))
     
-    if dimension == 3:
-    
-            if abs(dy) < 1e-5:
-                    dy = (ymax-ymin)/10 ## DEFAULT VALUE
-            
-            
-            ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
-            ymin, ymax, dy = ymin_, ymax_, dy_
-    
-            yy   = np.arange(ymin, ymax, dy)
-            ymin = yy[0]
-            ymax = yy[-1]
-            loc_ = np.argmin(abs(yy))
-            if abs(yy[loc_]) < 1e-5:
-                    ymax -= yy[loc_]
-                    ymin -= yy[loc_]
+    if(dimension == 3):
+      if(abs(dy) < 1e-5):
+        dy = (ymax-ymin)/10 ## DEFAULT VALUE
+      ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
+      ymin, ymax, dy = ymin_, ymax_, dy_
+      yy   = np.arange(ymin, ymax, dy)
+      ymin = yy[0]
+      ymax = yy[-1]
+      loc_ = np.argmin(abs(yy))
+      if(abs(yy[loc_]) < 1e-5):
+        ymax -= yy[loc_]
+        ymin -= yy[loc_]
     
     ## OLD before Jul 13 2020
-    dx, dy = abs(xmax-xmin)/nkxky, abs(ymax-ymin)/nkxky
+    if(nkxkyDifferent):
+      dx, dy = abs(xmax-xmin)/nkx, abs(ymax-ymin)/nky
+    else:
+      dx, dy = abs(xmax-xmin)/nkx, abs(ymax-ymin)/nkx
     
     domain = {}
     domain.update( {'origin': (lat_source, lon_source)} )
