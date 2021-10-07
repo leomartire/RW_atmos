@@ -5,7 +5,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib
 # import matplotlib.pyplot as plt
-# from pdb import set_trace as bp
+from pdb import set_trace as bp
 import pickle
 import sys
 import lzma
@@ -68,37 +68,30 @@ def loadAtmosphericModel(path):
 #################################
 ## Routine to read SPECFEM models
 def read_specfem_files(options):
-        print('['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
-        
-        unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
-        # id_tab      = [1, 3, 2]
-
-        data = {}
-        zover0 = []
-        for imodel in options['models']:
-                data[imodel] = {}
-                #for unknown in unknown_tab:
-                temp   = pd.read_csv( options['models'][imodel], delim_whitespace=True, header=None )
-                temp.columns = ['z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
-                
-                if(temp['z'].iloc[0] > 0):
-                        temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
-                        temp_add.loc[0, 'z'] = 0.
-                        temp = pd.concat([temp_add, temp]).reset_index()
-                
-                temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
-                temp_add['z'].iloc[0] = 1.e7
-                
-                temp = pd.concat([temp, temp_add]).reset_index()
-                
-                zover0 = temp[ 'z' ].values
-                cpt_unknown = -1
-                for unknown in unknown_tab:
-                        cpt_unknown += 1
-                        data[imodel][unknown] = temp[ unknown ].values
-                        
-        
-        return zover0, data
+  print('['+sys._getframe().f_code.co_name+'] Read SPECFEM 1D models: '+str(options['models']))
+  data = {}
+  zover0 = []
+  for imodel in options['models']:
+    data[imodel] = {}
+    temp = pd.read_csv( options['models'][imodel], delim_whitespace=True)
+    
+    if(temp['z'].iloc[0] > 0):
+      temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
+      temp_add.loc[0, 'z'] = 0.
+      temp = pd.concat([temp_add, temp]).reset_index()
+    
+    temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
+    temp_add['z'].iloc[0] = 1.e7
+    
+    temp = pd.concat([temp, temp_add]).reset_index()
+    
+    zover0 = temp[ 'z' ].values
+    cpt_unknown = -1
+    unknown_tab = ['rho', 'vs', 'vp', 'Qp', 'Qs']
+    for unknown in unknown_tab:
+      cpt_unknown += 1
+      data[imodel][unknown] = temp[ unknown ].values
+  return(zover0, data)
         
 ####################################
 ## Routine to read SPECFEM 2d models
