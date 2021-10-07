@@ -488,52 +488,45 @@ def add_mechanism(x, type):
     
     return x
 
-def add_one_mecha(dict_mecha, template):
+def add_one_mecha(dict_mecha):
+  # Initialize new DataFrame entry with the right template.
+  source_characteristics = {}
+  template = ['EVID', '#YYY/MM/DD', 'HH:mm:SS.ss', 'ET', 'GT', 'MAG', 'M', 'LAT', 'LON', 
+              'DEPTH', 'Q', 'NPH', 'WRMS', 'ERHOR', 'ERDEP', 'ERTIME', 'STRIKE', 'DIP', 
+              'RAKE', 'FPUC', 'APUC', 'NPPL', 'MFRAC', 'FMQ', 'PROB', 'STDR', 'NSPR', 'MAVG']
+  for key in template:
+      source_characteristics[key] = np.nan
+  # Update relevant source parameters with the ones found in the user-defined dictionnary.
+  source_characteristics.update({
+    'EVID':        dict_mecha['id'],
+    '#YYY/MM/DD':  dict_mecha['time'].strftime('%Y/%m/%d'),
+    'HH:mm:SS.ss': dict_mecha['time'].strftime('%H:%M:%S.%f'),
+    'MAG':         dict_mecha['mag'],
+    'LAT':         dict_mecha['lat'],
+    'LON':         dict_mecha['lon'],
+    'DEPTH':       dict_mecha['depth'],
+    'STRIKE':      dict_mecha['strike'],
+    'DIP':         dict_mecha['dip'],
+    'RAKE':        dict_mecha['rake'],
+  })
+  return(pd.DataFrame([source_characteristics]))
 
-    ## Initialize new DataFrame entry
-    source_characteristics = {}
-    for key in template:
-        source_characteristics[key] = np.nan
-    
-    ## Update relevant source parameters    
-    source_characteristics.update( {
-            'EVID': dict_mecha['id'],
-            '#YYY/MM/DD': dict_mecha['time'].strftime('%Y/%m/%d'),
-            'HH:mm:SS.ss': dict_mecha['time'].strftime('%H:%M:%S.%f'),
-            'MAG': dict_mecha['mag'],
-            'LAT': dict_mecha['lat'],
-            'LON': dict_mecha['lon'],
-            'DEPTH': dict_mecha['depth'],
-            'STRIKE': dict_mecha['strike'],
-            'DIP': dict_mecha['dip'],
-            'RAKE': dict_mecha['rake'],
-        } )
-        
-    return pd.DataFrame([source_characteristics])
-
-def add_all_custom_mecha(sources, template):
-    
-    mechanisms_data_custom = pd.DataFrame()
-    for source in sources:
-        mechanisms_data_custom = mechanisms_data_custom.append( add_one_mecha(source, template) )
-        
-    return mechanisms_data_custom
+def add_all_custom_mecha(sources):
+  mechanisms_data_custom = pd.DataFrame()
+  for source in sources:
+    mechanisms_data_custom = mechanisms_data_custom.append(add_one_mecha(source))
+  return(mechanisms_data_custom)
 
 def load_raw_mecha(options_source):
-
-    mechanisms_data = pd.DataFrame()
-    for idir in options_source['DIRECTORY_MECHANISMS']:
-        mechanism_data = pd.read_csv(idir, header=[0], delim_whitespace=True)
-        mechanisms_data = mechanisms_data.append( mechanism_data )
-
-    ## Add mechanisms created by the user
-    template = ['EVID', '#YYY/MM/DD', 'HH:mm:SS.ss', 'ET', 'GT', 'MAG', 'M', 'LAT', 'LON', 
-                'DEPTH', 'Q', 'NPH', 'WRMS', 'ERHOR', 'ERDEP', 'ERTIME', 'STRIKE', 'DIP', 
-                'RAKE', 'FPUC', 'APUC', 'NPPL', 'MFRAC', 'FMQ', 'PROB', 'STDR', 'NSPR', 'MAVG']
-    mechanisms_data = mechanisms_data.append( add_all_custom_mecha(options_source['sources'], template) )
-    mechanisms_data.reset_index(drop=True, inplace=True)
-    
-    return mechanisms_data
+  mechanisms_data = pd.DataFrame()
+  # If a folder is specified, add mechanism from all the .csv files in that folder.
+  for idir in options_source['DIRECTORY_MECHANISMS']:
+    mechanism_data = pd.read_csv(idir, header=[0], delim_whitespace=True)
+    mechanisms_data = mechanisms_data.append( mechanism_data )
+  # Add mechanisms created by the user.
+  mechanisms_data = mechanisms_data.append( add_all_custom_mecha(options_source['sources']) )
+  mechanisms_data.reset_index(drop=True, inplace=True)
+  return(mechanisms_data)
 
 def load_source_mechanism_IRIS(options_source, options_IRIS, dimension =3, add_SAC=False, 
                                add_perturbations=False, specific_events=[], options_balloon={}):
@@ -550,7 +543,7 @@ def load_source_mechanism_IRIS(options_source, options_IRIS, dimension =3, add_S
             data = data.apply(compute_time, axis=1, args=[idir[1]])
             data_GPS = data_GPS.append( data.copy() )
 
-    ## Add mechanism from .csv files
+    ##
     mechanisms_data = load_raw_mecha(options_source)
     
     ## Update mechanism parameters and add perturbations
