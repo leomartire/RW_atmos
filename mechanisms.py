@@ -132,13 +132,11 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
     # zmax = 30000.
     
-    ## Transform domain to make x and y powers of two
+    # Transform domain to make x a power of two.
     xmin_, xmax_, dx_ = transform_domain_power2(xmin, xmax, dx)
-    #ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
     xmin, xmax, dx = xmin_, xmax_, dx_
-    #ymin, ymax, dy = ymin_, ymax_, dy_
-    #int(2**nextpow2((xmax-xmin)/dx))
     
+    # Transform domain to make y a power of two.
     if(dimension == 3):
       if(abs(dy) < 1e-5):
         dy = (ymax-ymin)/10 ## DEFAULT VALUE
