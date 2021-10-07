@@ -598,6 +598,8 @@ def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
                      transform=fig.axes[1].transAxes)
     name_file = 'freq_time_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.png'
     output_file = output_folder + name_file
+    fig.set_size_inches(16, 8)
+    fig.tight_layout()
     fig.savefig(output_file)
     plt.close('all')
 
