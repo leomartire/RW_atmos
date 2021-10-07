@@ -264,33 +264,34 @@ def prepare_atmospheric_model(file = './models/default_atmospheric_model.dat'):
   return(param_atmos)
         
 def read_csv_seismic(model, dimension, loc_source = 50000.):
-        print('['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
-        
-        temp   = pd.read_csv( model, delim_whitespace=True, header=None )
-        
-        print('['+sys._getframe().f_code.co_name+'] Model:')
-        print(temp)
-        
-        if(dimension == 1):
-                temp.columns = ['z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
-        else:
-                temp.columns = ['x', 'z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
-                x  = temp['x'].unique()
-                ix = np.argmin( abs(x - loc_source) )
-                x_chosen = x[ix]
-                temp = temp.loc[ temp['x'] == x_chosen, temp.columns != 'x' ].copy()
-                
-        if(temp['z'].iloc[0] > 0):
-                temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
-                temp_add.loc[0, 'z'] = 0.
-                temp = pd.concat([temp_add, temp]).reset_index()
-        
-        temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
-        temp_add['z'].iloc[0] = 1.e7
-        
-        temp = pd.concat([temp, temp_add]).reset_index()
-        
-        return temp
+  print('['+sys._getframe().f_code.co_name+'] Read model \''+model+'\'.')
+  
+  temp = pd.read_csv(model, delim_whitespace=True)
+  
+  print('['+sys._getframe().f_code.co_name+'] Model:')
+  print(temp)
+  
+  if(dimension == 1):
+    # temp.columns = ['z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
+    pass
+  else:
+    # temp.columns = ['x', 'z', 'rho', 'vp', 'vs', 'Qs', 'Qp']
+    x  = temp['x'].unique()
+    ix = np.argmin( abs(x - loc_source) )
+    x_chosen = x[ix]
+    temp = temp.loc[ temp['x'] == x_chosen, temp.columns != 'x' ].copy()
+  
+  if(temp['z'].iloc[0] > 0):
+    temp_add = temp.loc[ temp['z'] == temp['z'].min() ].copy()
+    temp_add.loc[0, 'z'] = 0.
+    temp = pd.concat([temp_add, temp]).reset_index()
+  
+  temp_add = temp.loc[ temp['z'] == temp['z'].max() ].copy()
+  temp_add['z'].iloc[0] = 1.e7
+  
+  temp = pd.concat([temp, temp_add]).reset_index()
+  
+  return(temp)
 
 def plot_atmosphere_and_seismic_fromAtmosFile(save_folder, seismic, param_atmos_file, dimension):
   model = RWAtmosUtils.loadAtmosphericModel(param_atmos_file)
