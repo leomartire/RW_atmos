@@ -14,6 +14,7 @@ import time
 from mpi4py import MPI
 import numpy as np
 from copy import deepcopy
+from pdb import set_trace as bp
 
 import RW_atmos
 import mechanisms as mod_mechanisms

@@ -1418,6 +1418,7 @@ def create_RW_field(Green_RW, domain, param_atmos, options, ncpus = 16, verbose=
     ybounds = [domain['ymin'], domain['ymax']]
     # dx, dy, dz = domain['dx'], domain['dy'], domain['dz']
     dx, dy = domain['dx'], domain['dy']
+    
     # z          = np.arange(domain['zmin'], domain['zmax'], dz)
     field = field_RW(Green_RW, nb_freq, dimension, dx, dy, xbounds, ybounds, mode_max, dimension_seismic, ncpus = ncpus)
     
