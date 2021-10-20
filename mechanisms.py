@@ -191,7 +191,7 @@ def compute_coordinate_USE(distances):
     
     return x, y
 
-def add_source_parameters(mechanism, options_source, dimension, data_GPS=pd.DataFrame()):
+def mechanism_addSourceDomain(mechanism, options_source, dimension, data_GPS=pd.DataFrame()):
     print('['+sys._getframe().f_code.co_name+'] Defining source and domain for event '+str(mechanism['EVID'])+'.')
 
     mechanism['stf']      = options_source['stf'] # gaussian or erf
@@ -561,15 +561,15 @@ def load_source_mechanism_IRIS(options_source, options_IRIS, dimension =3, add_S
         if(not mechanisms_data.size > 0):
             sys.exit('Requested mechanism IDs in "specific_events" not found')
             
-    mechanisms_data = mechanisms_data.apply(add_source_parameters, axis=1, args=[options_source, dimension, data_GPS])
+    mechanisms_data = mechanisms_data.apply(mechanism_addSourceDomain, axis=1, args=[options_source, dimension, data_GPS])
     if options_balloon:
         mechanisms_data = mechanisms_data.loc[ mechanisms_data['any_balloon'] == True, : ]
     
     if(add_perturbations):
         mechanism_data_min = mechanisms_data.apply(add_mechanism, axis=1, args=['min']) 
-        mechanism_data_min = mechanism_data_min.apply(add_source_parameters, axis=1, args=[options_source, dimension, data_GPS])
+        mechanism_data_min = mechanism_data_min.apply(mechanism_addSourceDomain, axis=1, args=[options_source, dimension, data_GPS])
         mechanism_data_max = mechanisms_data.apply(add_mechanism, axis=1, args=['max']) 
-        mechanism_data_max = mechanism_data_max.apply(add_source_parameters, axis=1, args=[options_source, dimension, data_GPS])
+        mechanism_data_max = mechanism_data_max.apply(mechanism_addSourceDomain, axis=1, args=[options_source, dimension, data_GPS])
         
         mechanisms_data = mechanisms_data.append( mechanism_data_min.copy() )
         mechanisms_data = mechanisms_data.append( mechanism_data_max.copy() )
