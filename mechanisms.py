@@ -80,7 +80,7 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
       del nkxky
     elif(type(nkxky)==list and len(nkxky)==2):
       if(dimension==2):
-        raise ValueError('[%s] Cannot put two values for nkxky when dimension = 2.'
+        raise ValueError('[%s] Cannot put two values for nkxky when dimension = 2. Specify only one number, for the one horizontal dimension.'
                          % (sys._getframe().f_code.co_name))
       else:
         nkxkyDifferent = True
@@ -242,9 +242,6 @@ def mechanism_addSourceDomain(mechanism, options_source, dimension, data_GPS=pd.
               latdiff = GPSCurrentBalloon.iloc[loc_time]['Lat'] - mechanism['LAT']
               lon_max = max( lon_max, np.sqrt(londiff**2 + latdiff**2) )
               lon_min = min( lon_min, np.sqrt(londiff**2 + latdiff**2) )
-            else:
-              raise ValueError('[%s] If you provide a "rotation" field to the options, you must provide a "rotation-towards" field too.'
-                               % (sys._getframe().f_code.co_name))
           else:
             lat_max = max( lat_max, (GPSCurrentBalloon.iloc[loc_time]['Lat'] - mechanism['LAT']) )
             lat_min = min( lat_min, (GPSCurrentBalloon.iloc[loc_time]['Lat'] - mechanism['LAT']) )
