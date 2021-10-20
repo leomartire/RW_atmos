@@ -119,10 +119,14 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     # Cast lat/lon_min/max in meters relative to source.
     # lat_max, lat_min = degrees2kilometers(lat_max_in)*1000., degrees2kilometers(lat_min_in)*1000.
     # lon_max, lon_min = degrees2kilometers(lon_max_in)*1000., degrees2kilometers(lon_min_in)*1000.
-    lat_min = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_min_in)[0][0]*1e3 * np.sign(lat_min_in)
-    lat_max = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_max_in)[0][0]*1e3 * np.sign(lat_max_in)
-    lon_min = rwau.haversine(lon_source, lat_source, lon_source+lon_min_in, lat_source)[0][0]*1e3 * np.sign(lon_min_in)
-    lon_max = rwau.haversine(lon_source, lat_source, lon_source+lon_max_in, lat_source)[0][0]*1e3 * np.sign(lon_max_in)
+    # lat_min = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_min_in)[0][0]*1e3 * np.sign(lat_min_in)
+    # lat_max = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_max_in)[0][0]*1e3 * np.sign(lat_max_in)
+    # lon_min = rwau.haversine(lon_source, lat_source, lon_source+lon_min_in, lat_source)[0][0]*1e3 * np.sign(lon_min_in)
+    # lon_max = rwau.haversine(lon_source, lat_source, lon_source+lon_max_in, lat_source)[0][0]*1e3 * np.sign(lon_max_in)
+    lat_min = gps2dist_azimuth(lat_source, lon_source, lat_source+lat_min_in, lon_source)[0] * np.sign(lat_min_in)
+    lat_max = gps2dist_azimuth(lat_source, lon_source, lat_source+lat_max_in, lon_source)[0] * np.sign(lat_max_in)
+    lon_min = gps2dist_azimuth(lat_source, lon_source, lat_source, lon_source+lon_min_in)[0] * np.sign(lon_min_in)
+    lon_max = gps2dist_azimuth(lat_source, lon_source, lat_source, lon_source+lon_max_in)[0] * np.sign(lon_max_in)
 
     # Compute dx dy as from chosen nkxky.
     # dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.

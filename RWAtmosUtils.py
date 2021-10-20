@@ -52,25 +52,6 @@ def pickleLoad(fname):
     var = pickle.load(handle)
   return(var)
 
-def haversine_parseArgs(x):
-  if(type(x)==float or type(x)==np.float64):
-    return(np.array([x]))
-  elif(type(x)==np.ndarray):
-    return(x)
-  else:
-    raise ValueError('[%s] Don''t know what to do with that input.' 
-                     % (sys._getframe().f_code.co_name))
-def haversine(lon1, lat1, lon2, lat2):
-  lon1, lat1, lon2, lat2 = map(haversine_parseArgs, [lon1, lat1, lon2, lat2])
-  lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
-  dlon = lon2 - lon1[:,None]
-  dlat = lat2 - lat1[:,None]
-  # a = np.sin(dlat/2.0)**2 + np.cos(lat1[:,None]) * np.cos(lat2) * np.sin(dlon/2.0)**2
-  # c = 2 * np.arcsin(np.sqrt(a))
-  # km = 6378.137 * c
-  km = 6378.137 * 2 * np.arcsin(np.sqrt(np.sin(dlat/2.0)**2 + np.cos(lat1[:,None]) * np.cos(lat2) * np.sin(dlon/2.0)**2))
-  return(km)
-
 def loadAtmosphericModel(path):
   try:
     model = pd.read_csv(path, delim_whitespace=True)
