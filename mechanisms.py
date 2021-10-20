@@ -12,6 +12,8 @@ from pyrocko.moment_tensor import rotation_from_angle_and_axis
 from obspy.clients.fdsn import Client
 import sys
 
+import RWAtmosUtils as rwau
+
 # import matplotlib.colors as colors
 # from mpl_toolkits.axes_grid1 import make_axes_locatable
 # from pyrocko import moment_tensor as mtm
@@ -100,23 +102,27 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     # if(abs(lon_min_in-lon_max_in) < 1e-3):
     #   # If range is too small, lower lower bound.
     #   lon_min_in -= 0.1
-    # Check input.
-    diff_y = abs(lat_max_in_ - lat_min_in_)
-    diff_x = abs(lon_max_in_ - lon_min_in_)
-    if diff_y < 0.25:
-      # If range is too small, increase symmetrically.
-      lat_max_in = lat_max_in_ + diff_y/2.
-      lat_min_in = lat_min_in_ - diff_y/2.
-    if diff_x < 0.25:
-      # If range is too small, increase symmetrically.
-      lon_max_in = lon_max_in_ + diff_x/2.
-      lon_min_in = lon_min_in_ - diff_x/2.
+    # # Check input.
+    # diff_y = abs(lat_max_in_ - lat_min_in_)
+    # diff_x = abs(lon_max_in_ - lon_min_in_)
+    # if diff_y < 0.25:
+    #   # If range is too small, increase symmetrically.
+    #   lat_max_in = lat_max_in_ + diff_y/2.
+    #   lat_min_in = lat_min_in_ - diff_y/2.
+    # if diff_x < 0.25:
+    #   # If range is too small, increase symmetrically.
+    #   lon_max_in = lon_max_in_ + diff_x/2.
+    #   lon_min_in = lon_min_in_ - diff_x/2.
     
     # dlon, dlat = abs(lon_max_in-lon_min_in)/dchosen, abs(lat_max_in-lat_min_in)/dchosen
 
     # Cast lat/lon_min/max in meters relative to source.
-    lat_max, lat_min = degrees2kilometers(lat_max_in)*1000., degrees2kilometers(lat_min_in)*1000.
-    lon_max, lon_min = degrees2kilometers(lon_max_in)*1000., degrees2kilometers(lon_min_in)*1000.
+    # lat_max, lat_min = degrees2kilometers(lat_max_in)*1000., degrees2kilometers(lat_min_in)*1000.
+    # lon_max, lon_min = degrees2kilometers(lon_max_in)*1000., degrees2kilometers(lon_min_in)*1000.
+    lat_min = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_min_in)[0][0]*1e3 * np.sign(lat_min_in)
+    lat_max = rwau.haversine(lon_source, lat_source, lon_source, lat_source+lat_max_in)[0][0]*1e3 * np.sign(lat_max_in)
+    lon_min = rwau.haversine(lon_source, lat_source, lon_source+lon_min_in, lat_source)[0][0]*1e3 * np.sign(lon_min_in)
+    lon_max = rwau.haversine(lon_source, lat_source, lon_source+lon_max_in, lat_source)[0][0]*1e3 * np.sign(lon_max_in)
 
     # Compute dx dy as from chosen nkxky.
     # dx, dy, dz = abs(lon_max-lon_min)/dchosen, abs(lat_max-lat_min)/dchosen, 200.
@@ -125,30 +131,37 @@ def get_domain(lat_source, lon_source, lat_max_in_, lat_min_in_, lon_max_in_, lo
     else:
       dx, dy = abs(lon_max-lon_min)/nkx, abs(lat_max-lat_min)/nkx
     
-    # Add a safety margin.
-    factor = 0 # Margin in number of elements to be added to either side of the domain.
-    dshift = 0. # Margin in m to be added to either side of the domain.
-    xmin, xmax = lon_min - factor*dy - dshift, lon_max + factor*dy + dshift
-    ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
-    # zmax = 30000.
+    # # Add a safety margin.
+    # factor = 0 # Margin in number of elements to be added to either side of the domain.
+    # dshift = 0. # Margin in m to be added to either side of the domain.
+    # xmin, xmax = lon_min - factor*dy - dshift, lon_max + factor*dy + dshift
+    # ymin, ymax = lat_min - factor*dx - dshift, lat_max + factor*dx + dshift
+    # # zmax = 30000.
+    xmin, xmax = lon_min, lon_max
+    ymin, ymax = lat_min, lat_max
     
-    # Transform domain to make x a power of two.
-    xmin_, xmax_, dx_ = transform_domain_power2(xmin, xmax, dx)
-    xmin, xmax, dx = xmin_, xmax_, dx_
+    # # Transform domain to make x a power of two.
+    # xmin_, xmax_, dx_ = transform_domain_power2(xmin, xmax, dx)
+    # xmin, xmax, dx = xmin_, xmax_, dx_
     
+    # Check y span (only if using 3D).
     if(dimension == 3):
       if(abs(dy) < 1e-5):
-        dy = (ymax-ymin)/10 ## DEFAULT VALUE
-      # Transform domain to make y a power of two.
-      ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
-      ymin, ymax, dy = ymin_, ymax_, dy_
-      yy   = np.arange(ymin, ymax, dy)
-      ymin = yy[0]
-      ymax = yy[-1]
-      loc_ = np.argmin(abs(yy))
-      if(abs(yy[loc_]) < 1e-5):
-        ymax -= yy[loc_]
-        ymin -= yy[loc_]
+        # dy = (ymax-ymin)/10 ## DEFAULT VALUE
+        raise ValueError('[%s] y span is too small.'
+                         % (sys._getframe().f_code.co_name))
+      # # Transform domain to make y a power of two.
+      # ymin_, ymax_, dy_ = transform_domain_power2(ymin, ymax, dy)
+      # ymin, ymax, dy = ymin_, ymax_, dy_
+      
+      # # Make mid point exactly zero.
+      # yy   = np.arange(ymin, ymax, dy)
+      # ymin = yy[0]
+      # ymax = yy[-1]
+      # loc_ = np.argmin(abs(yy))
+      # if(abs(yy[loc_]) < 1e-5):
+      #   ymax -= yy[loc_]
+      #   ymin -= yy[loc_]
     
     ## OLD before Jul 13 2020
     if(nkxkyDifferent):
@@ -179,7 +192,6 @@ def compute_coordinate_USE(distances):
     return x, y
 
 def add_source_parameters(mechanism, options_source, dimension, data_GPS=pd.DataFrame()):
-
     print('['+sys._getframe().f_code.co_name+'] Defining source and domain for event '+str(mechanism['EVID'])+'.')
 
     mechanism['stf']      = options_source['stf'] # gaussian or erf
@@ -298,7 +310,6 @@ def add_source_parameters(mechanism, options_source, dimension, data_GPS=pd.Data
     ## If domain too large we have to reduce the high frequency bound otherwise aliasing
     dist_x = abs( mechanism['domain']['xmax'] - mechanism['domain']['xmin'] )
     dist_y = abs( mechanism['domain']['ymax'] - mechanism['domain']['ymin'] )
-    
     ## Ugly hack to update frequency range if propagation path too long
     if data_GPS.size > 0:
         if (dist_x/1000. >= 100. or dist_y/1000. >= 100.) and sub_df.iloc[loc_time]['Alt']/1000. > 10.:
@@ -308,7 +319,7 @@ def add_source_parameters(mechanism, options_source, dimension, data_GPS=pd.Data
             
     ## Changed on 2/1/2021
     mechanism['coef_high_freq'] = options_source['coef_high_freq']
-
+    
     return(mechanism)
 
 def compute_time(x, startdate):
