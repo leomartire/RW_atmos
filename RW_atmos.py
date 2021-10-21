@@ -659,7 +659,7 @@ class field_RW():
             out = out + ('|   TFMo: %d*%d*%d meshgrid for Fourier transform of bottom forcing\n'
                          % self.Mo.shape)
           else:
-            out = out + ('|   Omega, KX, KY: %d*%d meshgrid (frequency, x)\n'
+            out = out + ('|   Omega, KX: %d*%d meshgrid (frequency, x)\n'
                          % self.KX.shape)
             out = out + ('| Forcing:                      |\n')
             out = out + ('|   Mo:   %d*%d meshgrid for bottom forcing\n'
@@ -707,11 +707,24 @@ class field_RW():
                         ymin, ymax = ybounds[0], ybounds[1]
                 
                 # Define frequency/wavenumber boundaries
-                NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
+                # NFFT1 = int(2**nextpow2((xmax-xmin)/dx_anal)*mult_xSpan)
+                NFFT1 = int(mult_xSpan * (xmax-xmin)/dx_anal)
                 NFFT2 = len(t)
                 # NFFT2 = Green_RW.nb_freqs_actualforMode1 # Using the updated frequencies.
                 if(dimension > 2):
-                        NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
+                  # NFFT3 = int(2**nextpow2((ymax-ymin)/dy_anal)*mult_ySpan)
+                  NFFT3 = int(mult_ySpan * (ymax-ymin)/dy_anal)
+                
+                # Check if even numbers.
+                if(NFFT1%2==1):
+                  raise ValueError('[%s] NFFT1 (related to the x vector) is odd. This will cause problems later. Make sure dx is such that NFFT1 is even.'
+                                   % (sys._getframe().f_code.co_name))
+                if(NFFT2%2==1):
+                  raise ValueError('[%s] NFFT2 (related to the t vector) is odd. This will cause problems later. Make sure t has an even length.'
+                                   % (sys._getframe().f_code.co_name))
+                if(dimension > 2 and NFFT3%2==1):
+                  raise ValueError('[%s] NFFT3 (related to the y vector) is odd. This will cause problems later. Make sure dy is such that NFFT1 is even.'
+                                   % (sys._getframe().f_code.co_name))
                 
                 # Define corresponding time and spatial arrays
                 x = np.linspace(xmin, xmax, NFFT1)
@@ -765,7 +778,8 @@ class field_RW():
                 #   Mo = temp[1].reshape( (temp[1].shape[0], PHI.size) )
                 if(np.all(np.isnan(Mo))):
                   # Safeguard.
-                  sys.exit('[%s, ERROR] All values in the Rayleigh wave forcing are NaNs. Something went terribly wrong.' % (sys._getframe().f_code.co_name))
+                  sys.exit('[%s, ERROR] All values in the Rayleigh wave forcing are NaNs. Something went terribly wrong.'
+                           % (sys._getframe().f_code.co_name))
                 
                 # Store forcing parameters
                 self.Mo = Mo
