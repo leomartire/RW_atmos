@@ -401,7 +401,7 @@ def plot_atmosphere_and_seismic(save_folder, seismic, z_atmos, rho, cpa, winds, 
           axs[iax_row, iax].set_xlim([unknown.min(), unknown.max()])
   axs[iax_row, iax].set_ylim([z.min(), z.max()])
   if(dimension > 2):
-          unknown_ = wy/1000.
+          unknown_ = wy
           axs[iax_row, iax].plot(unknown_, z)
           if(not isothermal):
                   axs[iax_row, iax].set_xlim([min(unknown.min(), unknown_.min()), max(unknown.max(), unknown_.max())])
