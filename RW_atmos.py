@@ -553,55 +553,54 @@ class RW_forcing():
             
             return (t, ifft_RW)
 
-def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options):
+def generate_one_timeseries(t, Mz_t, RW_Mz_t, comp, iz, iy, ix, stat, options, outputToFile=True, makePlot=True):
     output_folder = options['output_folder']
     
-    # Save waveforms     
-    df = pd.DataFrame()
-    df['t']  = t
-    df[comp] = np.real(Mz_t)
-    name_file = 'waveform_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
-    output_file = output_folder+name_file
-    df.to_csv(output_file, index=False)
-    print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
+    # Time series asked by user.
+    ts_comp = pd.DataFrame()
+    ts_comp['t']  = t
+    ts_comp[comp] = np.real(Mz_t)
+    if(outputToFile):
+      name_file = 'waveform_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
+      output_file = output_folder+name_file
+      ts_comp.to_csv(output_file, index=False)
+      print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
     
-    # Deallocate
-    df = None
+    # Rayleigh wave time series.
+    ts_rw = pd.DataFrame()
+    ts_rw['t']  = t
+    ts_rw['vz'] = np.real(RW_Mz_t)
+    if(outputToFile):
+      name_file = 'RW_waveform_z0_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
+      output_file = output_folder+name_file
+      ts_rw.to_csv(output_file, index=False)
+      print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
     
-    df = pd.DataFrame()
-    df['t']  = t
-    df['vz'] = np.real(RW_Mz_t)
-    name_file = 'RW_waveform_z0_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.csv'
-    output_file = output_folder+name_file
-    df.to_csv(output_file, index=False)
-    print('[%s] Save waveform to \'%s\'.' % (sys._getframe().f_code.co_name, output_file))
-    
-    # Deallocate
-    df = None
-    
-    # Create frequency/time plot
-    #freq_min, freq_max = Green_RW.f0/10., Green_RW.f0*2.
-    freq_min, freq_max = options['coef_low_freq'], options['coef_high_freq']
-    tr   = RWAtmosUtils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
-    fig = plot_tfr(tr.data, dt=tr.stats.delta,
-                   fmin=freq_min, fmax=freq_max,
-                   w0=4., nf=64, fft_zero_pad_fac=4,
-                   show=False, t0=0.,
-                   left=0.16, bottom=0.12, w_2=0.5, )
-    fig.axes[0].grid()
-    fig.axes[0].set_xlabel('Time (s)')
-    fig.axes[2].grid()
-    fig.axes[2].set_ylabel('Frequency (Hz)')
-    fig.axes[1].text(0.1, 1.08, 'E = '+str(round(ix/1000.,1))+' S = '+str(round(iy/1000.,1))+' U = '+str(round(iz/1000.,1)) +' km',
-                     horizontalalignment='center', verticalalignment='center',
-                     bbox=dict(facecolor='w', edgecolor='black', pad=4.0),
-                     transform=fig.axes[1].transAxes)
-    name_file = 'freq_time_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.png'
-    output_file = output_folder + name_file
-    fig.set_size_inches(16, 8)
-    fig.tight_layout()
-    fig.savefig(output_file)
-    plt.close('all')
+    if(makePlot):
+      # Create frequency/time plot.
+      #freq_min, freq_max = Green_RW.f0/10., Green_RW.f0*2.
+      freq_min, freq_max = options['coef_low_freq'], options['coef_high_freq']
+      tr   = RWAtmosUtils.generate_trace(t, np.real(Mz_t), freq_min, freq_max)
+      fig = plot_tfr(tr.data, dt=tr.stats.delta,
+                     fmin=freq_min, fmax=freq_max,
+                     w0=4., nf=64, fft_zero_pad_fac=4,
+                     show=False, t0=0.,
+                     left=0.16, bottom=0.12, w_2=0.5, )
+      fig.axes[0].grid()
+      fig.axes[0].set_xlabel('Time (s)')
+      fig.axes[2].grid()
+      fig.axes[2].set_ylabel('Frequency (Hz)')
+      fig.axes[1].text(0.1, 1.08, 'E = '+str(round(ix/1000.,1))+' S = '+str(round(iy/1000.,1))+' U = '+str(round(iz/1000.,1)) +' km',
+                       horizontalalignment='center', verticalalignment='center',
+                       bbox=dict(facecolor='w', edgecolor='black', pad=4.0),
+                       transform=fig.axes[1].transAxes)
+      name_file = 'freq_time_'+comp+'_'+str(stat)+'_'+str(round(ix/1000.,1))+'_'+str(round(iy/1000.,1))+'_'+str(round(iz/1000.,1))+'.png'
+      output_file = output_folder + name_file
+      fig.set_size_inches(16, 8)
+      fig.tight_layout()
+      fig.savefig(output_file)
+      plt.close('all')
+    return(ts_comp, ts_rw)
 
 class field_RW():
         
@@ -1242,7 +1241,9 @@ class field_RW():
                   elif(type_slice == 'xy'):
                     return Mz_xy, timeseries
                                 
-        def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True, output_folder='.'):
+        def compute_field_timeseries(self, station_in, merged_computation = False, create_timeseries_here = True,
+                                     output_folder='.',
+                                     TSMakeFile=True, TSMakePlot=True):
           print('[%s] Building time series.' % (sys._getframe().f_code.co_name))
           
           # Extract location and component from station dict
@@ -1375,19 +1376,25 @@ class field_RW():
                   options_in['coef_high_freq'] = self.coef_low_freq[-1]
                   options_in['output_folder']  = output_folder
                   if(self.dimension==2):
-                    generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix]), comp_aux, z, y, x, name, options_in)
+                    (ts_comp, ts_rw) = generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix]),
+                                                               comp_aux, z, y, x, name, options_in,
+                                                               outputToFile=TSMakeFile, makePlot=TSMakePlot)
                   elif(self.dimension==3):
-                    generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]), comp_aux, z, y, x, name, options_in)
+                    (ts_comp, ts_rw) = generate_one_timeseries(self.t, Mz, np.real(self.Mo[:, ix, iy]),
+                                                               comp_aux, z, y, x, name, options_in,
+                                                               outputToFile=TSMakeFile, makePlot=TSMakePlot)
                   else:
                     raise ValueError('[%s] Field dimension is %d, which is impossible.'
                                      % (sys._getframe().f_code.co_name, self.dimension))
+                else:
+                  ts_comp, ts_rw = None, None
               
               # if(merged_computation):
               #   del field_at_it, field_at_it_p
               # elif(z > 0):
               #   del field_at_it_
               
-          return(Mz, Mo, station_tab)
+          return(Mz, Mo, station_tab, ts_comp, ts_rw)
 
 def plot_surface_forcing(field, t_station, ix, iy, output_folder, GOOGLE_COLAB=False):
     print('['+sys._getframe().f_code.co_name+'] Plot the Rayleigh wave surface forcing at t='+str(t_station)+'.')
